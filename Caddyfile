@@ -1,9 +1,7 @@
 ublochat.com.br {
     # Webhook route - Proxy to NodeJS Backend
-    handle_path /webhook/* {
-        uri strip_prefix /webhook
-        rewrite * /webhook{uri}
-        reverse_proxy app_backend:3001
+    handle /webhook/* {
+        reverse_proxy ublochat_backend:3001
     }
 
     # Allow direct backend access if needed (optional, keeping it safe for now)

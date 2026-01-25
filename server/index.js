@@ -602,6 +602,12 @@ app.post('/webhook/evolution', async (req, res) => {
     }
 });
 
-app.listen(PORT, () => {
+// Health Check
+app.get('/', (req, res) => {
+    res.send('Backend Online 🚀');
+});
+
+// Bind to 0.0.0.0 to allow access from Docker/Caddy
+app.listen(PORT, '0.0.0.0', () => {
     console.log(`Servidor rodando na porta ${PORT}`);
 });
