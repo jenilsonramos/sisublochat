@@ -1,0 +1,7 @@
+{
+  "name": "EvolutionAPI",
+  "description": "A high-performance management dashboard for Evolution API instances, featuring real-time analytics, instance control, and responsive dark/light mode support.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}

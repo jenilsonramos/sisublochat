@@ -1,0 +1,47 @@
+version: '3.8'
+
+services:
+  # O Backend (Node.js) que recebe os Webhooks para salvar mensagens
+  app_backend:
+    build: 
+      context: ./server
+    container_name: ublochat_backend
+    restart: always
+    ports:
+      - "3001:3001"
+    environment:
+      - PORT=3001
+      - DB_TYPE=postgres
+      # Conecta na rede interna do Docker (nome do serviço do banco no seu outro docker-compose, ex: supabase_db)
+      # Se estiverem na mesma rede, use o nome do container.
+      # Se estiver usando IP público, use o IP. 
+      # RECOMENDO: Usar o IP EXTERNO da VPS por enquanto para garantir conexão, ou configurar a rede 'ublochatnet'.
+      - DB_HOST=172.17.0.1  # IP do Host Gateway (tenta conectar no host)
+      - DB_PORT=54321       # Porta Externa que abrimos
+      - DB_USER=supabase_admin
+      - DB_PASS=967d7e6b537be56e6677b96a606c7d8b
+      - DB_NAME=postgres
+      - JWT_SECRET=super-secret-key-123-change-this-later
+    networks:
+      - ublochatnet
+
+  # O Frontend (Site Visual)
+  app_frontend:
+    build:
+      context: .
+      args:
+        # Coloque aqui as variáveis que estão no seu .env.local
+        - VITE_SUPABASE_URL=https://banco.ublochat.com.br
+        - VITE_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.ewogICJyb2xlIjogImFub24iLAogICJpc3MiOiAic3VwYWJhc2UiLAogICJpYXQiOiAxNzE1MDUwODAwLAogICJleHAiOiAxODcyODE3MjAwCn0.-Ju74JE1Hpyg5-f8Naz5qkgGNLOAx5PwEx96R3B8yW8
+        - VITE_EVOLUTION_API_URL=https://api.ublochat.com.br
+        - VITE_EVOLUTION_API_KEY=f534ab200345bc2b35ef679dde6e61ec
+    container_name: ublochat_frontend
+    restart: always
+    ports:
+      - "3000:80" # Site acessível na porta 3000 (ou mude para 80 se tiver IP dedicado)
+    networks:
+      - ublochatnet
+
+networks:
+  ublochatnet:
+    external: true # Usa a mesma rede que você criou para o Supabase/Evolution
