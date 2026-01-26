@@ -55,7 +55,7 @@ export const evolutionApi = {
 
         // Auto-configure Webhook for this instance
         try {
-            const webhookUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/evolution-webhook`;
+            const webhookUrl = `https://rormftnssmqwcluvlszg.supabase.co/functions/v1/evolution-webhook`;
             console.log('Configuring Webhook:', webhookUrl);
             await api.post(`/webhook/set/${encodeURIComponent(instanceName)}`, {
                 webhook: {
@@ -82,7 +82,7 @@ export const evolutionApi = {
 
     // Set Webhook Manual
     setWebhook: async (instanceName: string, enabled: boolean = true) => {
-        const webhookUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/evolution-webhook`;
+        const webhookUrl = `https://rormftnssmqwcluvlszg.supabase.co/functions/v1/evolution-webhook`;
         const payload = {
             webhook: {
                 enabled,
