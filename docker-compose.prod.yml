@@ -12,18 +12,32 @@ services:
     environment:
       - PORT=3001
       - DB_TYPE=postgres
-      # Conecta na rede interna do Docker (nome do serviço do banco no seu outro docker-compose, ex: supabase_db)
-      # Se estiverem na mesma rede, use o nome do container.
-      # Se estiver usando IP público, use o IP. 
-      # RECOMENDO: Usar o IP EXTERNO da VPS por enquanto para garantir conexão, ou configurar a rede 'ublochatnet'.
-      - DB_HOST=172.17.0.1  # IP do Host Gateway (tenta conectar no host)
-      - DB_PORT=5432        # Porta Padrão do Postgres (Produção)
+      # Conexão Interna com o banco Postgres abaixo
+      - DB_HOST=postgres_db
+      - DB_PORT=5432
       - DB_USER=supabase_admin
       - DB_PASS=967d7e6b537be56e6677b96a606c7d8b
       - DB_NAME=postgres
     networks:
       - ublochatnet
-    # O Frontend (Site Visual)
+    depends_on:
+      - postgres_db
+
+  # Banco de Dados (Postgres)
+  postgres_db:
+    image: postgres:15-alpine
+    container_name: ublochat_db
+    restart: always
+    environment:
+      POSTGRES_USER: supabase_admin
+      POSTGRES_PASSWORD: 967d7e6b537be56e6677b96a606c7d8b
+      POSTGRES_DB: postgres
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - ublochatnet
+
+  # Frontend
   app_frontend:
     build:
       context: .
@@ -39,7 +53,7 @@ services:
     networks:
       - ublochatnet
 
-  # Proxy Reverso e SSL Automático (Caddy)
+  # Caddy
   caddy:
     image: caddy:latest
     container_name: ublochat_caddy
@@ -53,10 +67,14 @@ services:
       - caddy_config:/config
     networks:
       - ublochatnet
+    depends_on:
+      - app_frontend
+      - app_backend
 
 volumes:
   caddy_data:
   caddy_config:
+  postgres_data:  # Volume persistente do banco
 
 networks:
   ublochatnet:
