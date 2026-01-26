@@ -448,11 +448,40 @@ function UserManagement() {
     };
 
     const fetchUsers = async () => {
-        const { data } = await supabase
-            .from('profiles')
-            .select('*, subscriptions(plan_id, plans(name))')
-            .order('created_at', { ascending: false });
-        setUsers(data || []);
+        try {
+            const { data, error } = await supabase
+                .from('profiles')
+                .select(`
+                    *,
+                    subscriptions (
+                        plan_id,
+                        plans (
+                            name
+                        )
+                    )
+                `)
+                .order('created_at', { ascending: false });
+
+            if (error) {
+                console.error('Error fetching users:', error);
+                // Try simpler fetch without joins if join fails
+                const { data: simpleData, error: simpleError } = await supabase
+                    .from('profiles')
+                    .select('*')
+                    .order('created_at', { ascending: false });
+
+                if (simpleError) {
+                    showToast('Erro ao carregar usuários: ' + simpleError.message, 'error');
+                } else {
+                    setUsers(simpleData || []);
+                }
+            } else {
+                setUsers(data || []);
+            }
+        } catch (err: any) {
+            console.error('Unexpected error:', err);
+            showToast('Erro inesperado ao carregar usuários', 'error');
+        }
     };
 
     const fetchPlans = async () => {
@@ -511,7 +540,12 @@ function UserManagement() {
         }
     };
 
-    const filteredUsers = users.filter(u => u.email.toLowerCase().includes(search.toLowerCase()) || u.full_name?.toLowerCase().includes(search.toLowerCase()));
+    const filteredUsers = users.filter(u => {
+        const email = u.email?.toLowerCase() || '';
+        const name = u.full_name?.toLowerCase() || '';
+        const s = search.toLowerCase();
+        return email.includes(s) || name.includes(s);
+    });
 
     return (
         <div className="space-y-6">
