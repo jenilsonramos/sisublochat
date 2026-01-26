@@ -42,7 +42,7 @@ services:
     build:
       context: .
       args:
-        - VITE_SUPABASE_URL=http://localhost:54321
+        - VITE_SUPABASE_URL=https://banco.ublochat.com.br
         - VITE_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.ewogICJyb2xlIjogImFub24iLAogICJpc3MiOiAic3VwYWJhc2UiLAogICJpYXQiOiAxNzE1MDUwODAwLAogICJleHAiOiAxODcyODE3MjAwCn0.-Ju74JE1Hpyg5-f8Naz5qkgGNLOAx5PwEx96R3B8yW8
         - VITE_EVOLUTION_API_URL=https://api.ublochat.com.br
         - VITE_EVOLUTION_API_KEY=f534ab200345bc2b35ef679dde6e61ec
