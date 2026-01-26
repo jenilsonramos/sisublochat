@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Book, Code, Terminal, Key, Globe, MessageSquare, Webhook, Copy, Check } from 'lucide-react';
+import { Book, Code, Terminal, Key, Globe, MessageSquare, Webhook, Copy, Check, Clock } from 'lucide-react';
 import { useToast } from '../components/ToastProvider';
 
 const ApiDocsView: React.FC = () => {
@@ -65,6 +65,8 @@ const ApiDocsView: React.FC = () => {
                         <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-6">Tópicos</h3>
                         {[
                             { id: 'auth', label: 'Autenticação', icon: <Key className="w-4 h-4" /> },
+                            { id: 'greeting', label: 'Saudações', icon: <Book className="w-4 h-4" /> },
+                            { id: 'hours', label: 'Horários', icon: <Clock className="w-4 h-4" /> },
                             { id: 'send', label: 'Enviar Mensagem', icon: <MessageSquare className="w-4 h-4" /> },
                             { id: 'webhooks', label: 'Webhooks', icon: <Webhook className="w-4 h-4" /> }
                         ].map((item) => (
@@ -100,7 +102,41 @@ const ApiDocsView: React.FC = () => {
                         </div>
                     </section>
 
-                    {/* Sending Messages */}
+                    {/* Greeting Messages */}
+                    <section id="greeting" className="space-y-6">
+                        <div className="flex items-center gap-4">
+                            <div className="w-10 h-10 bg-emerald-500 rounded-xl flex items-center justify-center text-white shadow-lg">
+                                <Book className="w-5 h-5" />
+                            </div>
+                            <h2 className="text-2xl font-black dark:text-white">Saudações Automáticas</h2>
+                        </div>
+                        <div className="bg-white dark:bg-slate-800 p-8 rounded-[2.5rem] border border-slate-100 dark:border-slate-700/50 space-y-4 shadow-sm font-medium text-slate-600 dark:text-slate-300">
+                            <p>As saudações são enviadas automaticamente para novos contatos ou após um período de inatividade configurado.</p>
+                            <ul className="list-disc ml-6 space-y-2">
+                                <li><strong>Acesso:</strong> Menu Chatbots &gt; Botão "Saudação" 👋</li>
+                                <li><strong>Cooldown:</strong> Evita reenvio da saudação para o mesmo contato em um curto período (ex: 24h).</li>
+                                <li><strong>Reset:</strong> Você pode resetar o contador para que todos recebam a saudação novamente.</li>
+                            </ul>
+                        </div>
+                    </section>
+
+                    {/* Business Hours */}
+                    <section id="hours" className="space-y-6">
+                        <div className="flex items-center gap-4">
+                            <div className="w-10 h-10 bg-amber-500 rounded-xl flex items-center justify-center text-white shadow-lg">
+                                <Clock className="w-5 h-5" />
+                            </div>
+                            <h2 className="text-2xl font-black dark:text-white">Horário de Atendimento</h2>
+                        </div>
+                        <div className="bg-white dark:bg-slate-800 p-8 rounded-[2.5rem] border border-slate-100 dark:border-slate-700/50 space-y-4 shadow-sm font-medium text-slate-600 dark:text-slate-300">
+                            <p>Configure quando seu robô deve responder e qual mensagem enviar quando estiver fora do expediente.</p>
+                            <ul className="list-disc ml-6 space-y-2">
+                                <li><strong>Acesso:</strong> Menu Chatbots &gt; Botão "Horários" 🕒</li>
+                                <li><strong>Mensagem de Ausência:</strong> Disparada automaticamente uma vez por dia por contato fora do horário.</li>
+                                <li><strong>Configuração:</strong> Ative os dias da semana e defina os intervalos (ex: 08:00 às 18:00).</li>
+                            </ul>
+                        </div>
+                    </section>
                     <section id="send" className="space-y-6">
                         <div className="flex items-center gap-4">
                             <div className="w-10 h-10 bg-indigo-500 rounded-xl flex items-center justify-center text-white shadow-lg">
