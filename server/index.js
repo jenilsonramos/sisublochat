@@ -21,6 +21,101 @@ app.use((req, res, next) => {
     next();
 });
 
+// --- WEBHOOK HANDLER (MOVED TO TOP PRIORITY) ---
+app.use('/webhook/evolution', async (req, res) => {
+    console.log('🔹 [EARLY HANDLER] Hit:', req.path);
+    try {
+        const payload = req.body;
+        const eventType = payload.type || payload.event;
+        const data = payload.data;
+
+        console.log('🔹 Webhook Payload:', eventType, 'Instance:', payload.instance);
+
+        if (!data) return res.json({ received: true });
+
+        // 1. CONNECTION UPDATE
+        if (['connection.update', 'CONNECTION_UPDATE'].includes(eventType)) {
+            const state = data.state || 'unknown';
+            const instanceName = payload.instance;
+            const ownerJid = data.ownerJid || data.wuid || payload.sender || null;
+            await pool.query('UPDATE instances SET status = ?, owner_jid = ? WHERE name = ?', [state, ownerJid, instanceName]);
+            return res.json({ received: true });
+        }
+
+        // 2. MESSAGES UPSERT
+        if (['MESSAGES_UPSERT', 'messages.upsert'].includes(eventType)) {
+            const messages = data.messages || (data.key ? [data] : []);
+            if (!messages.length) return res.json({ received: true });
+
+            const instanceName = payload.instance;
+            const [instRows] = await pool.query('SELECT id, user_id FROM instances WHERE name = ?', [instanceName]);
+            if (instRows.length === 0) return res.json({ received: true });
+
+            const instanceId = instRows[0].id;
+            const userId = instRows[0].user_id;
+
+            for (const msg of messages) {
+                if (!msg.key || !msg.message) continue;
+
+                const remoteJid = msg.key.remoteJid;
+                const fromMe = msg.key.fromMe;
+                const pushName = msg.pushName || (fromMe ? 'Me' : remoteJid.split('@')[0]);
+                const timestamp = new Date((msg.messageTimestamp || Date.now() / 1000) * 1000).toISOString();
+                const m = msg.message;
+
+                let text = '';
+                let mediaType = null;
+                let mediaUrl = null;
+
+                if (m.conversation) { text = m.conversation; }
+                else if (m.extendedTextMessage) { text = m.extendedTextMessage.text; }
+                else if (m.imageMessage) { text = m.imageMessage.caption || ''; mediaType = 'image'; mediaUrl = m.imageMessage.url; }
+                else if (m.videoMessage) { text = m.videoMessage.caption || ''; mediaType = 'video'; mediaUrl = m.videoMessage.url; }
+                else if (m.audioMessage) { mediaType = 'audio'; mediaUrl = m.audioMessage.url; }
+                else if (m.stickerMessage) { text = '[Sticker]'; mediaType = 'image'; mediaUrl = m.stickerMessage.url; }
+                else { text = '[Midia/Outros]'; }
+
+                // Upsert Contact (Robust)
+                try {
+                    const isPostgres = (process.env.DB_TYPE === 'postgres');
+                    if (isPostgres) {
+                        await pool.query(
+                            `INSERT INTO contacts (id, user_id, name, remote_jid) VALUES ($1, $2, $3, $4) 
+                             ON CONFLICT (remote_jid) DO UPDATE SET name = EXCLUDED.name`,
+                            [uuidv4(), userId, pushName, remoteJid]
+                        );
+                    } else {
+                        await pool.query(
+                            'INSERT INTO contacts (id, user_id, name, remote_jid) VALUES (?, ?, ?, ?) ON CONFLICT(remote_jid) DO UPDATE SET name = excluded.name',
+                            [uuidv4(), userId, pushName, remoteJid]
+                        );
+                    }
+                } catch (e) {
+                    console.error('Contact Upsert Error:', e.message);
+                }
+
+                // Upsert Conversation
+                let convId;
+                const [convRows] = await pool.query('SELECT id FROM conversations WHERE remote_jid = ? AND instance_id = ?', [remoteJid, instanceId]);
+                if (convRows.length > 0) {
+                    convId = convRows[0].id;
+                    await pool.query('UPDATE conversations SET last_message = ?, last_message_time = ?, unread_count = unread_count + ? WHERE id = ?', [text || `[${mediaType}]`, timestamp, (fromMe ? 0 : 1), convId]);
+                } else {
+                    convId = uuidv4();
+                    await pool.query('INSERT INTO conversations (id, user_id, instance_id, remote_jid, contact_name, last_message, last_message_time, unread_count) VALUES (?, ?, ?, ?, ?, ?, ?, ?)', [convId, userId, instanceId, remoteJid, pushName, text || `[${mediaType}]`, timestamp, (fromMe ? 0 : 1)]);
+                }
+
+                // Insert Message
+                await pool.query('INSERT INTO messages (id, conversation_id, text, sender, status, media_url, media_type, wamid, timestamp) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)', [uuidv4(), convId, text, fromMe ? 'me' : 'contact', 'sent', mediaUrl, mediaType, msg.key.id, timestamp]);
+            }
+        }
+        res.json({ received: true });
+    } catch (e) {
+        console.error('Webhook Error:', e);
+        res.status(500).json({ error: e.message });
+    }
+});
+
 // --- Middlewares ---
 const authenticateToken = (req, res, next) => {
     const authHeader = req.headers['authorization'];
@@ -488,7 +583,9 @@ app.patch('/settings/system', authenticateToken, async (req, res) => {
 });
 
 // WEBHOOK HANDLER (Evolution API)
-app.post('/webhook/evolution', async (req, res) => {
+// Uses REGEX to catch ALL subpaths starting with /webhook/evolution
+app.all(/^\/webhook\/evolution/, async (req, res) => {
+    console.log('🔹 [HANNDLER ENTRY] Route matched:', req.path); // SUPER DEBUG LOG
     try {
         const payload = req.body;
         const eventType = payload.type || payload.event;
