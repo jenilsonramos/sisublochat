@@ -113,21 +113,26 @@ const ApiDocsView: React.FC = () => {
                         <div className="bg-white dark:bg-slate-800 p-8 rounded-[2.5rem] border border-slate-100 dark:border-slate-700/50 space-y-6 shadow-sm">
                             <p className="text-slate-600 dark:text-slate-300 font-medium">As saudações são automatizadas via banco de dados. Para gerenciar externamente, utilize a tabela <code>chatbots</code> com o tipo <code>GREETING</code>.</p>
                             <div className="space-y-4">
-                                <h4 className="text-sm font-black text-slate-400 uppercase tracking-wider">Payload para criar Saudação (Exemplo PostgREST)</h4>
+                                <h4 className="text-sm font-black text-slate-400 uppercase tracking-wider">Requisição cURL</h4>
                                 <CodeBlock
-                                    index="api-greeting"
-                                    language="json"
-                                    code={`{
+                                    index="curl-greeting"
+                                    language="bash"
+                                    code={`curl --location --request POST 'https://<PROJETO>.supabase.co/rest/v1/chatbots' \\
+--header 'apikey: SEU_TOKEN_AQUI' \\
+--header 'Authorization: Bearer SEU_TOKEN_AQUI' \\
+--header 'Content-Type: application/json' \\
+--header 'Prefer: resolution=merge-duplicates' \\
+--data-raw '{
   "user_id": "UUID_DO_USUARIO",
   "name": "Saudação Integrada",
   "type": "GREETING",
   "status": "ACTIVE",
   "trigger": "cooldown:24"
-}`}
+}'`}
                                 />
                             </div>
                             <div className="p-4 bg-emerald-50 dark:bg-emerald-900/10 rounded-2xl border-l-4 border-emerald-500 text-sm">
-                                <strong>Dica Técnica:</strong> Para resetar a saudação para um contato via API, defina <code>last_greeted_at = null</code> na tabela <code>conversations</code>.
+                                <strong>Dica Técnica:</strong> Para resetar a saudação para um contato via API, defina <code>last_greeted_at = null</code> na tabela <code>conversations</code> via PATCH.
                             </div>
                         </div>
                     </section>
@@ -143,11 +148,16 @@ const ApiDocsView: React.FC = () => {
                         <div className="bg-white dark:bg-slate-800 p-8 rounded-[2.5rem] border border-slate-100 dark:border-slate-700/50 space-y-6 shadow-sm">
                             <p className="text-slate-600 dark:text-slate-300 font-medium">Controle a disponibilidade do atendimento através da tabela <code>business_hours</code>.</p>
                             <div className="space-y-4">
-                                <h4 className="text-sm font-black text-slate-400 uppercase tracking-wider">Payload para Horário (Exemplo PostgREST)</h4>
+                                <h4 className="text-sm font-black text-slate-400 uppercase tracking-wider">Requisição cURL</h4>
                                 <CodeBlock
-                                    index="api-hours"
-                                    language="json"
-                                    code={`{
+                                    index="curl-hours"
+                                    language="bash"
+                                    code={`curl --location --request POST 'https://<PROJETO>.supabase.co/rest/v1/business_hours' \\
+--header 'apikey: SEU_TOKEN_AQUI' \\
+--header 'Authorization: Bearer SEU_TOKEN_AQUI' \\
+--header 'Content-Type: application/json' \\
+--header 'Prefer: resolution=merge-duplicates' \\
+--data-raw '{
   "user_id": "UUID_DO_USUARIO",
   "enabled": true,
   "timezone": "America/Sao_Paulo",
@@ -155,7 +165,7 @@ const ApiDocsView: React.FC = () => {
   "monday_enabled": true,
   "monday_start": "08:00:00",
   "monday_end": "18:00:00"
-}`}
+}'`}
                                 />
                             </div>
                         </div>
