@@ -20,10 +20,12 @@ import AdminView from './pages/AdminView';
 import FlowBuilderView from './pages/FlowBuilderView';
 import { TabType } from './types';
 import { ToastProvider, useToast } from './components/ToastProvider';
+import BlockedView from './components/BlockedView';
 
 const AppContent: React.FC = () => {
   const { showToast } = useToast();
   const [user, setUser] = useState<any>(null);
+  const [userProfile, setUserProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [authView, setAuthView] = useState<'login' | 'register' | 'forgot-password'>('login');
   const [activeTab, setActiveTab] = useState<TabType>(() => {
@@ -55,9 +57,26 @@ const AppContent: React.FC = () => {
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null);
-      setLoading(false);
+      if (session?.user) fetchProfile(session.user.id);
+      else setLoading(false);
     });
   }, []);
+
+  const fetchProfile = async (userId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', userId)
+        .single();
+
+      if (data) setUserProfile(data);
+    } catch (err) {
+      console.error('Error fetching profile:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
@@ -75,7 +94,11 @@ const AppContent: React.FC = () => {
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null);
-      setLoading(false);
+      if (session?.user) fetchProfile(session.user.id);
+      else {
+        setUserProfile(null);
+        setLoading(false);
+      }
     });
 
     return () => subscription.unsubscribe();
@@ -137,14 +160,6 @@ const AppContent: React.FC = () => {
     }
   }, []);
 
-  if (loading) {
-    return (
-      <div className="flex h-screen w-screen items-center justify-center bg-background-light dark:bg-background-dark">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary-light"></div>
-      </div>
-    );
-  }
-
   if (!user) {
     switch (authView) {
       case 'register':
@@ -170,6 +185,11 @@ const AppContent: React.FC = () => {
           />
         );
     }
+  }
+
+  // If user is blocked, show BlockedView
+  if (userProfile && userProfile.status === 'INACTIVE') {
+    return <BlockedView />;
   }
 
   const renderContent = () => {

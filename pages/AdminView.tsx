@@ -430,20 +430,56 @@ function PlansManagement() {
 
 function UserManagement() {
     const [users, setUsers] = useState<any[]>([]);
+    const [plans, setPlans] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState('');
     const [editingWhatsapp, setEditingWhatsapp] = useState<{ id: string, val: string } | null>(null);
+    const [assigningPlan, setAssigningPlan] = useState<{ userId: string, currentPlanId?: string } | null>(null);
     const { showToast } = useToast();
 
     useEffect(() => {
-        fetchUsers();
+        fetchData();
     }, []);
 
-    const fetchUsers = async () => {
+    const fetchData = async () => {
         setLoading(true);
-        const { data } = await supabase.from('profiles').select('*').order('created_at', { ascending: false });
-        setUsers(data || []);
+        await Promise.all([fetchUsers(), fetchPlans()]);
         setLoading(false);
+    };
+
+    const fetchUsers = async () => {
+        const { data } = await supabase
+            .from('profiles')
+            .select('*, subscriptions(plan_id, plans(name))')
+            .order('created_at', { ascending: false });
+        setUsers(data || []);
+    };
+
+    const fetchPlans = async () => {
+        const { data } = await supabase.from('plans').select('*').order('price');
+        setPlans(data || []);
+    };
+
+    const handleAssignPlan = async (planId: string) => {
+        if (!assigningPlan) return;
+        setLoading(true);
+        try {
+            const { error } = await supabase.from('subscriptions').upsert({
+                user_id: assigningPlan.userId,
+                plan_id: planId,
+                status: 'active',
+                updated_at: new Date().toISOString()
+            }, { onConflict: 'user_id' });
+
+            if (error) throw error;
+            showToast('Plano atribuído com sucesso!', 'success');
+            fetchUsers();
+        } catch (err: any) {
+            showToast(err.message, 'error');
+        } finally {
+            setLoading(false);
+            setAssigningPlan(null);
+        }
     };
 
     const toggleUserStatus = async (id: string, currentStatus: string) => {
@@ -501,7 +537,7 @@ function UserManagement() {
                         <tr className="bg-slate-50/50 dark:bg-slate-900/80 border-b border-slate-100 dark:border-slate-700">
                             <th className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-slate-400">Usuário</th>
                             <th className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-slate-400">Contato</th>
-                            <th className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-slate-400">Função</th>
+                            <th className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-slate-400">Plano</th>
                             <th className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-slate-400">Status</th>
                             <th className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-slate-400 text-right">Ações</th>
                         </tr>
@@ -549,9 +585,17 @@ function UserManagement() {
                                     </div>
                                 </td>
                                 <td className="px-6 py-5">
-                                    <span className={`px-2 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider ${user.role === 'ADMIN' ? 'bg-primary text-white' : 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400'}`}>
-                                        {user.role}
-                                    </span>
+                                    <div className="flex items-center gap-2 group/plan">
+                                        <span className={`px-2 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider ${user.subscriptions?.[0]?.plans?.name ? 'bg-indigo-50 text-indigo-600 dark:bg-indigo-900/20' : 'bg-slate-100 text-slate-400 dark:bg-slate-800'}`}>
+                                            {user.subscriptions?.[0]?.plans?.name || 'Sem Plano'}
+                                        </span>
+                                        <button
+                                            onClick={() => setAssigningPlan({ userId: user.id, currentPlanId: user.subscriptions?.[0]?.plan_id })}
+                                            className="opacity-0 group-hover/plan:opacity-100 transition-opacity p-0.5 hover:text-primary"
+                                        >
+                                            <Edit2 size={10} />
+                                        </button>
+                                    </div>
                                 </td>
                                 <td className="px-6 py-5">
                                     <div className={`inline-flex items-center gap-2 px-3 py-1 rounded-full ${user.status === 'ACTIVE' ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-900/10' : 'bg-rose-50 text-rose-600 dark:bg-rose-900/10'}`}>
