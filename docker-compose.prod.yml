@@ -17,7 +17,7 @@ services:
       # Se estiver usando IP público, use o IP. 
       # RECOMENDO: Usar o IP EXTERNO da VPS por enquanto para garantir conexão, ou configurar a rede 'ublochatnet'.
       - DB_HOST=172.17.0.1  # IP do Host Gateway (tenta conectar no host)
-      - DB_PORT=54321       # Porta Externa que abrimos
+      - DB_PORT=5432        # Porta Padrão do Postgres (Produção)
       - DB_USER=supabase_admin
       - DB_PASS=967d7e6b537be56e6677b96a606c7d8b
       - DB_NAME=postgres
