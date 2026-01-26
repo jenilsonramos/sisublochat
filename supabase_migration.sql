@@ -12,7 +12,28 @@ BEGIN
     AND role = 'ADMIN'
   );
 END;
+-- 1. Support for Vanilla Postgres (Mock Auth Schema)
+CREATE SCHEMA IF NOT EXISTS auth;
+
+CREATE TABLE IF NOT EXISTS auth.users (
+    id uuid NOT NULL PRIMARY KEY,
+    email text,
+    raw_user_meta_data jsonb
+);
+
+-- 2. Helper Functions
+CREATE OR REPLACE FUNCTION public.is_admin()
+RETURNS boolean AS $$
+BEGIN
+  RETURN EXISTS (
+    SELECT 1
+    FROM public.profiles
+    WHERE id = auth.uid() -- This function won't work in Node context but keeps SQL valid
+    AND role = 'ADMIN'
+  );
+END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
+-- Mock auth.uid() if needed, or ignore as Node backend handles logic
 
 
 -- 2. Base Tables (No internal FK dependencies)
