@@ -434,7 +434,8 @@ function UserManagement() {
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState('');
     const [editingWhatsapp, setEditingWhatsapp] = useState<{ id: string, val: string } | null>(null);
-    const [assigningPlan, setAssigningPlan] = useState<{ userId: string, currentPlanId?: string } | null>(null);
+    const [assigningPlan, setAssigningPlan] = useState<{ userId: string, currentPlanId?: string, currentExpiry?: string } | null>(null);
+    const [expiryDate, setExpiryDate] = useState<string>('');
     const { showToast } = useToast();
 
     useEffect(() => {
@@ -455,6 +456,7 @@ function UserManagement() {
                     *,
                     subscriptions (
                         plan_id,
+                        current_period_end,
                         plans (
                             name
                         )
@@ -497,6 +499,7 @@ function UserManagement() {
                 user_id: assigningPlan.userId,
                 plan_id: planId,
                 status: 'active',
+                current_period_end: expiryDate ? new Date(expiryDate).toISOString() : null,
                 updated_at: new Date().toISOString()
             }, { onConflict: 'user_id' });
 
@@ -610,8 +613,8 @@ function UserManagement() {
                                                     <span className="text-[10px] text-slate-500 bg-slate-100 dark:bg-slate-800/50 px-2 py-0.5 rounded font-mono">
                                                         {user.whatsapp || 'Sem WhatsApp'}
                                                     </span>
-                                                    <button onClick={() => setEditingWhatsapp({ id: user.id, val: user.whatsapp || '55' })} className="opacity-0 group-hover/wa:opacity-100 transition-opacity p-0.5 hover:text-primary">
-                                                        <Edit2 size={10} />
+                                                    <button onClick={() => setEditingWhatsapp({ id: user.id, val: user.whatsapp || '55' })} className="transition-all p-1.5 bg-slate-50 dark:bg-slate-800 rounded-lg text-slate-400 hover:text-primary hover:scale-110 border border-slate-100 dark:border-slate-700 shadow-sm">
+                                                        <Edit2 size={12} />
                                                     </button>
                                                 </div>
                                             )}
@@ -624,10 +627,18 @@ function UserManagement() {
                                             {user.subscriptions?.[0]?.plans?.name || 'Sem Plano'}
                                         </span>
                                         <button
-                                            onClick={() => setAssigningPlan({ userId: user.id, currentPlanId: user.subscriptions?.[0]?.plan_id })}
-                                            className="opacity-0 group-hover/plan:opacity-100 transition-opacity p-0.5 hover:text-primary"
+                                            onClick={() => {
+                                                const currentExpiry = user.subscriptions?.[0]?.current_period_end;
+                                                setAssigningPlan({
+                                                    userId: user.id,
+                                                    currentPlanId: user.subscriptions?.[0]?.plan_id,
+                                                    currentExpiry: currentExpiry ? new Date(currentExpiry).toISOString().slice(0, 10) : ''
+                                                });
+                                                setExpiryDate(currentExpiry ? new Date(currentExpiry).toISOString().slice(0, 10) : '');
+                                            }}
+                                            className="transition-all p-1.5 bg-slate-50 dark:bg-slate-800 rounded-lg text-slate-400 hover:text-primary hover:scale-110 border border-slate-100 dark:border-slate-700 shadow-sm"
                                         >
-                                            <Edit2 size={10} />
+                                            <Edit2 size={12} />
                                         </button>
                                     </div>
                                 </td>
@@ -653,6 +664,71 @@ function UserManagement() {
                 </table>
                 {filteredUsers.length === 0 && <div className="text-center py-20 text-slate-400 font-bold">Nenhum usuário encontrado.</div>}
             </div>
+
+            {/* Assign Plan Modal */}
+            {assigningPlan && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-in fade-in">
+                    <div className="bg-white dark:bg-slate-800 w-full max-w-lg rounded-[2.5rem] p-10 shadow-2xl animate-in zoom-in duration-300">
+                        <div className="flex justify-between items-center mb-8">
+                            <h2 className="text-2xl font-black text-slate-900 dark:text-white italic">Atribuir Plano</h2>
+                            <button onClick={() => setAssigningPlan(null)} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-xl transition-colors">
+                                <X className="w-5 h-5 text-slate-500" />
+                            </button>
+                        </div>
+
+                        <div className="space-y-6">
+                            <div>
+                                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1 mb-3 block">1. Selecione o Plano</label>
+                                <div className="grid grid-cols-1 gap-3">
+                                    {plans.map(plan => (
+                                        <button
+                                            key={plan.id}
+                                            onClick={() => setAssigningPlan({ ...assigningPlan, currentPlanId: plan.id })}
+                                            className={`w-full p-5 rounded-2xl border-2 text-left transition-all flex items-center justify-between group ${assigningPlan.currentPlanId === plan.id
+                                                ? 'border-primary bg-primary/5 ring-4 ring-primary/5'
+                                                : 'border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-800 hover:border-slate-200 dark:hover:border-slate-700'
+                                                }`}
+                                        >
+                                            <div>
+                                                <div className={`font-black text-sm ${assigningPlan.currentPlanId === plan.id ? 'text-primary' : 'dark:text-white text-slate-700'}`}>
+                                                    {plan.name}
+                                                </div>
+                                                <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-1">
+                                                    R$ {plan.price?.toLocaleString('pt-BR')} / {plan.billing_period}
+                                                </div>
+                                            </div>
+                                            {assigningPlan.currentPlanId === plan.id && <Check className="w-4 h-4 text-primary" />}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+
+                            <div className="pt-6 border-t border-slate-100 dark:border-slate-700">
+                                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1 mb-3 block">2. Data de Vencimento</label>
+                                <div className="relative">
+                                    <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
+                                    <input
+                                        type="date"
+                                        value={expiryDate}
+                                        onChange={e => setExpiryDate(e.target.value)}
+                                        className="w-full pl-12 pr-4 py-4 bg-slate-50 dark:bg-slate-900 rounded-2xl outline-none border border-slate-100 dark:border-slate-800 focus:ring-2 focus:ring-primary/20 dark:text-white font-bold text-sm"
+                                    />
+                                </div>
+                                <p className="text-[10px] text-slate-400 mt-2 italic px-1">Selecione a data em que os recursos premium serão suspensos.</p>
+                            </div>
+
+                            <button
+                                onClick={() => handleAssignPlan(assigningPlan.currentPlanId || '')}
+                                disabled={!assigningPlan.currentPlanId || loading}
+                                className="w-full py-5 bg-primary text-white font-black rounded-2xl shadow-xl shadow-primary/20 hover:bg-primary-light active:scale-[0.98] transition-all disabled:opacity-50 mt-4 flex items-center justify-center gap-2"
+                            >
+                                {loading && <Loader2 className="w-4 h-4 animate-spin" />}
+                                Confirmar Alterações
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

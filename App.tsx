@@ -20,7 +20,7 @@ import AdminView from './pages/AdminView';
 import FlowBuilderView from './pages/FlowBuilderView';
 import { TabType } from './types';
 import { ToastProvider, useToast } from './components/ToastProvider';
-import BlockedView from './components/BlockedView';
+import { AlertCircle } from 'lucide-react';
 
 const AppContent: React.FC = () => {
   const { showToast } = useToast();
@@ -187,10 +187,7 @@ const AppContent: React.FC = () => {
     }
   }
 
-  // If user is blocked, show BlockedView
-  if (userProfile && userProfile.status === 'INACTIVE') {
-    return <BlockedView />;
-  }
+  // No full-page blocking here
 
   const renderContent = () => {
     switch (activeTab) {
@@ -263,6 +260,16 @@ const AppContent: React.FC = () => {
       />
 
       <div className="flex-1 flex flex-col min-w-0 h-full relative overflow-hidden">
+        {/* Block Warning Banner */}
+        {userProfile?.status === 'INACTIVE' && userProfile?.role !== 'ADMIN' && (
+          <div className="bg-rose-500 text-white px-6 py-2.5 flex items-center justify-center gap-2 animate-in slide-in-from-top duration-500 z-[100] shadow-lg">
+            <AlertCircle className="w-4 h-4 animate-pulse" />
+            <p className="text-[11px] font-bold uppercase tracking-widest">
+              Esta conta está suspensa por infringir os termos da plataforma. Algumas funções podem estar limitadas.
+            </p>
+          </div>
+        )}
+
         {/* Header - Stays Fixed at Top */}
         <div className="p-4 md:p-6 lg:p-8 lg:pb-0 shrink-0 z-30">
           <Header
