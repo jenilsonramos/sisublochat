@@ -117,11 +117,9 @@ const AppContent: React.FC = () => {
   useEffect(() => {
     const handlePopState = () => {
       const params = new URLSearchParams(window.location.search);
-      const tab = params.get('tab');
-      if (tab) {
-        setActiveTab(tab as TabType);
-        localStorage.setItem('activeTab', tab);
-      }
+      const tab = params.get('tab') || 'dashboard';
+      setActiveTab(tab as TabType);
+      localStorage.setItem('activeTab', tab);
     };
 
     window.addEventListener('popstate', handlePopState);
