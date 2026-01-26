@@ -34,7 +34,16 @@ interface ChatMessage {
   quoted_id?: string;
 }
 
-const LiveChatView: React.FC = () => {
+
+interface LiveChatViewProps {
+  isBlocked?: boolean;
+}
+
+interface LiveChatViewProps {
+  isBlocked?: boolean;
+}
+
+const LiveChatView: React.FC<LiveChatViewProps> = ({ isBlocked = false }) => {
   const { showToast } = useToast();
 
   // State
@@ -427,6 +436,11 @@ const LiveChatView: React.FC = () => {
       return;
     }
 
+    if (isBlocked) {
+      showToast('Sua conta está suspensa. Você não pode enviar mídias.', 'error');
+      return;
+    }
+
     try {
       setIsUploading(true);
       showToast('Enviando arquivo...', 'success');
@@ -605,6 +619,12 @@ const LiveChatView: React.FC = () => {
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (isBlocked) {
+      showToast('Sua conta está suspensa. Você não pode enviar mensagens.', 'error');
+      return;
+    }
+
     if (!newMessage.trim() || !selectedChat || !activeInstance) return;
 
     try {
@@ -1282,73 +1302,80 @@ const LiveChatView: React.FC = () => {
                       </button>
                     </div>
                   )}
-                  <form onSubmit={handleSendMessage} className="flex items-end gap-2 md:gap-4">
-                    <div className="flex-1 relative">
-                      <div className="absolute left-3 top-1/2 -translate-y-1/2 flex items-center gap-1 z-30">
+                  {isBlocked ? (
+                    <div className="w-full bg-rose-50 dark:bg-rose-900/10 border border-rose-100 dark:border-rose-800 rounded-xl p-4 flex items-center justify-center gap-3 text-rose-500">
+                      <AlertCircle className="w-5 h-5" />
+                      <span className="font-bold text-sm">Envio de mensagens bloqueado.</span>
+                    </div>
+                  ) : (
+                    <form onSubmit={handleSendMessage} className="flex items-end gap-2 md:gap-4">
+                      <div className="flex-1 relative">
+                        <div className="absolute left-3 top-1/2 -translate-y-1/2 flex items-center gap-1 z-30">
+                          <button
+                            type="button"
+                            onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+                            className="p-2 text-slate-400 hover:text-primary transition"
+                          >
+                            <Smile size={20} />
+                          </button>
+                          {showEmojiPicker && (
+                            <div ref={emojiPickerRef} className="absolute bottom-full mb-4 left-0 animate-in zoom-in-95 duration-200">
+                              <EmojiPicker
+                                onEmojiClick={(emojiData) => {
+                                  setNewMessage(prev => prev + emojiData.emoji);
+                                }}
+                                theme={document.documentElement.classList.contains('dark') ? Theme.DARK : Theme.LIGHT}
+                                width={320}
+                                height={400}
+                              />
+                            </div>
+                          )}
+                        </div>
+                        <input
+                          type="text"
+                          value={newMessage}
+                          onChange={(e) => setNewMessage(e.target.value)}
+                          placeholder="Sua mensagem..."
+                          disabled={sending}
+                          className="w-full pl-12 pr-12 py-3 md:py-4 bg-slate-50/50 dark:bg-slate-900 border border-slate-100 dark:border-slate-700 rounded-[1.5rem] focus:ring-2 focus:ring-primary-light text-sm dark:text-white transition-all outline-none disabled:opacity-50"
+                        />
+                        <input
+                          type="file"
+                          ref={fileInputRef}
+                          onChange={handleFileUpload}
+                          className="hidden"
+                        />
                         <button
                           type="button"
-                          onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-                          className="p-2 text-slate-400 hover:text-primary transition"
+                          onClick={() => fileInputRef.current?.click()}
+                          disabled={isUploading || isRecording}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 p-2 text-slate-400 hover:text-primary transition disabled:opacity-50"
                         >
-                          <Smile size={20} />
+                          {isUploading ? <Loader2 className="animate-spin" size={20} /> : <Paperclip size={20} />}
                         </button>
-                        {showEmojiPicker && (
-                          <div ref={emojiPickerRef} className="absolute bottom-full mb-4 left-0 animate-in zoom-in-95 duration-200">
-                            <EmojiPicker
-                              onEmojiClick={(emojiData) => {
-                                setNewMessage(prev => prev + emojiData.emoji);
-                              }}
-                              theme={document.documentElement.classList.contains('dark') ? Theme.DARK : Theme.LIGHT}
-                              width={320}
-                              height={400}
-                            />
-                          </div>
-                        )}
                       </div>
-                      <input
-                        type="text"
-                        value={newMessage}
-                        onChange={(e) => setNewMessage(e.target.value)}
-                        placeholder="Sua mensagem..."
-                        disabled={sending}
-                        className="w-full pl-12 pr-12 py-3 md:py-4 bg-slate-50/50 dark:bg-slate-900 border border-slate-100 dark:border-slate-700 rounded-[1.5rem] focus:ring-2 focus:ring-primary-light text-sm dark:text-white transition-all outline-none disabled:opacity-50"
-                      />
-                      <input
-                        type="file"
-                        ref={fileInputRef}
-                        onChange={handleFileUpload}
-                        className="hidden"
-                      />
+
+                      {/* Audio Recording Button */}
                       <button
                         type="button"
-                        onClick={() => fileInputRef.current?.click()}
-                        disabled={isUploading || isRecording}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 p-2 text-slate-400 hover:text-primary transition disabled:opacity-50"
+                        onClick={isRecording ? stopRecording : startRecording}
+                        className={`p-3 md:p-4 rounded-xl transition-all flex items-center justify-center ${isRecording ? 'bg-red-500 text-white animate-pulse shadow-red-500/30' : 'bg-slate-100 dark:bg-slate-700 text-slate-400 hover:text-primary'}`}
                       >
-                        {isUploading ? <Loader2 className="animate-spin" size={20} /> : <Paperclip size={20} />}
+                        {isRecording ? <Square className="w-5 h-5 fill-current" /> : <Mic className="w-5 h-5" />}
                       </button>
-                    </div>
 
-                    {/* Audio Recording Button */}
-                    <button
-                      type="button"
-                      onClick={isRecording ? stopRecording : startRecording}
-                      className={`p-3 md:p-4 rounded-xl transition-all flex items-center justify-center ${isRecording ? 'bg-red-500 text-white animate-pulse shadow-red-500/30' : 'bg-slate-100 dark:bg-slate-700 text-slate-400 hover:text-primary'}`}
-                    >
-                      {isRecording ? <Square className="w-5 h-5 fill-current" /> : <Mic className="w-5 h-5" />}
-                    </button>
-
-                    <button
-                      type="submit"
-                      disabled={!newMessage.trim() || sending}
-                      className={`p-3 md:p-4 rounded-2xl transition-all active:scale-90 flex items-center justify-center ${newMessage.trim() && !sending
-                        ? 'bg-primary text-white shadow-xl shadow-primary/20 hover:bg-primary-light'
-                        : 'bg-slate-100 dark:bg-slate-700 text-slate-400 cursor-not-allowed'
-                        }`}
-                    >
-                      {sending ? <Loader2 className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5" />}
-                    </button>
-                  </form>
+                      <button
+                        type="submit"
+                        disabled={!newMessage.trim() || sending}
+                        className={`p-3 md:p-4 rounded-2xl transition-all active:scale-90 flex items-center justify-center ${newMessage.trim() && !sending
+                          ? 'bg-primary text-white shadow-xl shadow-primary/20 hover:bg-primary-light'
+                          : 'bg-slate-100 dark:bg-slate-700 text-slate-400 cursor-not-allowed'
+                          }`}
+                      >
+                        {sending ? <Loader2 className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5" />}
+                      </button>
+                    </form>
+                  )}
                 </>
               )}
             </div>

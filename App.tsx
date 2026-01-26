@@ -187,15 +187,16 @@ const AppContent: React.FC = () => {
     }
   }
 
-  // No full-page blocking here
+  // Calculate blocking state
+  const isBlocked = userProfile?.status === 'INACTIVE' && userProfile?.role !== 'ADMIN';
 
   const renderContent = () => {
     switch (activeTab) {
       case 'dashboard': return <DashboardView />;
-      case 'instances': return <InstancesView />;
+      case 'instances': return <InstancesView isBlocked={isBlocked} />;
       case 'analytics': return <AnalyticsView />;
-      case 'chatbots': return <ChatbotsView />;
-      case 'livechat': return <LiveChatView />;
+      case 'chatbots': return <ChatbotsView isBlocked={isBlocked} />;
+      case 'livechat': return <LiveChatView isBlocked={isBlocked} />;
       case 'users': return <UsersView />;
       case 'settings': return <SettingsView />;
       case 'contacts': return <ContactsView />;
@@ -203,7 +204,7 @@ const AppContent: React.FC = () => {
       case 'subscription': return <MyPlanView />;
       case 'aisettings': return <AIConfigView onTabChange={handleTabChange} />;
       case 'admin': return <AdminView />;
-      case 'flowbuilder': return <FlowBuilderView />;
+      case 'flowbuilder': return <FlowBuilderView isBlocked={isBlocked} />;
       default: return <DashboardView />;
     }
   };

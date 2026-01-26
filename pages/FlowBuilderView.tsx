@@ -39,7 +39,11 @@ interface Instance {
     status: string;
 }
 
-const FlowBuilderView: React.FC = () => {
+interface FlowBuilderViewProps {
+    isBlocked?: boolean;
+}
+
+const FlowBuilderView: React.FC<FlowBuilderViewProps> = ({ isBlocked = false }) => {
     const { showToast } = useToast();
     const [flows, setFlows] = useState<Flow[]>([]);
     const [instances, setInstances] = useState<Instance[]>([]);
@@ -104,6 +108,11 @@ const FlowBuilderView: React.FC = () => {
     };
 
     const handleCreateFlow = async () => {
+        if (isBlocked) {
+            showToast('Sua conta está suspensa. Você não pode criar fluxos.', 'error');
+            return;
+        }
+
         if (!newFlowName.trim()) {
             showToast('Digite um nome para o fluxo', 'error');
             return;
@@ -363,8 +372,15 @@ const FlowBuilderView: React.FC = () => {
                         </p>
                     </div>
                     <button
-                        onClick={() => setShowCreateModal(true)}
-                        className="px-6 py-3 bg-primary hover:bg-primary-light text-white font-black rounded-2xl flex items-center gap-2 transition-all shadow-xl shadow-primary/20 active:scale-95 text-xs uppercase"
+                        onClick={() => {
+                            if (isBlocked) {
+                                showToast('Funcionalidade bloqueada.', 'error');
+                                return;
+                            }
+                            setShowCreateModal(true);
+                        }}
+                        disabled={isBlocked}
+                        className={`px-6 py-3 bg-primary hover:bg-primary-light text-white font-black rounded-2xl flex items-center gap-2 transition-all shadow-xl shadow-primary/20 active:scale-95 text-xs uppercase ${isBlocked ? 'opacity-50 cursor-not-allowed' : ''}`}
                     >
                         <Plus className="w-5 h-5" />
                         Novo Fluxo

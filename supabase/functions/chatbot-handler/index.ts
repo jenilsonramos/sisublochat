@@ -48,6 +48,18 @@ Deno.serve(async (req) => {
         const lastGreetedAt = convData.last_greeted_at
         const contactName = convData.contact_name || ''
 
+        // 1.1 Check Owner Status (Blocking)
+        const { data: profile } = await supabase
+            .from('profiles')
+            .select('status, role')
+            .eq('id', userId)
+            .single()
+
+        if (profile?.status === 'INACTIVE' && profile?.role !== 'ADMIN') {
+            await logDb(`Skipping chatbots for ${remoteJid} (User ${userId} is BLOCKED)`)
+            return new Response('User Blocked', { status: 200 })
+        }
+
         // 1.5. Check if Gemini AI is enabled (Precedence)
         const { data: aiSettings } = await supabase
             .from('ai_settings')

@@ -32,7 +32,11 @@ interface DayConfig {
   end: string;
 }
 
-const ChatbotsView: React.FC = () => {
+interface ChatbotsViewProps {
+  isBlocked?: boolean;
+}
+
+const ChatbotsView: React.FC<ChatbotsViewProps> = ({ isBlocked = false }) => {
   const { showToast } = useToast();
   const [showModal, setShowModal] = useState(false);
   const [chatbots, setChatbots] = useState<Chatbot[]>([]);
@@ -427,6 +431,10 @@ const ChatbotsView: React.FC = () => {
   };
 
   const handleSaveGreeting = async () => {
+    if (isBlocked) {
+      showToast('Sua conta está suspensa. Você não pode salvar saudações.', 'error');
+      return;
+    }
     if (!greetingMessage.trim()) {
       showToast('Por favor, digite uma mensagem de saudação', 'error');
       return;
@@ -675,8 +683,15 @@ const ChatbotsView: React.FC = () => {
               Ativar Todos
             </button>
             <button
-              onClick={() => { resetForm(); setShowModal(true); }}
-              className="px-6 py-3 bg-primary hover:bg-primary-light text-white font-black rounded-2xl flex items-center gap-2 transition-all shadow-xl shadow-primary/20 active:scale-95 text-xs uppercase"
+              onClick={() => {
+                if (isBlocked) {
+                  showToast('Funcionalidade bloqueada.', 'error');
+                  return;
+                }
+                resetForm(); setShowModal(true);
+              }}
+              disabled={isBlocked}
+              className={`px-6 py-3 bg-primary hover:bg-primary-light text-white font-black rounded-2xl flex items-center gap-2 transition-all shadow-xl shadow-primary/20 active:scale-95 text-xs uppercase ${isBlocked ? 'opacity-50 cursor-not-allowed' : ''}`}
             >
               <Plus className="w-5 h-5" />
               Novo Chatbot

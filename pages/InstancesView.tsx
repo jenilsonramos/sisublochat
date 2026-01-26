@@ -5,7 +5,11 @@ import { useToast } from '../components/ToastProvider';
 import { Loader2, Plus, Smartphone, WifiOff, Battery, Trash2, QrCode, RefreshCw, Key, Copy, Check, Eye, EyeOff, AlertCircle } from 'lucide-react';
 import { usePlanLimits } from '../hooks/usePlanLimits';
 
-const InstancesView: React.FC = () => {
+interface InstancesViewProps {
+  isBlocked?: boolean;
+}
+
+const InstancesView: React.FC<InstancesViewProps> = ({ isBlocked = false }) => {
   const [instances, setInstances] = useState<EvolutionInstance[]>([]);
   const [loading, setLoading] = useState(true);
   const [processing, setProcessing] = useState<string | null>(null);
@@ -88,6 +92,10 @@ const InstancesView: React.FC = () => {
   };
 
   const handleGenerateApiKey = async () => {
+    if (isBlocked) {
+      showToast('Sua conta está suspensa. Você não pode gerar chaves de API.', 'error');
+      return;
+    }
     if (!newKeyName.trim()) return;
 
     try {
@@ -163,6 +171,10 @@ const InstancesView: React.FC = () => {
 
   const handleCreateInstance = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isBlocked) {
+      showToast('Sua conta está suspensa. Você não pode criar instâncias.', 'error');
+      return;
+    }
     if (!newInstanceName.trim()) return;
 
     try {
@@ -228,6 +240,10 @@ const InstancesView: React.FC = () => {
 
 
   const handleConnect = async (instanceName: string) => {
+    if (isBlocked) {
+      showToast('Sua conta está suspensa. Você não pode conectar instâncias.', 'error');
+      return;
+    }
     try {
       setProcessing(instanceName);
       const data = await evolutionApi.connectInstance(instanceName);
