@@ -707,8 +707,8 @@ app.all(/^\/webhook\/evolution/, async (req, res) => {
 
         res.json({ received: true });
     } catch (error) {
-        console.error('Webhook Error:', error);
-        res.status(500).json({ error: error.message });
+        console.error('💥 Webhook Error:', error.message, error.stack);
+        res.status(500).json({ error: error.message, stack: error.stack });
     }
 });
 
