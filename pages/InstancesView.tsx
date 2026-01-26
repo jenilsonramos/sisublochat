@@ -18,6 +18,7 @@ const InstancesView: React.FC = () => {
   const [newKeyName, setNewKeyName] = useState('');
   const [showKeyId, setShowKeyId] = useState<string | null>(null);
   const [copiedKeyId, setCopiedKeyId] = useState<string | null>(null);
+  const [copiedInstanceName, setCopiedInstanceName] = useState<string | null>(null);
 
   const { isLimitReached, limits, usage } = usePlanLimits();
   const { showToast } = useToast();
@@ -133,6 +134,13 @@ const InstancesView: React.FC = () => {
     setCopiedKeyId(id);
     showToast('Chave copiada!', 'success');
     setTimeout(() => setCopiedKeyId(null), 2000);
+  };
+
+  const handleCopyInstanceName = (name: string) => {
+    navigator.clipboard.writeText(name);
+    setCopiedInstanceName(name);
+    showToast('Nome da instância copiado!', 'success');
+    setTimeout(() => setCopiedInstanceName(null), 2000);
   };
 
   const fetchInstances = async (showLoading = false) => {
@@ -425,7 +433,16 @@ const InstancesView: React.FC = () => {
                             <Smartphone className="w-6 h-6" />
                           </div>
                           <div>
-                            <h4 className="text-sm font-black dark:text-white">{instance.name}</h4>
+                            <div className="flex items-center gap-2">
+                              <h4 className="text-sm font-black dark:text-white">{instance.name}</h4>
+                              <button
+                                onClick={() => handleCopyInstanceName(instance.name)}
+                                className="p-1 text-slate-400 hover:text-primary transition-colors"
+                                title="Copiar nome da instância"
+                              >
+                                {copiedInstanceName === instance.name ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
+                              </button>
+                            </div>
                             <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Evolution V2</span>
                           </div>
                         </div>
