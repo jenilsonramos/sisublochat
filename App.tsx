@@ -28,9 +28,8 @@ const AppContent: React.FC = () => {
   const [authView, setAuthView] = useState<'login' | 'register' | 'forgot-password'>('login');
   const [activeTab, setActiveTab] = useState<TabType>(() => {
     if (typeof window !== 'undefined') {
-      const params = new URLSearchParams(window.location.search);
-      const tabParam = params.get('tab');
-      if (tabParam) return tabParam as TabType;
+      const path = window.location.pathname.replace('/', '');
+      if (path && path.length > 0) return path as TabType;
 
       const saved = localStorage.getItem('activeTab');
       return (saved as TabType) || 'dashboard';
@@ -107,34 +106,34 @@ const AppContent: React.FC = () => {
     setActiveTab(tab);
     localStorage.setItem('activeTab', tab);
 
-    // Update URL without reloading
-    const url = new URL(window.location.href);
-    url.searchParams.set('tab', tab);
-    window.history.pushState({ tab }, '', url.toString());
+    // Update URL to path format (/livechat instead of ?tab=livechat)
+    window.history.pushState({ tab }, '', `/${tab}`);
 
     if (isMobileOpen) setIsMobileOpen(false);
   };
 
   useEffect(() => {
     const handlePopState = (event: PopStateEvent) => {
-      const tab = (event.state?.tab) || (new URLSearchParams(window.location.search).get('tab')) || 'dashboard';
+      let tab = event.state?.tab;
+
+      if (!tab) {
+        tab = window.location.pathname.replace('/', '') || 'dashboard';
+      }
+
       setActiveTab(tab as TabType);
       localStorage.setItem('activeTab', tab);
     };
 
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
-  }, [activeTab]); // Include activeTab to ensure we are referencing current values
+  }, [activeTab]);
 
   useEffect(() => {
-    // Sincroniza a URL inicial se não houver parâmetro 'tab' ou se estiver diferente do estado atual
-    const params = new URLSearchParams(window.location.search);
-    const urlTab = params.get('tab');
+    // Sincroniza a URL inicial com o formato de path
+    const path = window.location.pathname.replace('/', '');
 
-    if (!urlTab || urlTab !== activeTab) {
-      const url = new URL(window.location.href);
-      url.searchParams.set('tab', activeTab);
-      window.history.replaceState({ tab: activeTab }, '', url.toString());
+    if (!path || path !== activeTab) {
+      window.history.replaceState({ tab: activeTab }, '', `/${activeTab}`);
     }
   }, []);
 
