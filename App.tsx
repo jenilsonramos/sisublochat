@@ -28,6 +28,10 @@ const AppContent: React.FC = () => {
   const [authView, setAuthView] = useState<'login' | 'register' | 'forgot-password'>('login');
   const [activeTab, setActiveTab] = useState<TabType>(() => {
     if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const tabParam = params.get('tab');
+      if (tabParam) return tabParam as TabType;
+
       const saved = localStorage.getItem('activeTab');
       return (saved as TabType) || 'dashboard';
     }
@@ -101,8 +105,28 @@ const AppContent: React.FC = () => {
   const handleTabChange = (tab: TabType) => {
     setActiveTab(tab);
     localStorage.setItem('activeTab', tab);
+
+    // Update URL without reloading
+    const url = new URL(window.location.href);
+    url.searchParams.set('tab', tab);
+    window.history.pushState({}, '', url.toString());
+
     if (isMobileOpen) setIsMobileOpen(false);
   };
+
+  useEffect(() => {
+    const handlePopState = () => {
+      const params = new URLSearchParams(window.location.search);
+      const tab = params.get('tab');
+      if (tab) {
+        setActiveTab(tab as TabType);
+        localStorage.setItem('activeTab', tab);
+      }
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
 
   if (loading) {
     return (
