@@ -1,20 +1,33 @@
-# Documentação de Integração API - Ublochat
+# Documentação de Integração API - Local (Sistema)
 
-Esta documentação descreve como sistemas externos podem gerenciar saudações e horários via requisições cURL.
+Esta documentação descreve como sistemas externos podem gerenciar saudações e horários através da API do próprio Sistema (Ublochat), utilizando o padrão de autenticação do painel.
 
 ---
 
-## 1. Horário de Atendimento
+## 1. Autenticação
 
-### Atualizar Configurações (cURL)
+Todas as requisições devem incluir o token JWT do sistema no cabeçalho `Authorization`.
+
 ```bash
-curl --location --request POST 'https://<SEU_PROJETO>.supabase.co/rest/v1/business_hours' \
---header 'apikey: SEU_TOKEN_AQUI' \
---header 'Authorization: Bearer SEU_TOKEN_AQUI' \
+--header 'Authorization: Bearer SEU_TOKEN_JWT'
+```
+
+---
+
+## 2. Horário de Atendimento
+
+### Recuperar Configuração (GET)
+```bash
+curl --location --request GET 'https://api.ublochat.com.br/config/business-hours' \
+--header 'Authorization: Bearer SEU_TOKEN_JWT'
+```
+
+### Atualizar Configuração (POST)
+```bash
+curl --location --request POST 'https://api.ublochat.com.br/config/business-hours' \
+--header 'Authorization: Bearer SEU_TOKEN_JWT' \
 --header 'Content-Type: application/json' \
---header 'Prefer: resolution=merge-duplicates' \
 --data-raw '{
-  "user_id": "UUID_DO_USUARIO",
   "enabled": true,
   "timezone": "America/Sao_Paulo",
   "away_message": "Estamos fora do horário comercial.",
@@ -26,52 +39,41 @@ curl --location --request POST 'https://<SEU_PROJETO>.supabase.co/rest/v1/busine
 
 ---
 
-## 2. Saudações Automáticas
+## 3. Saudações Automáticas
 
-As saudações são configuradas na tabela `chatbots`.
-
-### Passo 1: Criar/Atualizar Robô de Saudação (cURL)
+### Recuperar Saudação (GET)
 ```bash
-curl --location --request POST 'https://<SEU_PROJETO>.supabase.co/rest/v1/chatbots' \
---header 'apikey: SEU_TOKEN_AQUI' \
---header 'Authorization: Bearer SEU_TOKEN_AQUI' \
---header 'Content-Type: application/json' \
---header 'Prefer: resolution=merge-duplicates' \
---data-raw '{
-  "user_id": "UUID_DO_USUARIO",
-  "name": "Saudação Integrada",
-  "type": "GREETING",
-  "status": "ACTIVE",
-  "trigger": "cooldown:24"
-}'
+curl --location --request GET 'https://api.ublochat.com.br/config/greeting' \
+--header 'Authorization: Bearer SEU_TOKEN_JWT'
 ```
 
-### Passo 2: Configurar Mensagem (Steps)
+### Atualizar Saudação e Mensagens (POST)
 ```bash
-curl --location --request POST 'https://<SEU_PROJETO>.supabase.co/rest/v1/chatbot_steps' \
---header 'apikey: SEU_TOKEN_AQUI' \
---header 'Authorization: Bearer SEU_TOKEN_AQUI' \
+curl --location --request POST 'https://api.ublochat.com.br/config/greeting' \
+--header 'Authorization: Bearer SEU_TOKEN_JWT' \
 --header 'Content-Type: application/json' \
 --data-raw '{
-  "chatbot_id": "UUID_DO_ROBO",
-  "type": "text",
-  "content": "Olá {{primeiro_nome}}, como posso ajudar?",
-  "order": 1,
-  "delay": 2
+  "name": "Saudação API",
+  "status": "ACTIVE",
+  "trigger": "cooldown:24",
+  "steps": [
+    {
+      "type": "text",
+      "content": "Olá {{primeiro_nome}}, bem-vindo!",
+      "delay": 2,
+      "order": 1
+    }
+  ]
 }'
 ```
 
 ---
 
-## 3. Comandos Úteis
+## 4. Comandos Úteis
 
-### Resetar Saudação para um Contato
+### Resetar Saudações (POST)
+Reseta o contador para que todos os contatos recebam a saudação novamente na próxima mensagem.
 ```bash
-curl --location --request PATCH 'https://<SEU_PROJETO>.supabase.co/rest/v1/conversations?remote_jid=eq.5511999999999@s.whatsapp.net' \
---header 'apikey: SEU_TOKEN_AQUI' \
---header 'Authorization: Bearer SEU_TOKEN_AQUI' \
---header 'Content-Type: application/json' \
---data-raw '{
-  "last_greeted_at": null
-}'
+curl --location --request POST 'https://api.ublochat.com.br/config/reset-greeting' \
+--header 'Authorization: Bearer SEU_TOKEN_JWT'
 ```

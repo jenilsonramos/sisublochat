@@ -566,6 +566,148 @@ app.get('/settings/system', authenticateToken, async (req, res) => {
     }
 });
 
+// CONFIGURAÇÕES DE HORÁRIO DE ATENDIMENTO
+app.get('/config/business-hours', authenticateToken, async (req, res) => {
+    try {
+        const [rows] = await pool.query('SELECT * FROM business_hours WHERE user_id = ?', [req.user.id]);
+        res.json(rows[0] || null);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+app.post('/config/business-hours', authenticateToken, async (req, res) => {
+    const userId = req.user.id;
+    const {
+        enabled, timezone, away_message,
+        monday_enabled, monday_start, monday_end,
+        tuesday_enabled, tuesday_start, tuesday_end,
+        wednesday_enabled, wednesday_start, wednesday_end,
+        thursday_enabled, thursday_start, thursday_end,
+        friday_enabled, friday_start, friday_end,
+        saturday_enabled, saturday_start, saturday_end,
+        sunday_enabled, sunday_start, sunday_end
+    } = req.body;
+
+    try {
+        const [existing] = await pool.query('SELECT id FROM business_hours WHERE user_id = ?', [userId]);
+
+        if (existing.length > 0) {
+            const query = `
+                UPDATE business_hours SET 
+                    enabled = ?, timezone = ?, away_message = ?,
+                    monday_enabled = ?, monday_start = ?, monday_end = ?,
+                    tuesday_enabled = ?, tuesday_start = ?, tuesday_end = ?,
+                    wednesday_enabled = ?, wednesday_start = ?, wednesday_end = ?,
+                    thursday_enabled = ?, thursday_start = ?, thursday_end = ?,
+                    friday_enabled = ?, friday_start = ?, friday_end = ?,
+                    saturday_enabled = ?, saturday_start = ?, saturday_end = ?,
+                    sunday_enabled = ?, sunday_start = ?, sunday_end = ?,
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE user_id = ?
+            `;
+            await pool.query(query, [
+                enabled, timezone, away_message,
+                monday_enabled, monday_start, monday_end,
+                tuesday_enabled, tuesday_start, tuesday_end,
+                wednesday_enabled, wednesday_start, wednesday_end,
+                thursday_enabled, thursday_start, thursday_end,
+                friday_enabled, friday_start, friday_end,
+                saturday_enabled, saturday_start, saturday_end,
+                sunday_enabled, sunday_start, sunday_end,
+                userId
+            ]);
+        } else {
+            const query = `
+                INSERT INTO business_hours (
+                    id, user_id, enabled, timezone, away_message,
+                    monday_enabled, monday_start, monday_end,
+                    tuesday_enabled, tuesday_start, tuesday_end,
+                    wednesday_enabled, wednesday_start, wednesday_end,
+                    thursday_enabled, thursday_start, thursday_end,
+                    friday_enabled, friday_start, friday_end,
+                    saturday_enabled, saturday_start, saturday_end,
+                    sunday_enabled, sunday_start, sunday_end
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            `;
+            await pool.query(query, [
+                uuidv4(), userId, enabled, timezone, away_message,
+                monday_enabled, monday_start, monday_end,
+                tuesday_enabled, tuesday_start, tuesday_end,
+                wednesday_enabled, wednesday_start, wednesday_end,
+                thursday_enabled, thursday_start, thursday_end,
+                friday_enabled, friday_start, friday_end,
+                saturday_enabled, saturday_start, saturday_end,
+                sunday_enabled, sunday_start, sunday_end
+            ]);
+        }
+        res.json({ message: 'Horário de atendimento salvo com sucesso' });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// CONFIGURAÇÕES DE SAUDAÇÃO
+app.get('/config/greeting', authenticateToken, async (req, res) => {
+    try {
+        const [bots] = await pool.query('SELECT * FROM chatbots WHERE user_id = ? AND type = "GREETING" LIMIT 1', [req.user.id]);
+        if (bots.length === 0) return res.json(null);
+
+        const [steps] = await pool.query('SELECT * FROM chatbot_steps WHERE chatbot_id = ? ORDER BY "order" ASC', [bots[0].id]);
+        res.json({ ...bots[0], steps });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+app.post('/config/greeting', authenticateToken, async (req, res) => {
+    const userId = req.user.id;
+    const { name, trigger, status, steps } = req.body;
+
+    try {
+        let botId;
+        const [existing] = await pool.query('SELECT id FROM chatbots WHERE user_id = ? AND type = "GREETING"', [userId]);
+
+        if (existing.length > 0) {
+            botId = existing[0].id;
+            await pool.query(
+                'UPDATE chatbots SET name = ?, trigger = ?, status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+                [name || 'Saudação', trigger || 'cooldown:24', status || 'ACTIVE', botId]
+            );
+        } else {
+            botId = uuidv4();
+            await pool.query(
+                'INSERT INTO chatbots (id, user_id, name, trigger, status, type) VALUES (?, ?, ?, ?, ?, ?)',
+                [botId, userId, name || 'Saudação', trigger || 'cooldown:24', status || 'ACTIVE', 'GREETING']
+            );
+        }
+
+        // Update Steps
+        await pool.query('DELETE FROM chatbot_steps WHERE chatbot_id = ?', [botId]);
+        if (steps && steps.length > 0) {
+            for (const step of steps) {
+                await pool.query(
+                    'INSERT INTO chatbot_steps (id, chatbot_id, type, content, delay, "order") VALUES (?, ?, ?, ?, ?, ?)',
+                    [uuidv4(), botId, step.type || 'text', step.content, step.delay || 0, step.order || 1]
+                );
+            }
+        }
+
+        res.json({ message: 'Saudação salva com sucesso', id: botId });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+app.post('/config/reset-greeting', authenticateToken, async (req, res) => {
+    try {
+        await pool.query('UPDATE conversations SET last_greeted_at = NULL WHERE user_id = ?', [req.user.id]);
+        res.json({ message: 'Saudações resetadas com sucesso' });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
 app.patch('/settings/system', authenticateToken, async (req, res) => {
     const { api_url, api_key, webhook_url } = req.body;
     try {
