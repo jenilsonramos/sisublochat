@@ -126,6 +126,16 @@ const AppContent: React.FC = () => {
     return () => window.removeEventListener('popstate', handlePopState);
   }, []);
 
+  useEffect(() => {
+    // Sincroniza a URL inicial se não houver parâmetro 'tab'
+    const params = new URLSearchParams(window.location.search);
+    if (!params.get('tab')) {
+      const url = new URL(window.location.href);
+      url.searchParams.set('tab', activeTab);
+      window.history.replaceState({}, '', url.toString());
+    }
+  }, []);
+
   if (loading) {
     return (
       <div className="flex h-screen w-screen items-center justify-center bg-background-light dark:bg-background-dark">
