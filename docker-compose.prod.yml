@@ -12,30 +12,14 @@ services:
     environment:
       - PORT=3001
       - DB_TYPE=postgres
-      # Conexão Interna com o banco Postgres abaixo
-      - DB_HOST=postgres_db
+      - DB_HOST=supabase_db
       - DB_PORT=5432
-      - DB_USER=supabase_admin
+      - DB_USER=postgres
       - DB_PASS=967d7e6b537be56e6677b96a606c7d8b
       - DB_NAME=postgres
     networks:
       - ublochatnet
-    depends_on:
-      - postgres_db
 
-  # Banco de Dados (Postgres)
-  postgres_db:
-    image: postgres:15-alpine
-    container_name: ublochat_db
-    restart: always
-    environment:
-      POSTGRES_USER: supabase_admin
-      POSTGRES_PASSWORD: 967d7e6b537be56e6677b96a606c7d8b
-      POSTGRES_DB: postgres
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    networks:
-      - ublochatnet
 
   # Frontend
   app_frontend:
