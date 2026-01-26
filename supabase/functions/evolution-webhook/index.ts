@@ -679,13 +679,16 @@ Deno.serve(async (req) => {
                         }
 
                         // 5.3 Flow Triggers
+                        await logDb(`Checking flows for instance ${instanceId} (User: ${userId})`);
                         const { data: activeFlows } = await supabase.from('flows').select('*').eq('instance_id', instanceId).eq('status', 'ACTIVE');
                         for (const flow of (activeFlows || [])) {
-                            const startNode = flow.nodes?.find((n: any) => n.type === 'start'); if (!startNode) continue;
+                            const startNode = flow.nodes?.find((n: any) => n.type === 'start');
+                            if (!startNode) continue;
                             const keywords = (startNode.data?.keyword || '').split(',').map((k: string) => k.trim().toLowerCase()).filter((k: string) => k);
                             let shouldExec = startNode.data?.triggerType === 'keyword' ? keywords.some((k: string) => text.toLowerCase().includes(k)) : true;
 
                             if (shouldExec) {
+                                await logDb(`Flow Matched: ${flow.name} (ID: ${flow.id}) for ${remoteJid}`);
                                 if (startNode.data?.triggerType !== 'keyword') {
                                     const cooldown = startNode.data?.cooldown ?? 360;
                                     if (cooldown > 0 && existingConv?.last_flow_at && (new Date().getTime() - new Date(existingConv.last_flow_at).getTime()) / 60000 < cooldown) continue;
