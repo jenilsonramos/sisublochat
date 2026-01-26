@@ -34,11 +34,13 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, onRegister, onFor
 
     const loadCaptchaScript = (provider: string, siteKey: string) => {
         if (provider === 'recaptcha') {
+            if (document.querySelector(`script[src*="recaptcha/api.js?render=${siteKey}"]`)) return;
             const script = document.createElement('script');
             script.src = `https://www.google.com/recaptcha/api.js?render=${siteKey}`;
             script.async = true;
             document.body.appendChild(script);
         } else if (provider === 'turnstile') {
+            if (document.querySelector('script[src*="turnstile/v0/api.js"]')) return;
             const script = document.createElement('script');
             script.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js';
             script.async = true;

@@ -67,6 +67,11 @@
         width: 100%;
         overflow: hidden;
       }
+      /* Ensure reCAPTCHA badge is always visible and above other elements */
+      .grecaptcha-badge { 
+        visibility: visible !important; 
+        z-index: 99999 !important; 
+      }
     </style>
   <script type="importmap">
 {
