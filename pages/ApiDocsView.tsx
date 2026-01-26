@@ -102,39 +102,62 @@ const ApiDocsView: React.FC = () => {
                         </div>
                     </section>
 
-                    {/* Greeting Messages */}
+                    {/* Greeting Messages Integration */}
                     <section id="greeting" className="space-y-6">
                         <div className="flex items-center gap-4">
                             <div className="w-10 h-10 bg-emerald-500 rounded-xl flex items-center justify-center text-white shadow-lg">
                                 <Book className="w-5 h-5" />
                             </div>
-                            <h2 className="text-2xl font-black dark:text-white">Saudações Automáticas</h2>
+                            <h2 className="text-2xl font-black dark:text-white">Saudações (Integração API)</h2>
                         </div>
-                        <div className="bg-white dark:bg-slate-800 p-8 rounded-[2.5rem] border border-slate-100 dark:border-slate-700/50 space-y-4 shadow-sm font-medium text-slate-600 dark:text-slate-300">
-                            <p>As saudações são enviadas automaticamente para novos contatos ou após um período de inatividade configurado.</p>
-                            <ul className="list-disc ml-6 space-y-2">
-                                <li><strong>Acesso:</strong> Menu Chatbots &gt; Botão "Saudação" 👋</li>
-                                <li><strong>Cooldown:</strong> Evita reenvio da saudação para o mesmo contato em um curto período (ex: 24h).</li>
-                                <li><strong>Reset:</strong> Você pode resetar o contador para que todos recebam a saudação novamente.</li>
-                            </ul>
+                        <div className="bg-white dark:bg-slate-800 p-8 rounded-[2.5rem] border border-slate-100 dark:border-slate-700/50 space-y-6 shadow-sm">
+                            <p className="text-slate-600 dark:text-slate-300 font-medium">As saudações são automatizadas via banco de dados. Para gerenciar externamente, utilize a tabela <code>chatbots</code> com o tipo <code>GREETING</code>.</p>
+                            <div className="space-y-4">
+                                <h4 className="text-sm font-black text-slate-400 uppercase tracking-wider">Payload para criar Saudação (Exemplo PostgREST)</h4>
+                                <CodeBlock
+                                    index="api-greeting"
+                                    language="json"
+                                    code={`{
+  "user_id": "UUID_DO_USUARIO",
+  "name": "Saudação Integrada",
+  "type": "GREETING",
+  "status": "ACTIVE",
+  "trigger": "cooldown:24"
+}`}
+                                />
+                            </div>
+                            <div className="p-4 bg-emerald-50 dark:bg-emerald-900/10 rounded-2xl border-l-4 border-emerald-500 text-sm">
+                                <strong>Dica Técnica:</strong> Para resetar a saudação para um contato via API, defina <code>last_greeted_at = null</code> na tabela <code>conversations</code>.
+                            </div>
                         </div>
                     </section>
 
-                    {/* Business Hours */}
+                    {/* Business Hours Integration */}
                     <section id="hours" className="space-y-6">
                         <div className="flex items-center gap-4">
                             <div className="w-10 h-10 bg-amber-500 rounded-xl flex items-center justify-center text-white shadow-lg">
                                 <Clock className="w-5 h-5" />
                             </div>
-                            <h2 className="text-2xl font-black dark:text-white">Horário de Atendimento</h2>
+                            <h2 className="text-2xl font-black dark:text-white">Horário de Atendimento (Integração API)</h2>
                         </div>
-                        <div className="bg-white dark:bg-slate-800 p-8 rounded-[2.5rem] border border-slate-100 dark:border-slate-700/50 space-y-4 shadow-sm font-medium text-slate-600 dark:text-slate-300">
-                            <p>Configure quando seu robô deve responder e qual mensagem enviar quando estiver fora do expediente.</p>
-                            <ul className="list-disc ml-6 space-y-2">
-                                <li><strong>Acesso:</strong> Menu Chatbots &gt; Botão "Horários" 🕒</li>
-                                <li><strong>Mensagem de Ausência:</strong> Disparada automaticamente uma vez por dia por contato fora do horário.</li>
-                                <li><strong>Configuração:</strong> Ative os dias da semana e defina os intervalos (ex: 08:00 às 18:00).</li>
-                            </ul>
+                        <div className="bg-white dark:bg-slate-800 p-8 rounded-[2.5rem] border border-slate-100 dark:border-slate-700/50 space-y-6 shadow-sm">
+                            <p className="text-slate-600 dark:text-slate-300 font-medium">Controle a disponibilidade do atendimento através da tabela <code>business_hours</code>.</p>
+                            <div className="space-y-4">
+                                <h4 className="text-sm font-black text-slate-400 uppercase tracking-wider">Payload para Horário (Exemplo PostgREST)</h4>
+                                <CodeBlock
+                                    index="api-hours"
+                                    language="json"
+                                    code={`{
+  "user_id": "UUID_DO_USUARIO",
+  "enabled": true,
+  "timezone": "America/Sao_Paulo",
+  "away_message": "Estamos ausentes.",
+  "monday_enabled": true,
+  "monday_start": "08:00:00",
+  "monday_end": "18:00:00"
+}`}
+                                />
+                            </div>
                         </div>
                     </section>
                     <section id="send" className="space-y-6">
