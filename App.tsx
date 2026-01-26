@@ -103,36 +103,38 @@ const AppContent: React.FC = () => {
   };
 
   const handleTabChange = (tab: TabType) => {
+    if (tab === activeTab) return;
     setActiveTab(tab);
     localStorage.setItem('activeTab', tab);
 
     // Update URL without reloading
     const url = new URL(window.location.href);
     url.searchParams.set('tab', tab);
-    window.history.pushState({}, '', url.toString());
+    window.history.pushState({ tab }, '', url.toString());
 
     if (isMobileOpen) setIsMobileOpen(false);
   };
 
   useEffect(() => {
-    const handlePopState = () => {
-      const params = new URLSearchParams(window.location.search);
-      const tab = params.get('tab') || 'dashboard';
+    const handlePopState = (event: PopStateEvent) => {
+      const tab = (event.state?.tab) || (new URLSearchParams(window.location.search).get('tab')) || 'dashboard';
       setActiveTab(tab as TabType);
       localStorage.setItem('activeTab', tab);
     };
 
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
-  }, []);
+  }, [activeTab]); // Include activeTab to ensure we are referencing current values
 
   useEffect(() => {
-    // Sincroniza a URL inicial se não houver parâmetro 'tab'
+    // Sincroniza a URL inicial se não houver parâmetro 'tab' ou se estiver diferente do estado atual
     const params = new URLSearchParams(window.location.search);
-    if (!params.get('tab')) {
+    const urlTab = params.get('tab');
+
+    if (!urlTab || urlTab !== activeTab) {
       const url = new URL(window.location.href);
       url.searchParams.set('tab', activeTab);
-      window.history.replaceState({}, '', url.toString());
+      window.history.replaceState({ tab: activeTab }, '', url.toString());
     }
   }, []);
 
