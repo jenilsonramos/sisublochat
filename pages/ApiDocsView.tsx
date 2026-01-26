@@ -119,7 +119,7 @@ const ApiDocsView: React.FC = () => {
                                 <CodeBlock
                                     index="curl-send"
                                     language="bash"
-                                    code={`curl --location --request POST 'https://evo.takesender.com.br/message/sendText/SUA_INSTANCIA' \\
+                                    code={`curl --location --request POST 'https://api.ublochat.com.br/message/sendText/SUA_INSTANCIA' \\
 --header 'apikey: SEU_TOKEN_AQUI' \\
 --header 'Content-Type: application/json' \\
 --data-raw '{
@@ -148,7 +148,7 @@ const ApiDocsView: React.FC = () => {
   })
 };
 
-fetch('https://evo.takesender.com.br/message/sendText/MINHA_INSTANCIA', options)
+fetch('https://api.ublochat.com.br/message/sendText/MINHA_INSTANCIA', options)
   .then(response => response.json())
   .then(data => console.log(data))
   .catch(err => console.error(err));`}

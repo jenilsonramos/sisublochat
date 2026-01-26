@@ -64,6 +64,8 @@ export const evolutionApi = {
                     events: [
                         'MESSAGES_UPSERT',
                         'MESSAGES_UPDATE',
+                        'MESSAGES_DELETE',
+                        'MESSAGES_SET',
                         'SEND_MESSAGE',
                         'CONNECTION_UPDATE',
                         'INSTANCE_DELETE'
@@ -88,6 +90,8 @@ export const evolutionApi = {
                 events: [
                     'MESSAGES_UPSERT',
                     'MESSAGES_UPDATE',
+                    'MESSAGES_DELETE',
+                    'MESSAGES_SET',
                     'SEND_MESSAGE',
                     'CONNECTION_UPDATE',
                     'INSTANCE_DELETE'
