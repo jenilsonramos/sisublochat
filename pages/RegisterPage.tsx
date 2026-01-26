@@ -50,14 +50,21 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onLogin, onForgotPassword }
     const handleRegister = async (e: React.FormEvent) => {
         e.preventDefault();
 
-        let currentToken = captchaToken;
+        let currentCaptchaToken = captchaToken; // Renamed to avoid collision with the state variable
+
         if (captchaSettings?.captcha_provider === 'recaptcha') {
             setLoading(true);
             try {
                 // @ts-ignore
-                currentToken = await window.grecaptcha.execute(captchaSettings.captcha_site_key, { action: 'register' });
+                if (window.grecaptcha) {
+                    // @ts-ignore
+                    currentCaptchaToken = await window.grecaptcha.execute(captchaSettings.captcha_site_key, { action: 'register' });
+                } else {
+                    console.warn('reCAPTCHA not loaded yet');
+                }
             } catch (err) {
-                showToast('Erro ao validar captcha', 'error');
+                console.error('reCAPTCHA execution failed:', err);
+                showToast('Erro ao validar desafio de segurança. Tente novamente.', 'error');
                 setLoading(false);
                 return;
             }
@@ -65,8 +72,6 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onLogin, onForgotPassword }
             showToast('Por favor, complete o desafio de segurança', 'error');
             return;
         }
-
-        setLoading(true);
         try {
             const { data, error } = await supabase.auth.signUp({
                 email,
@@ -76,7 +81,7 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onLogin, onForgotPassword }
                         full_name: name,
                         whatsapp: whatsapp,
                     },
-                    captchaToken: currentToken || undefined,
+                    captchaToken: currentCaptchaToken || undefined,
                 },
             });
 

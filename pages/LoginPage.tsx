@@ -54,9 +54,15 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, onRegister, onFor
             setLoading(true);
             try {
                 // @ts-ignore
-                currentToken = await window.grecaptcha.execute(captchaSettings.captcha_site_key, { action: 'login' });
+                if (window.grecaptcha) {
+                    // @ts-ignore
+                    currentToken = await window.grecaptcha.execute(captchaSettings.captcha_site_key, { action: 'login' });
+                } else {
+                    console.warn('reCAPTCHA not loaded yet');
+                }
             } catch (err) {
-                showToast('Erro ao validar captcha', 'error');
+                console.error('reCAPTCHA execution failed:', err);
+                showToast('Erro ao validar desafio de segurança. Tente novamente.', 'error');
                 setLoading(false);
                 return;
             }

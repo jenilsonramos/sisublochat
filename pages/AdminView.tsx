@@ -841,10 +841,10 @@ function SecuritySettings() {
         setLoading(true);
         const { error } = await supabase.from('system_settings').upsert({
             id: configId || '00000000-0000-0000-0000-000000000000',
-            captcha_provider: settings.captcha_provider,
-            captcha_site_key: settings.captcha_site_key,
-            captcha_secret_key: settings.captcha_secret_key,
-            maintenance_mode: settings.maintenance_mode,
+            captcha_provider: settings.captcha_provider || 'none',
+            captcha_site_key: settings.captcha_site_key || '',
+            captcha_secret_key: settings.captcha_secret_key || '',
+            maintenance_mode: settings.maintenance_mode || false,
             maintenance_return_time: settings.maintenance_return_time || null,
         }, { onConflict: 'id' });
 
