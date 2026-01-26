@@ -31,7 +31,10 @@ app.use('/webhook/evolution', async (req, res) => {
 
         console.log('🔹 Webhook Payload:', eventType, 'Instance:', payload.instance);
 
-        if (!data) return res.json({ received: true });
+        if (!data) {
+            console.log('⚠️ Webhook Skip: No data in payload');
+            return res.json({ received: true });
+        }
 
         // 1. CONNECTION UPDATE
         if (['connection.update', 'CONNECTION_UPDATE'].includes(eventType)) {
@@ -49,7 +52,10 @@ app.use('/webhook/evolution', async (req, res) => {
 
             const instanceName = payload.instance;
             const [instRows] = await pool.query('SELECT id, user_id FROM instances WHERE name = ?', [instanceName]);
-            if (instRows.length === 0) return res.json({ received: true });
+            if (instRows.length === 0) {
+                console.log(`⚠️ Webhook Skip: Instance '${instanceName}' not found in database`);
+                return res.json({ received: true });
+            }
 
             const instanceId = instRows[0].id;
             const userId = instRows[0].user_id;
@@ -712,6 +718,12 @@ app.get('/', (req, res) => {
 });
 
 // Bind to 0.0.0.0 to allow access from Docker/Caddy
-app.listen(PORT, '0.0.0.0', () => {
+app.listen(PORT, '0.0.0.0', async () => {
     console.log(`Servidor rodando na porta ${PORT}`);
+    try {
+        const [rows] = await pool.query('SELECT now()');
+        console.log('✅ Database Connected:', rows[0].now);
+    } catch (e) {
+        console.error('❌ Database Connection Failed:', e.message);
+    }
 });
