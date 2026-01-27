@@ -3,7 +3,7 @@ import { useToast } from '../components/ToastProvider';
 import ConfirmationModal from '../components/ConfirmationModal';
 import { evolutionApi, EvolutionInstance } from '../lib/evolution';
 import { supabase } from '../lib/supabase';
-import { Loader2, Send, Search, Info, X, Smartphone, MessageCircle, Volume2, VolumeX, Settings, Paperclip, ImageIcon, FileText, Mic, Square, Trash2, ChevronLeft, ChevronRight, Smile, AlertCircle, Reply, Video, Download, UserCog, CheckCircle2 } from 'lucide-react';
+import { Loader2, Send, Search, Info, X, Smartphone, MessageCircle, Volume2, VolumeX, Settings, Paperclip, ImageIcon, FileText, Mic, Square, Trash2, ChevronLeft, ChevronRight, Smile, AlertCircle, Reply, Video, Download, UserCog, CheckCircle2, Tag, Plus, StickyNote, Save } from 'lucide-react';
 import EmojiPicker, { Theme } from 'emoji-picker-react';
 
 // Types updated to match Supabase Schema
@@ -32,6 +32,12 @@ interface ChatMessage {
   media_type?: 'image' | 'video' | 'audio' | 'document';
   wamid?: string;
   quoted_id?: string;
+}
+
+interface ContactDetails {
+  id: string;
+  tags: string[];
+  notes: string | null;
 }
 
 
@@ -73,6 +79,12 @@ const LiveChatView: React.FC<LiveChatViewProps> = ({ isBlocked = false }) => {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [replyingTo, setReplyingTo] = useState<ChatMessage | null>(null);
+
+  // Contact Details State (Tags & Notes)
+  const [contactDetails, setContactDetails] = useState<ContactDetails | null>(null);
+  const [loadingDetails, setLoadingDetails] = useState(false);
+  const [newTag, setNewTag] = useState('');
+  const [isSavingDetails, setIsSavingDetails] = useState(false);
   const emojiPickerRef = useRef<HTMLDivElement>(null);
 
   // Close emoji picker when clicking outside
@@ -272,6 +284,111 @@ const LiveChatView: React.FC<LiveChatViewProps> = ({ isBlocked = false }) => {
       supabase.removeChannel(messagesSubscription);
     };
   }, [selectedChat?.id]);
+
+  // Fetch contact details whenever a chat is selected
+  useEffect(() => {
+    if (selectedChat) {
+      fetchContactDetails(selectedChat.remote_jid);
+    } else {
+      setContactDetails(null);
+    }
+  }, [selectedChat?.id]);
+
+  const fetchContactDetails = async (remoteJid: string) => {
+    setLoadingDetails(true);
+    try {
+      const { data, error } = await supabase
+        .from('contacts')
+        .select('id, tags, notes')
+        .eq('remote_jid', remoteJid)
+        .maybeSingle();
+
+      if (data) {
+        setContactDetails({
+          id: data.id,
+          tags: data.tags || [],
+          notes: data.notes
+        });
+      } else {
+        // Fallback for contacts not in DB yet (though webhook usually handles it)
+        setContactDetails({ id: '', tags: [], notes: '' });
+      }
+    } catch (error) {
+      console.error('Error fetching contact details:', error);
+    } finally {
+      setLoadingDetails(false);
+    }
+  };
+
+  const handleAddTag = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!newTag.trim() || !contactDetails || !selectedChat) return;
+
+    const tag = newTag.trim().toLowerCase();
+    if (contactDetails.tags.includes(tag)) {
+      setNewTag('');
+      return;
+    }
+
+    const updatedTags = [...contactDetails.tags, tag];
+    try {
+      setIsSavingDetails(true);
+      const { error } = await supabase
+        .from('contacts')
+        .update({ tags: updatedTags })
+        .eq('remote_jid', selectedChat.remote_jid);
+
+      if (error) throw error;
+      setContactDetails({ ...contactDetails, tags: updatedTags });
+      setNewTag('');
+      showToast('Tag adicionada', 'success');
+    } catch (error: any) {
+      showToast('Erro ao adicionar tag', 'error');
+    } finally {
+      setIsSavingDetails(false);
+    }
+  };
+
+  const handleRemoveTag = async (tagToRemove: string) => {
+    if (!contactDetails || !selectedChat) return;
+
+    const updatedTags = contactDetails.tags.filter(t => t !== tagToRemove);
+    try {
+      setIsSavingDetails(true);
+      const { error } = await supabase
+        .from('contacts')
+        .update({ tags: updatedTags })
+        .eq('remote_jid', selectedChat.remote_jid);
+
+      if (error) throw error;
+      setContactDetails({ ...contactDetails, tags: updatedTags });
+      showToast('Tag removida', 'success');
+    } catch (error: any) {
+      showToast('Erro ao remover tag', 'error');
+    } finally {
+      setIsSavingDetails(false);
+    }
+  };
+
+  const handleUpdateNotes = async (notes: string) => {
+    if (!contactDetails || !selectedChat) return;
+
+    try {
+      setIsSavingDetails(true);
+      const { error } = await supabase
+        .from('contacts')
+        .update({ notes })
+        .eq('remote_jid', selectedChat.remote_jid);
+
+      if (error) throw error;
+      setContactDetails({ ...contactDetails, notes });
+      showToast('Nota salva', 'success');
+    } catch (error: any) {
+      showToast('Erro ao salvar nota', 'error');
+    } finally {
+      setIsSavingDetails(false);
+    }
+  };
 
   const handleDeleteMessage = async () => {
     if (!msgToDelete) return;
@@ -1417,6 +1534,79 @@ const LiveChatView: React.FC<LiveChatViewProps> = ({ isBlocked = false }) => {
             </div>
             <h3 className="text-xl font-black dark:text-white truncate px-2">{selectedChat.contact_name}</h3>
             <p className="text-xs text-slate-400 mt-2 font-mono bg-slate-100 dark:bg-slate-900 rounded-lg py-1 px-2 inline-block break-all">{selectedChat.remote_jid}</p>
+          </div>
+
+          <div className="mt-8 flex-1 overflow-y-auto custom-scrollbar -mr-4 pr-4 space-y-8">
+            {/* TAGS SECTION */}
+            <div className="space-y-4">
+              <div className="flex items-center gap-2 text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                <Tag size={12} className="text-primary" />
+                Tags
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {loadingDetails ? (
+                  <Loader2 className="w-4 h-4 animate-spin text-slate-300" />
+                ) : (
+                  <>
+                    {contactDetails?.tags.map(tag => (
+                      <span key={tag} className="flex items-center gap-1 px-3 py-1.5 bg-primary/10 text-primary text-[10px] font-black rounded-full uppercase group">
+                        {tag}
+                        <button onClick={() => handleRemoveTag(tag)} className="hover:text-rose-500 transition-colors">
+                          <X size={10} />
+                        </button>
+                      </span>
+                    ))}
+                    {contactDetails?.tags.length === 0 && (
+                      <p className="text-[10px] text-slate-400 italic font-medium">Nenhuma tag...</p>
+                    )}
+                  </>
+                )}
+              </div>
+              <form onSubmit={handleAddTag} className="relative">
+                <input
+                  type="text"
+                  value={newTag}
+                  onChange={(e) => setNewTag(e.target.value)}
+                  placeholder="Nova tag..."
+                  disabled={isSavingDetails || loadingDetails}
+                  className="w-full pl-4 pr-10 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-700 rounded-xl text-xs font-medium dark:text-white focus:ring-2 focus:ring-primary/20 outline-none transition-all disabled:opacity-50"
+                />
+                <button
+                  type="submit"
+                  disabled={!newTag.trim() || isSavingDetails}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 text-slate-400 hover:text-primary transition-colors disabled:opacity-50"
+                >
+                  {isSavingDetails ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus size={16} />}
+                </button>
+              </form>
+            </div>
+
+            {/* NOTES SECTION */}
+            <div className="space-y-4 pb-8">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                  <StickyNote size={12} className="text-primary" />
+                  Notas
+                </div>
+                {isSavingDetails && <Loader2 className="w-3 h-3 animate-spin text-primary" />}
+              </div>
+
+              <div className="relative group">
+                <textarea
+                  value={contactDetails?.notes || ''}
+                  onChange={(e) => setContactDetails(prev => prev ? { ...prev, notes: e.target.value } : null)}
+                  onBlur={(e) => handleUpdateNotes(e.target.value)}
+                  placeholder="Adicione observações sobre o contato..."
+                  disabled={loadingDetails}
+                  className="w-full min-h-[150px] p-4 bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-700 rounded-2xl text-xs font-medium dark:text-white focus:ring-2 focus:ring-primary/20 outline-none transition-all resize-none custom-scrollbar disabled:opacity-50"
+                />
+                <div className="absolute bottom-3 right-3 opacity-0 group-focus-within:opacity-100 transition-opacity pointer-events-none">
+                  <p className="text-[9px] font-bold text-slate-400 uppercase bg-white dark:bg-slate-800 px-2 py-1 rounded-lg border border-slate-100 dark:border-slate-700 shadow-sm flex items-center gap-1">
+                    <Save size={8} /> Salva ao sair
+                  </p>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       )}

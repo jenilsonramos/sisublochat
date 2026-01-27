@@ -38,6 +38,7 @@ interface Contact {
     avatar_url?: string;
     email?: string;
     notes?: string;
+    tags?: string[];
     created_at: string;
 }
 
@@ -64,7 +65,7 @@ const ContactsView: React.FC = () => {
     const [editingList, setEditingList] = useState<ContactList | null>(null);
 
     // Form inputs
-    const [contactForm, setContactForm] = useState({ name: '', phone: '', email: '', notes: '' });
+    const [contactForm, setContactForm] = useState({ name: '', phone: '', email: '', notes: '', tags: [] as string[] });
     const [listForm, setListForm] = useState({ name: '' });
 
     const fetchStats = async () => {
@@ -157,6 +158,7 @@ const ContactsView: React.FC = () => {
                 remote_jid,
                 email: contactForm.email,
                 notes: contactForm.notes,
+                tags: contactForm.tags,
             };
 
             if (editingContact) {
@@ -171,7 +173,7 @@ const ContactsView: React.FC = () => {
 
             setShowContactModal(false);
             setEditingContact(null);
-            setContactForm({ name: '', phone: '', email: '', notes: '' });
+            setContactForm({ name: '', phone: '', email: '', notes: '', tags: [] });
         } catch (error: any) {
             showToast(error.message, 'error');
         }
@@ -305,7 +307,7 @@ const ContactsView: React.FC = () => {
 
                 {activeTab === 'contacts' ? (
                     <button
-                        onClick={() => { setEditingContact(null); setContactForm({ name: '', phone: '', email: '', notes: '' }); setShowContactModal(true); }}
+                        onClick={() => { setEditingContact(null); setContactForm({ name: '', phone: '', email: '', notes: '', tags: [] }); setShowContactModal(true); }}
                         className="flex items-center justify-center gap-3 px-8 py-4 bg-primary text-white font-black rounded-2xl hover:brightness-110 transition-all shadow-xl shadow-primary/20 active:scale-95 text-sm"
                     >
                         <UserPlus size={18} />
@@ -346,7 +348,21 @@ const ContactsView: React.FC = () => {
                                                 </div>
                                                 <div className="min-w-0">
                                                     <h4 className="text-sm font-black dark:text-white truncate uppercase tracking-tight">{contact.name}</h4>
-                                                    <p className="text-[10px] font-bold text-slate-400 uppercase">{contact.remote_jid.split('@')[0]}</p>
+                                                    <div className="flex items-center gap-2">
+                                                        <p className="text-[10px] font-bold text-slate-400 uppercase">{contact.remote_jid.split('@')[0]}</p>
+                                                        {contact.tags && contact.tags.length > 0 && (
+                                                            <div className="flex gap-1">
+                                                                {contact.tags.slice(0, 2).map(tag => (
+                                                                    <span key={tag} className="px-1.5 py-0.5 bg-primary/10 text-primary text-[8px] font-black rounded uppercase">
+                                                                        {tag}
+                                                                    </span>
+                                                                ))}
+                                                                {contact.tags.length > 2 && (
+                                                                    <span className="text-[8px] text-slate-400 font-bold">+{contact.tags.length - 2}</span>
+                                                                )}
+                                                            </div>
+                                                        )}
+                                                    </div>
                                                 </div>
                                             </div>
                                         </td>
@@ -373,7 +389,7 @@ const ContactsView: React.FC = () => {
                                                 <button
                                                     onClick={() => {
                                                         setEditingContact(contact);
-                                                        setContactForm({ name: contact.name, phone: contact.remote_jid.split('@')[0], email: contact.email || '', notes: contact.notes || '' });
+                                                        setContactForm({ name: contact.name, phone: contact.remote_jid.split('@')[0], email: contact.email || '', notes: contact.notes || '', tags: contact.tags || [] });
                                                         setShowContactModal(true);
                                                     }}
                                                     className="p-3 bg-slate-50 dark:bg-slate-800 text-slate-400 hover:text-primary rounded-xl transition-all"
@@ -460,6 +476,24 @@ const ContactsView: React.FC = () => {
                                     onChange={e => setContactForm({ ...contactForm, email: e.target.value })}
                                     className="w-full px-5 py-4 bg-slate-100 dark:bg-slate-800 border-none rounded-2xl outline-none font-medium dark:text-white focus:ring-4 focus:ring-primary/5"
                                     placeholder="joao@email.com"
+                                />
+                            </div>
+                            <div className="space-y-1">
+                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Tags (separadas por vírgula)</label>
+                                <input
+                                    value={contactForm.tags.join(', ')}
+                                    onChange={e => setContactForm({ ...contactForm, tags: e.target.value.split(',').map(t => t.trim().toLowerCase()).filter(t => t) })}
+                                    className="w-full px-5 py-4 bg-slate-100 dark:bg-slate-800 border-none rounded-2xl outline-none font-medium dark:text-white focus:ring-4 focus:ring-primary/5"
+                                    placeholder="vip, lead, cliente"
+                                />
+                            </div>
+                            <div className="space-y-1">
+                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Notas</label>
+                                <textarea
+                                    value={contactForm.notes}
+                                    onChange={e => setContactForm({ ...contactForm, notes: e.target.value })}
+                                    className="w-full px-5 py-4 bg-slate-100 dark:bg-slate-800 border-none rounded-2xl outline-none font-medium dark:text-white focus:ring-4 focus:ring-primary/5 min-h-[100px] resize-none"
+                                    placeholder="Observações sobre o contato..."
                                 />
                             </div>
                             <button className="w-full py-5 bg-primary text-white font-black rounded-3xl mt-4 hover:brightness-110 shadow-xl shadow-primary/20 transition-all">
