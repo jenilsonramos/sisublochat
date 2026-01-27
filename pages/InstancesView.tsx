@@ -643,34 +643,54 @@ const InstancesView: React.FC<InstancesViewProps> = ({ isBlocked = false }) => {
       {/* Create Modal */}
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in">
-          <div className="bg-white dark:bg-slate-800 w-full max-w-xl rounded-[2.5rem] p-8 shadow-2xl animate-in zoom-in duration-300">
-            <h2 className="text-2xl font-black text-slate-900 dark:text-white mb-2">Nova Instância</h2>
-            <p className="text-slate-500 mb-8">Configure sua nova conexão do WhatsApp.</p>
+          <div className="bg-white dark:bg-slate-800 w-full max-w-lg md:max-w-2xl rounded-[2rem] md:rounded-[2.5rem] p-6 md:p-8 shadow-2xl animate-in zoom-in duration-300 max-h-[90vh] overflow-y-auto">
+            <h2 className="text-xl md:text-2xl font-black text-slate-900 dark:text-white mb-2">Nova Instância</h2>
+            <p className="text-sm md:text-base text-slate-500 mb-6 md:mb-8">Configure sua nova conexão do WhatsApp.</p>
 
             <form onSubmit={handleCreateInstance} className="space-y-6">
 
               {/* Type Selection */}
-              <div className="grid grid-cols-2 gap-4 mb-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
                 <div
                   onClick={() => setConnectionType('evolution')}
-                  className={`cursor-pointer p-4 rounded-2xl border-2 transition-all ${connectionType === 'evolution' ? 'border-primary bg-primary/5' : 'border-slate-100 dark:border-slate-700 hover:border-slate-300'}`}
+                  className={`cursor-pointer p-4 rounded-2xl border-2 transition-all relative overflow-hidden ${connectionType === 'evolution' ? 'border-primary bg-primary/5 shadow-lg shadow-primary/5' : 'border-slate-100 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600'}`}
                 >
                   <div className="flex items-center gap-3 mb-2">
-                    <QrCode className={`w-5 h-5 ${connectionType === 'evolution' ? 'text-primary' : 'text-slate-400'}`} />
+                    <div className={`p-2 rounded-xl ${connectionType === 'evolution' ? 'bg-primary text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-400'}`}>
+                      <QrCode className="w-5 h-5" />
+                    </div>
                     <span className={`font-bold ${connectionType === 'evolution' ? 'text-primary' : 'text-slate-500 dark:text-slate-400'}`}>QR Code</span>
                   </div>
-                  <p className="text-xs text-slate-500">Conecte seu WhatsApp existente escaneando um código.</p>
+                  <p className="text-xs text-slate-500 leading-relaxed">Conecte seu WhatsApp existente escaneando um código.</p>
+
+                  {connectionType === 'evolution' && (
+                    <div className="absolute top-2 right-2">
+                      <div className="w-4 h-4 rounded-full bg-primary flex items-center justify-center">
+                        <Check className="w-2.5 h-2.5 text-white" />
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 <div
                   onClick={() => setConnectionType('official')}
-                  className={`cursor-pointer p-4 rounded-2xl border-2 transition-all ${connectionType === 'official' ? 'border-emerald-500 bg-emerald-500/5' : 'border-slate-100 dark:border-slate-700 hover:border-slate-300'}`}
+                  className={`cursor-pointer p-4 rounded-2xl border-2 transition-all relative overflow-hidden ${connectionType === 'official' ? 'border-emerald-500 bg-emerald-500/5 shadow-lg shadow-emerald-500/5' : 'border-slate-100 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600'}`}
                 >
                   <div className="flex items-center gap-3 mb-2">
-                    <div className="w-5 h-5 rounded-full bg-emerald-500 flex items-center justify-center text-white text-[10px] font-bold">M</div>
+                    <div className={`p-2 rounded-xl flex items-center justify-center ${connectionType === 'official' ? 'bg-emerald-500 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-400'}`}>
+                      <span className="font-bold text-xs">M</span>
+                    </div>
                     <span className={`font-bold ${connectionType === 'official' ? 'text-emerald-500' : 'text-slate-500 dark:text-slate-400'}`}>API Oficial</span>
                   </div>
-                  <p className="text-xs text-slate-500">Use a API Cloud da Meta para alta performance e estabilidade.</p>
+                  <p className="text-xs text-slate-500 leading-relaxed">Use a API Cloud da Meta para alta performance e estabilidade.</p>
+
+                  {connectionType === 'official' && (
+                    <div className="absolute top-2 right-2">
+                      <div className="w-4 h-4 rounded-full bg-emerald-500 flex items-center justify-center">
+                        <Check className="w-2.5 h-2.5 text-white" />
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -680,49 +700,57 @@ const InstancesView: React.FC<InstancesViewProps> = ({ isBlocked = false }) => {
                   value={newInstanceName}
                   onChange={(e) => setNewInstanceName(e.target.value)}
                   placeholder="Ex: Vendas 01"
-                  className="w-full mt-2 p-4 bg-slate-50 dark:bg-slate-900 rounded-2xl font-bold outline-none focus:ring-2 focus:ring-primary/20 dark:text-white"
+                  className="w-full mt-2 p-4 bg-slate-50 dark:bg-slate-900 rounded-2xl font-bold outline-none focus:ring-2 focus:ring-primary/20 dark:text-white border-2 border-transparent focus:border-primary/20 transition-all"
                   autoFocus
                 />
               </div>
 
               {connectionType === 'official' && (
-                <div className="space-y-4 pt-4 border-t border-slate-100 dark:border-slate-700">
-                  <h3 className="text-sm font-black text-slate-700 dark:text-white">Credenciais da Meta (Facebook)</h3>
+                <div className="space-y-4 pt-4 border-t border-slate-100 dark:border-slate-700 animate-in slide-in-from-top-2 fade-in duration-300">
+                  <div className="flex items-center gap-2 mb-2">
+                    <div className="w-8 h-8 rounded-full bg-emerald-100 dark:bg-emerald-500/10 flex items-center justify-center">
+                      <span className="text-emerald-600 dark:text-emerald-500 font-bold text-xs">ID</span>
+                    </div>
+                    <h3 className="text-sm font-black text-slate-700 dark:text-white">Credenciais da Meta</h3>
+                  </div>
 
-                  <div>
-                    <label className="text-xs font-bold uppercase tracking-widest text-slate-400 ml-1">Phone Number ID</label>
-                    <input
-                      value={metaPhoneId}
-                      onChange={(e) => setMetaPhoneId(e.target.value)}
-                      placeholder="Ex: 1059..."
-                      className="w-full mt-1 p-3 bg-slate-50 dark:bg-slate-900 rounded-xl text-sm font-medium outline-none focus:ring-2 focus:ring-emerald-500/20 dark:text-white"
-                    />
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400 ml-1">Phone Number ID</label>
+                      <input
+                        value={metaPhoneId}
+                        onChange={(e) => setMetaPhoneId(e.target.value)}
+                        placeholder="Ex: 1059..."
+                        className="w-full mt-1 p-3 bg-slate-50 dark:bg-slate-900 rounded-xl text-sm font-medium outline-none focus:ring-2 focus:ring-emerald-500/20 dark:text-white border border-slate-100 dark:border-slate-700/50"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400 ml-1">Business Account ID</label>
+                      <input
+                        value={metaBusinessId}
+                        onChange={(e) => setMetaBusinessId(e.target.value)}
+                        placeholder="Ex: 1023..."
+                        className="w-full mt-1 p-3 bg-slate-50 dark:bg-slate-900 rounded-xl text-sm font-medium outline-none focus:ring-2 focus:ring-emerald-500/20 dark:text-white border border-slate-100 dark:border-slate-700/50"
+                      />
+                    </div>
                   </div>
                   <div>
-                    <label className="text-xs font-bold uppercase tracking-widest text-slate-400 ml-1">Business Account ID</label>
-                    <input
-                      value={metaBusinessId}
-                      onChange={(e) => setMetaBusinessId(e.target.value)}
-                      placeholder="Ex: 1023..."
-                      className="w-full mt-1 p-3 bg-slate-50 dark:bg-slate-900 rounded-xl text-sm font-medium outline-none focus:ring-2 focus:ring-emerald-500/20 dark:text-white"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-xs font-bold uppercase tracking-widest text-slate-400 ml-1">Access Token</label>
+                    <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400 ml-1">Access Token (Permanente)</label>
                     <div className="relative">
                       <input
                         value={metaToken}
                         onChange={(e) => setMetaToken(e.target.value)}
                         placeholder="Ex: EAAG..."
                         type="password"
-                        className="w-full mt-1 p-3 bg-slate-50 dark:bg-slate-900 rounded-xl text-sm font-medium outline-none focus:ring-2 focus:ring-emerald-500/20 dark:text-white"
+                        className="w-full mt-1 p-3 bg-slate-50 dark:bg-slate-900 rounded-xl text-sm font-medium outline-none focus:ring-2 focus:ring-emerald-500/20 dark:text-white border border-slate-100 dark:border-slate-700/50"
                       />
                     </div>
+                    <p className="text-[10px] text-slate-400 mt-1 ml-1">Use um token de sistema ou de usuário permanente.</p>
                   </div>
                 </div>
               )}
 
-              <div className="flex gap-3 pt-2">
+              <div className="flex flex-col-reverse md:flex-row gap-3 pt-4">
                 <button
                   type="button"
                   onClick={() => setShowModal(false)}
@@ -735,7 +763,7 @@ const InstancesView: React.FC<InstancesViewProps> = ({ isBlocked = false }) => {
                   disabled={processing === 'CREATING' || !newInstanceName || (connectionType === 'official' && (!metaPhoneId || !metaToken))}
                   className={`flex-1 py-4 text-white font-bold rounded-2xl transition-all shadow-lg disabled:opacity-50 flex items-center justify-center gap-2 ${connectionType === 'official' ? 'bg-emerald-500 hover:bg-emerald-600 shadow-emerald-500/20' : 'bg-primary hover:bg-primary-light shadow-primary/20'}`}
                 >
-                  {processing === 'CREATING' ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Criar'}
+                  {processing === 'CREATING' ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Criar Instância'}
                 </button>
               </div>
             </form>
