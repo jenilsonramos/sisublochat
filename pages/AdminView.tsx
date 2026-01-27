@@ -1921,13 +1921,13 @@ function SEOSettings() {
     const [fetching, setFetching] = useState(true);
     const { showToast } = useToast();
     const [formData, setFormData] = useState({
-        seo_title: '',
-        seo_description: '',
-        seo_keywords: '',
+        seo_title: 'Ublo Chat - O melhor Dashboard',
+        seo_description: 'Gerencie suas instâncias e chatbots com facilidade.',
+        seo_keywords: 'whatsapp, api, ublo chat, automação',
         favicon_url: '',
         og_image_url: '',
-        robots_txt: 'User-agent: *\nAllow: /',
-        footer_text: ''
+        robots_txt: 'User-agent: *\nAllow: /\n\nSitemap: https://seu-dominio.com/sitemap.xml',
+        footer_text: '© 2024 Ublo Chat - Todos os direitos reservados'
     });
 
     useEffect(() => {
@@ -1940,13 +1940,13 @@ function SEOSettings() {
             if (error && error.code !== 'PGRST116') throw error;
             if (data) {
                 setFormData({
-                    seo_title: data.seo_title || '',
-                    seo_description: data.seo_description || '',
-                    seo_keywords: data.seo_keywords || '',
+                    seo_title: data.seo_title || 'Ublo Chat - O melhor Dashboard',
+                    seo_description: data.seo_description || 'Gerencie suas instâncias e chatbots com facilidade.',
+                    seo_keywords: data.seo_keywords || 'whatsapp, api, ublo chat, automação',
                     favicon_url: data.favicon_url || '',
                     og_image_url: data.og_image_url || '',
-                    robots_txt: data.robots_txt || 'User-agent: *\nAllow: /',
-                    footer_text: data.footer_text || ''
+                    robots_txt: data.robots_txt || 'User-agent: *\nAllow: /\n\nSitemap: https://seu-dominio.com/sitemap.xml',
+                    footer_text: data.footer_text || '© 2024 Ublo Chat - Todos os direitos reservados'
                 });
             }
         } catch (err: any) {
@@ -2016,7 +2016,7 @@ function SEOSettings() {
                             <input
                                 value={formData.seo_title}
                                 onChange={e => setFormData({ ...formData, seo_title: e.target.value })}
-                                placeholder="Ex: Evolution API - O melhor Dashboard"
+                                placeholder="Ublo Chat - O melhor Dashboard"
                                 className="w-full mt-2 p-4 bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 outline-none focus:border-primary/50 transition-all dark:text-white font-bold"
                             />
                         </div>
@@ -2069,7 +2069,10 @@ function SEOSettings() {
                         </h3>
 
                         <div>
-                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Favicon URL (.ico ou .png)</label>
+                            <div className="flex justify-between items-center ml-1">
+                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Favicon URL</label>
+                                <span className="text-[9px] font-bold text-primary px-2 py-0.5 bg-primary/10 rounded-full">Recomendado: 32x32px (.ico/.png)</span>
+                            </div>
                             <input
                                 value={formData.favicon_url}
                                 onChange={e => setFormData({ ...formData, favicon_url: e.target.value })}
@@ -2079,7 +2082,10 @@ function SEOSettings() {
                         </div>
 
                         <div>
-                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">OG Image URL (Social Share)</label>
+                            <div className="flex justify-between items-center ml-1">
+                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">OG Image URL (Social Share)</label>
+                                <span className="text-[9px] font-bold text-emerald-500 px-2 py-0.5 bg-emerald-500/10 rounded-full">Recomendado: 1200x630px</span>
+                            </div>
                             <input
                                 value={formData.og_image_url}
                                 onChange={e => setFormData({ ...formData, og_image_url: e.target.value })}
@@ -2100,7 +2106,7 @@ function SEOSettings() {
                             <input
                                 value={formData.footer_text}
                                 onChange={e => setFormData({ ...formData, footer_text: e.target.value })}
-                                placeholder="© 2024 Minha Empresa - Todos os direitos reservados"
+                                placeholder="© 2024 Ublo Chat - Todos os direitos reservados"
                                 className="w-full mt-2 p-4 bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 outline-none focus:border-primary/50 transition-all dark:text-white font-medium"
                             />
                         </div>

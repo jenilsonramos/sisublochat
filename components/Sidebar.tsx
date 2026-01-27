@@ -143,8 +143,10 @@ const Sidebar: React.FC<SidebarProps> = ({
           </div>
           {isExpanded && (
             <div className="flex flex-col animate-in fade-in slide-in-from-left-2 duration-500">
-              <span className="text-white font-black text-lg md:text-xl tracking-tighter leading-none">EVOLUTION</span>
-              <span className="text-white/40 text-[10px] font-black uppercase tracking-widest mt-1">v1.2.0</span>
+              <span className="text-white font-black text-lg md:text-xl tracking-tighter leading-none whitespace-nowrap overflow-hidden text-ellipsis max-w-[140px]">
+                {systemSettings?.seo_title?.split(' - ')[0] || 'UBLO CHAT'}
+              </span>
+              <span className="text-white/40 text-[10px] font-black uppercase tracking-widest mt-1">Dashboard</span>
             </div>
           )}
         </div>

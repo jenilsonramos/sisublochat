@@ -136,7 +136,7 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onLogin, onForgotPassword }
                         <Rocket className="text-primary w-8 h-8" />
                     </div>
                     <div className="text-center space-y-1">
-                        <h1 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight italic">Evolution</h1>
+                        <h1 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight italic">Ublo Chat</h1>
                         <p className="text-slate-500 dark:text-slate-400 font-medium text-sm">Crie sua conta em segundos</p>
                     </div>
                 </div>

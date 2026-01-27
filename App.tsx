@@ -96,7 +96,8 @@ const AppContent: React.FC = () => {
   };
 
   const applySEO = (settings: any) => {
-    if (settings.seo_title) document.title = settings.seo_title;
+    const systemName = settings.seo_title || 'Ublo Chat';
+    document.title = systemName;
 
     let metaDesc = document.querySelector('meta[name="description"]');
     if (!metaDesc) {
@@ -104,7 +105,7 @@ const AppContent: React.FC = () => {
       metaDesc.setAttribute('name', 'description');
       document.head.appendChild(metaDesc);
     }
-    metaDesc.setAttribute('content', settings.seo_description || '');
+    metaDesc.setAttribute('content', settings.seo_description || 'Gerencie suas instâncias e chatbots com facilidade.');
 
     let metaKeywords = document.querySelector('meta[name="keywords"]');
     if (!metaKeywords) {
@@ -112,7 +113,7 @@ const AppContent: React.FC = () => {
       metaKeywords.setAttribute('name', 'keywords');
       document.head.appendChild(metaKeywords);
     }
-    metaKeywords.setAttribute('content', settings.seo_keywords || '');
+    metaKeywords.setAttribute('content', settings.seo_keywords || 'whatsapp, api, ublo chat, automação');
 
     // Favicon
     if (settings.favicon_url) {
@@ -127,8 +128,8 @@ const AppContent: React.FC = () => {
 
     // OG Tags
     const ogTags = [
-      { property: 'og:title', content: settings.seo_title },
-      { property: 'og:description', content: settings.seo_description },
+      { property: 'og:title', content: systemName },
+      { property: 'og:description', content: settings.seo_description || 'Gerencie suas instâncias e chatbots com facilidade.' },
       { property: 'og:image', content: settings.og_image_url },
       { property: 'og:type', content: 'website' }
     ];
