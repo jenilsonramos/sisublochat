@@ -93,117 +93,103 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, onRegister, onFor
     };
 
     return (
-        <div className="min-h-screen bg-white dark:bg-slate-950 flex flex-col lg:flex-row overflow-y-auto">
-            {/* Left Side: Minimalist Branding (Desktop) */}
-            <div className="hidden lg:flex lg:w-[40%] bg-slate-50 dark:bg-slate-900 items-center justify-center p-12 border-right border-slate-100 dark:border-slate-800">
-                <div className="max-w-md space-y-12">
-                    <div className="w-20 h-20 bg-primary/10 rounded-3xl flex items-center justify-center animate-in zoom-in duration-700">
-                        <Shield className="text-primary w-10 h-10" />
+        <div className="min-h-screen bg-white dark:bg-slate-950 flex items-center justify-center p-4 sm:p-6 lg:p-8 overflow-y-auto">
+            <div className="w-full max-w-[440px] space-y-10 py-8">
+                {/* Logo Centralizado */}
+                <div className="flex flex-col items-center justify-center space-y-4 animate-in fade-in zoom-in duration-700">
+                    <div className="w-16 h-16 bg-primary/10 rounded-2xl flex items-center justify-center">
+                        <Shield className="text-primary w-8 h-8" />
                     </div>
-                    <div className="space-y-6">
-                        <h2 className="text-5xl font-black text-slate-900 dark:text-white leading-tight tracking-tighter italic">
-                            Acesse a sua conta Evolution.
-                        </h2>
-                        <p className="text-lg text-slate-500 dark:text-slate-400 font-medium leading-relaxed">
-                            A plataforma definitiva para automação de WhatsApp com inteligência e escala.
-                        </p>
+                    <div className="text-center space-y-1">
+                        <h1 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight italic">Evolution</h1>
+                        <p className="text-slate-500 dark:text-slate-400 font-medium text-sm">Acesse sua conta profissional</p>
                     </div>
                 </div>
-            </div>
 
-            {/* Right Side: Login Form */}
-            <div className="flex-1 flex items-center justify-center p-6 lg:p-20 bg-white dark:bg-slate-950">
-                <div className="w-full max-w-[440px]">
-                    <div className="space-y-12">
-                        <div className="space-y-4">
-                            <h1 className="text-4xl font-black text-slate-900 dark:text-white tracking-tight">Login</h1>
-                            <p className="text-slate-500 dark:text-slate-400 font-medium">Bem-vindo de volta! Insira suas credenciais.</p>
+                <div className="bg-white dark:bg-slate-900/50 sm:border sm:border-slate-100 dark:sm:border-slate-800 sm:rounded-[2.5rem] sm:p-10 sm:shadow-2xl sm:shadow-primary/5 transition-all">
+                    <form onSubmit={handleLogin} className="space-y-6">
+                        <div className="space-y-2">
+                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">E-mail Corporativo</label>
+                            <div className="relative group">
+                                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-primary transition-colors w-5 h-5" />
+                                <input
+                                    type="email"
+                                    value={email}
+                                    onChange={(e) => setEmail(e.target.value)}
+                                    placeholder="seu@email.com"
+                                    required
+                                    className="w-full pl-12 pr-4 py-4 bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700/50 focus:border-primary/30 focus:bg-white focus:ring-4 focus:ring-primary/5 rounded-2xl transition-all dark:text-white text-sm outline-none"
+                                />
+                            </div>
                         </div>
 
-                        <form onSubmit={handleLogin} className="space-y-6">
-                            <div className="space-y-2">
-                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">E-mail Corporativo</label>
-                                <div className="relative group">
-                                    <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-primary transition-colors w-5 h-5" />
-                                    <input
-                                        type="email"
-                                        value={email}
-                                        onChange={(e) => setEmail(e.target.value)}
-                                        placeholder="seu@email.com"
-                                        required
-                                        className="w-full pl-12 pr-4 py-4 bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-800 focus:border-primary/30 focus:bg-white focus:ring-4 focus:ring-primary/5 rounded-2xl transition-all dark:text-white text-sm outline-none"
-                                    />
-                                </div>
+                        <div className="space-y-2">
+                            <div className="flex justify-between items-center mb-1">
+                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">Senha de Acesso</label>
+                                <button
+                                    type="button"
+                                    onClick={onForgotPassword}
+                                    className="text-[10px] font-black text-primary hover:brightness-110 transition-colors uppercase tracking-widest"
+                                >
+                                    Esqueci a senha
+                                </button>
                             </div>
-
-                            <div className="space-y-2">
-                                <div className="flex justify-between items-center mb-1">
-                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">Senha de Acesso</label>
-                                    <button
-                                        type="button"
-                                        onClick={onForgotPassword}
-                                        className="text-[10px] font-black text-primary hover:brightness-110 transition-colors uppercase tracking-widest"
-                                    >
-                                        Esqueci a senha
-                                    </button>
-                                </div>
-                                <div className="relative group">
-                                    <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-primary transition-colors w-5 h-5" />
-                                    <input
-                                        type="password"
-                                        value={password}
-                                        onChange={(e) => setPassword(e.target.value)}
-                                        placeholder="••••••••"
-                                        required
-                                        className="w-full pl-12 pr-4 py-4 bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-800 focus:border-primary/30 focus:bg-white focus:ring-4 focus:ring-primary/5 rounded-2xl transition-all dark:text-white text-sm outline-none"
-                                    />
-                                </div>
+                            <div className="relative group">
+                                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-primary transition-colors w-5 h-5" />
+                                <input
+                                    type="password"
+                                    value={password}
+                                    onChange={(e) => setPassword(e.target.value)}
+                                    placeholder="••••••••"
+                                    required
+                                    className="w-full pl-12 pr-4 py-4 bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700/50 focus:border-primary/30 focus:bg-white focus:ring-4 focus:ring-primary/5 rounded-2xl transition-all dark:text-white text-sm outline-none"
+                                />
                             </div>
+                        </div>
 
-                            {captchaSettings?.captcha_provider === 'turnstile' && (
-                                <div className="flex justify-center py-2">
-                                    <div
-                                        className="cf-turnstile"
-                                        data-sitekey={captchaSettings.captcha_site_key}
-                                        data-callback="onTurnstileSuccess"
-                                    ></div>
-                                    <script dangerouslySetInnerHTML={{
-                                        __html: `
-                                            window.onTurnstileSuccess = function(token) {
-                                                window.dispatchEvent(new CustomEvent('turnstile-success', { detail: token }));
-                                            };
-                                        `
-                                    }} />
-                                </div>
+                        {captchaSettings?.captcha_provider === 'turnstile' && (
+                            <div className="flex justify-center py-2 scale-90 sm:scale-100">
+                                <div
+                                    className="cf-turnstile"
+                                    data-sitekey={captchaSettings.captcha_site_key}
+                                    data-callback="onTurnstileSuccess"
+                                ></div>
+                                <script dangerouslySetInnerHTML={{
+                                    __html: `
+                                        window.onTurnstileSuccess = function(token) {
+                                            window.dispatchEvent(new CustomEvent('turnstile-success', { detail: token }));
+                                        };
+                                    `
+                                }} />
+                            </div>
+                        )}
+
+                        <button
+                            type="submit"
+                            disabled={loading}
+                            className="w-full py-5 bg-primary text-white font-black rounded-2xl hover:brightness-110 transition-all shadow-2xl shadow-primary/20 flex items-center justify-center gap-3 group disabled:opacity-50 active:scale-[0.98]"
+                        >
+                            {loading ? (
+                                <Loader2 className="w-6 h-6 animate-spin" />
+                            ) : (
+                                <>
+                                    Acessar Plataforma
+                                    <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                                </>
                             )}
+                        </button>
+                    </form>
 
-                            <button
-                                type="submit"
-                                disabled={loading}
-                                className="w-full py-5 bg-primary text-white font-black rounded-2xl hover:brightness-110 transition-all shadow-2xl shadow-primary/20 flex items-center justify-center gap-3 group disabled:opacity-50 active:scale-[0.98]"
-                            >
-                                {loading ? (
-                                    <Loader2 className="w-6 h-6 animate-spin" />
-                                ) : (
-                                    <>
-                                        Entrar na Evolution
-                                        <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-                                    </>
-                                )}
-                            </button>
-                        </form>
-
-                        <div className="pt-8 border-t border-slate-50 dark:border-slate-900 flex flex-col sm:flex-row items-center justify-between gap-4">
-                            <p className="text-sm font-medium text-slate-500 dark:text-slate-400">
-                                Novo por aqui?
-                            </p>
-                            <button
-                                onClick={onRegister}
-                                className="text-primary font-black hover:underline underline-offset-4 text-sm"
-                            >
-                                Crie sua conta agora
-                            </button>
-                        </div>
+                    <div className="mt-8 pt-8 border-t border-slate-50 dark:border-slate-800 flex flex-col items-center gap-4">
+                        <p className="text-sm font-medium text-slate-500 dark:text-slate-400">
+                            Não tem uma conta?
+                        </p>
+                        <button
+                            onClick={onRegister}
+                            className="text-primary font-black hover:underline underline-offset-4 text-sm"
+                        >
+                            Crie seu cadastro gratuito
+                        </button>
                     </div>
                 </div>
             </div>

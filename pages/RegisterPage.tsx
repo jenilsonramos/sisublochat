@@ -128,182 +128,154 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onLogin, onForgotPassword }
     };
 
     return (
-        <div className="min-h-screen bg-white dark:bg-slate-950 flex flex-col lg:flex-row overflow-y-auto">
-            {/* Left Side: Minimalist Branding (Desktop) */}
-            <div className="hidden lg:flex lg:w-[40%] bg-slate-50 dark:bg-slate-900 items-center justify-center p-12 border-right border-slate-100 dark:border-slate-800">
-                <div className="max-w-md space-y-12">
-                    <div className="w-20 h-20 bg-primary/10 rounded-3xl flex items-center justify-center animate-in zoom-in duration-700">
-                        <Rocket className="text-primary w-10 h-10" />
+        <div className="min-h-screen bg-white dark:bg-slate-950 flex items-center justify-center p-4 sm:p-6 lg:p-8 overflow-y-auto">
+            <div className="w-full max-w-[520px] space-y-10 py-8">
+                {/* Logo Centralizado */}
+                <div className="flex flex-col items-center justify-center space-y-4 animate-in fade-in zoom-in duration-700">
+                    <div className="w-16 h-16 bg-primary/10 rounded-2xl flex items-center justify-center">
+                        <Rocket className="text-primary w-8 h-8" />
                     </div>
-                    <div className="space-y-6">
-                        <h2 className="text-5xl font-black text-slate-900 dark:text-white leading-tight tracking-tighter italic">
-                            Potencialize o seu negócio com a Evolution.
-                        </h2>
-                        <p className="text-lg text-slate-500 dark:text-slate-400 font-medium leading-relaxed">
-                            Crie sua conta em segundos e tenha acesso à API de WhatsApp mais completa do mercado.
-                        </p>
-                    </div>
-                    <div className="space-y-4">
-                        <div className="flex items-center gap-4 text-slate-600 dark:text-slate-300 font-bold">
-                            <div className="w-2 h-2 rounded-full bg-emerald-500"></div>
-                            Instâncias Ilimitadas
-                        </div>
-                        <div className="flex items-center gap-4 text-slate-600 dark:text-slate-300 font-bold">
-                            <div className="w-2 h-2 rounded-full bg-emerald-500"></div>
-                            IA Generativa Nativa
-                        </div>
-                        <div className="flex items-center gap-4 text-slate-600 dark:text-slate-300 font-bold">
-                            <div className="w-2 h-2 rounded-full bg-emerald-500"></div>
-                            Dashboard em Tempo Real
-                        </div>
+                    <div className="text-center space-y-1">
+                        <h1 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight italic">Evolution</h1>
+                        <p className="text-slate-500 dark:text-slate-400 font-medium text-sm">Crie sua conta em segundos</p>
                     </div>
                 </div>
-            </div>
 
-            {/* Right Side: Register Form */}
-            <div className="flex-1 flex items-center justify-center p-6 lg:p-20 bg-white dark:bg-slate-950">
-                <div className="w-full max-w-[480px]">
-                    <div className="space-y-12">
-                        <div className="space-y-4">
-                            <h1 className="text-4xl font-black text-slate-900 dark:text-white tracking-tight">Começar Gratuitamente</h1>
-                            <p className="text-slate-500 dark:text-slate-400 font-medium">Preencha os dados abaixo para criar sua conta Evolution.</p>
+                <div className="bg-white dark:bg-slate-900/50 sm:border sm:border-slate-100 dark:sm:border-slate-800 sm:rounded-[2.5rem] sm:p-10 sm:shadow-2xl sm:shadow-primary/5 transition-all">
+                    <form onSubmit={handleRegister} className="space-y-6">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                            <div className="space-y-2">
+                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">Nome Completo</label>
+                                <div className="relative group">
+                                    <User className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-primary transition-colors w-5 h-5" />
+                                    <input
+                                        type="text"
+                                        value={name}
+                                        onChange={(e) => setName(e.target.value)}
+                                        placeholder="Seu nome"
+                                        required
+                                        className="w-full pl-12 pr-4 py-4 bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700/50 focus:border-primary/30 focus:bg-white focus:ring-4 focus:ring-primary/5 rounded-2xl transition-all dark:text-white text-sm outline-none"
+                                    />
+                                </div>
+                            </div>
+                            <div className="space-y-2">
+                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">WhatsApp</label>
+                                <div className="relative group">
+                                    <Globe className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-primary transition-colors w-5 h-5" />
+                                    <input
+                                        type="tel"
+                                        value={whatsapp}
+                                        onChange={(e) => setWhatsapp(e.target.value.replace(/\D/g, ''))}
+                                        placeholder="55..."
+                                        required
+                                        className="w-full pl-12 pr-4 py-4 bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700/50 focus:border-primary/30 focus:bg-white focus:ring-4 focus:ring-primary/5 rounded-2xl transition-all dark:text-white text-sm outline-none"
+                                    />
+                                </div>
+                            </div>
                         </div>
 
-                        <form onSubmit={handleRegister} className="space-y-6">
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                <div className="space-y-2">
-                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">Nome Completo</label>
-                                    <div className="relative group">
-                                        <User className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-primary transition-colors w-5 h-5" />
-                                        <input
-                                            type="text"
-                                            value={name}
-                                            onChange={(e) => setName(e.target.value)}
-                                            placeholder="Seu nome"
-                                            required
-                                            className="w-full pl-12 pr-4 py-4 bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-800 focus:border-primary/30 focus:bg-white focus:ring-4 focus:ring-primary/5 rounded-2xl transition-all dark:text-white text-sm outline-none"
-                                        />
-                                    </div>
-                                </div>
-                                <div className="space-y-2">
-                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">WhatsApp</label>
-                                    <div className="relative group">
-                                        <Globe className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-primary transition-colors w-5 h-5" />
-                                        <input
-                                            type="tel"
-                                            value={whatsapp}
-                                            onChange={(e) => setWhatsapp(e.target.value.replace(/\D/g, ''))}
-                                            placeholder="55..."
-                                            required
-                                            className="w-full pl-12 pr-4 py-4 bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-800 focus:border-primary/30 focus:bg-white focus:ring-4 focus:ring-primary/5 rounded-2xl transition-all dark:text-white text-sm outline-none"
-                                        />
-                                    </div>
-                                </div>
+                        <div className="space-y-2">
+                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">E-mail Profissional</label>
+                            <div className="relative group">
+                                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-primary transition-colors w-5 h-5" />
+                                <input
+                                    type="email"
+                                    value={email}
+                                    onChange={(e) => setEmail(e.target.value)}
+                                    placeholder="seu@email.com"
+                                    required
+                                    className="w-full pl-12 pr-4 py-4 bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700/50 focus:border-primary/30 focus:bg-white focus:ring-4 focus:ring-primary/5 rounded-2xl transition-all dark:text-white text-sm outline-none"
+                                />
                             </div>
+                        </div>
 
-                            <div className="space-y-2">
-                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">E-mail Profissional</label>
-                                <div className="relative group">
-                                    <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-primary transition-colors w-5 h-5" />
-                                    <input
-                                        type="email"
-                                        value={email}
-                                        onChange={(e) => setEmail(e.target.value)}
-                                        placeholder="seu@email.com"
-                                        required
-                                        className="w-full pl-12 pr-4 py-4 bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-800 focus:border-primary/30 focus:bg-white focus:ring-4 focus:ring-primary/5 rounded-2xl transition-all dark:text-white text-sm outline-none"
-                                    />
-                                </div>
-                            </div>
-
-                            <div className="space-y-2">
-                                <div className="flex justify-between items-center mb-1">
-                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">Senha de Acesso</label>
-                                    {password && (
-                                        <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full text-white ${passwordStrength.color} transition-all duration-500`}>
-                                            {passwordStrength.label}
-                                        </span>
-                                    )}
-                                </div>
-                                <div className="relative group">
-                                    <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-primary transition-colors w-5 h-5" />
-                                    <input
-                                        type="password"
-                                        value={password}
-                                        onChange={(e) => {
-                                            setPassword(e.target.value);
-                                            checkPasswordStrength(e.target.value);
-                                        }}
-                                        placeholder="No mínimo 8 caracteres"
-                                        required
-                                        className="w-full pl-12 pr-4 py-4 bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-800 focus:border-primary/30 focus:bg-white focus:ring-4 focus:ring-primary/5 rounded-2xl transition-all dark:text-white text-sm outline-none"
-                                    />
-                                </div>
+                        <div className="space-y-2">
+                            <div className="flex justify-between items-center mb-1">
+                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">Senha de Acesso</label>
                                 {password && (
-                                    <div className="flex gap-1 px-1 h-1 mt-2">
-                                        {[0, 1, 2, 3, 4].map((i) => (
-                                            <div
-                                                key={i}
-                                                className={`flex-1 rounded-full transition-all duration-500 ${i <= passwordStrength.score ? passwordStrength.color : 'bg-slate-100 dark:bg-slate-800'
-                                                    }`}
-                                            />
-                                        ))}
-                                    </div>
+                                    <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full text-white ${passwordStrength.color} transition-all duration-500`}>
+                                        {passwordStrength.label}
+                                    </span>
                                 )}
                             </div>
-
-                            {captchaSettings?.captcha_provider === 'turnstile' && (
-                                <div className="flex justify-center py-2">
-                                    <div
-                                        className="cf-turnstile"
-                                        data-sitekey={captchaSettings.captcha_site_key}
-                                        data-callback="onTurnstileSuccess"
-                                    ></div>
-                                    <script dangerouslySetInnerHTML={{
-                                        __html: `
-                                            window.onTurnstileSuccess = function(token) {
-                                                window.dispatchEvent(new CustomEvent('turnstile-success', { detail: token }));
-                                            };
-                                        `
-                                    }} />
+                            <div className="relative group">
+                                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-primary transition-colors w-5 h-5" />
+                                <input
+                                    type="password"
+                                    value={password}
+                                    onChange={(e) => {
+                                        setPassword(e.target.value);
+                                        checkPasswordStrength(e.target.value);
+                                    }}
+                                    placeholder="No mínimo 8 caracteres"
+                                    required
+                                    className="w-full pl-12 pr-4 py-4 bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700/50 focus:border-primary/30 focus:bg-white focus:ring-4 focus:ring-primary/5 rounded-2xl transition-all dark:text-white text-sm outline-none"
+                                />
+                            </div>
+                            {password && (
+                                <div className="flex gap-1 px-1 h-1 mt-2">
+                                    {[0, 1, 2, 3, 4].map((i) => (
+                                        <div
+                                            key={i}
+                                            className={`flex-1 rounded-full transition-all duration-500 ${i <= passwordStrength.score ? passwordStrength.color : 'bg-slate-100 dark:bg-slate-800'
+                                                }`}
+                                        />
+                                    ))}
                                 </div>
                             )}
+                        </div>
 
-                            <button
-                                type="submit"
-                                disabled={loading || (password.length > 0 && passwordStrength.score < 2)}
-                                className="w-full py-5 bg-primary text-white font-black rounded-2xl hover:brightness-110 transition-all shadow-2xl shadow-primary/20 flex items-center justify-center gap-3 group disabled:opacity-50 disabled:grayscale active:scale-[0.98]"
-                            >
-                                {loading ? (
-                                    <Loader2 className="w-6 h-6 animate-spin" />
-                                ) : (
-                                    <>
-                                        Criar minha conta
-                                        <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-                                    </>
-                                )}
-                            </button>
-                        </form>
-
-                        <div className="pt-8 border-t border-slate-50 dark:border-slate-900 flex flex-col sm:flex-row items-center justify-between gap-4">
-                            <p className="text-sm font-medium text-slate-500 dark:text-slate-400 text-center sm:text-left">
-                                Já possui uma conta?
-                            </p>
-                            <div className="flex items-center gap-4">
-                                <button
-                                    onClick={onLogin}
-                                    className="text-primary font-black hover:underline underline-offset-4 text-sm"
-                                >
-                                    Fazer login
-                                </button>
-                                <div className="w-1 h-1 rounded-full bg-slate-300"></div>
-                                <button
-                                    onClick={onForgotPassword}
-                                    className="text-xs font-bold text-slate-400 hover:text-primary transition-colors uppercase tracking-widest"
-                                >
-                                    Esqueci a senha
-                                </button>
+                        {captchaSettings?.captcha_provider === 'turnstile' && (
+                            <div className="flex justify-center py-2 scale-90 sm:scale-100">
+                                <div
+                                    className="cf-turnstile"
+                                    data-sitekey={captchaSettings.captcha_site_key}
+                                    data-callback="onTurnstileSuccess"
+                                ></div>
+                                <script dangerouslySetInnerHTML={{
+                                    __html: `
+                                        window.onTurnstileSuccess = function(token) {
+                                            window.dispatchEvent(new CustomEvent('turnstile-success', { detail: token }));
+                                        };
+                                    `
+                                }} />
                             </div>
+                        )}
+
+                        <button
+                            type="submit"
+                            disabled={loading || (password.length > 0 && passwordStrength.score < 2)}
+                            className="w-full py-5 bg-primary text-white font-black rounded-2xl hover:brightness-110 transition-all shadow-2xl shadow-primary/20 flex items-center justify-center gap-3 group disabled:opacity-50 active:scale-[0.98]"
+                        >
+                            {loading ? (
+                                <Loader2 className="w-6 h-6 animate-spin" />
+                            ) : (
+                                <>
+                                    Criar minha conta
+                                    <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                                </>
+                            )}
+                        </button>
+                    </form>
+
+                    <div className="mt-8 pt-8 border-t border-slate-50 dark:border-slate-800 flex flex-col items-center gap-4 text-center">
+                        <p className="text-sm font-medium text-slate-500 dark:text-slate-400">
+                            Já possui uma conta?
+                        </p>
+                        <div className="flex flex-wrap justify-center gap-4">
+                            <button
+                                onClick={onLogin}
+                                className="text-primary font-black hover:underline underline-offset-4 text-sm"
+                            >
+                                Fazer login
+                            </button>
+                            <span className="hidden sm:inline w-1.5 h-1.5 rounded-full bg-slate-200 dark:bg-slate-700 mt-2" />
+                            <button
+                                onClick={onForgotPassword}
+                                className="text-sm font-bold text-slate-400 hover:text-primary transition-colors uppercase tracking-widest"
+                            >
+                                Esqueci a senha
+                            </button>
                         </div>
                     </div>
                 </div>
