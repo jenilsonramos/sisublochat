@@ -259,34 +259,58 @@ const AIConfigView: React.FC<AIConfigViewProps> = ({ onTabChange }) => {
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
                 <div className="lg:col-span-8 space-y-8">
                     {/* Auth Card */}
-                    <div className="bg-white dark:bg-slate-800 rounded-[2.5rem] p-8 shadow-sm border border-slate-100 dark:border-slate-700/50">
-                        <div className="flex items-center gap-4 mb-8">
-                            <div className={`p-3 rounded-2xl ${settings.provider === 'gemini' ? 'bg-primary/10' : 'bg-emerald-500/10'}`}>
-                                <Key className={`w-6 h-6 ${settings.provider === 'gemini' ? 'text-primary' : 'text-emerald-500'}`} />
-                            </div>
-                            <div>
-                                <h2 className="text-xl font-bold dark:text-white">API Key</h2>
-                                <p className="text-slate-400 text-sm font-medium">Chave de acesso da {settings.provider === 'gemini' ? 'Google AI' : 'OpenAI'}</p>
-                            </div>
-                        </div>
+                    <div className="bg-white dark:bg-slate-800 rounded-[2.5rem] p-4 shadow-sm border border-slate-100 dark:border-slate-700/50">
+                        <div className="flex flex-col md:flex-row gap-6">
+                            <div className={`flex-1 p-8 rounded-[2rem] border-2 transition-all ${settings.provider === 'gemini' ? 'border-primary/20 bg-primary/5' : 'border-slate-100 dark:border-slate-700/50'}`}>
+                                <div className="flex items-center gap-4 mb-6">
+                                    <div className={`p-3 rounded-2xl ${settings.provider === 'gemini' ? 'bg-primary text-white shadow-lg' : 'bg-slate-100 dark:bg-slate-700 text-slate-400'}`}>
+                                        <Key className="w-6 h-6" />
+                                    </div>
+                                    <div>
+                                        <h2 className="text-xl font-black dark:text-white leading-tight">Chave de API</h2>
+                                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none mt-1">
+                                            {settings.provider === 'gemini' ? 'Google AI Studio (Padrão)' : 'OpenAI Dashboard'}
+                                        </p>
+                                    </div>
+                                </div>
 
-                        <div className="space-y-4">
-                            <div className="relative group">
-                                <input
-                                    type="password"
-                                    value={settings.api_key}
-                                    onChange={(e) => setSettings({ ...settings, api_key: e.target.value })}
-                                    className="w-full px-6 py-4 bg-slate-50 dark:bg-slate-900 border-none rounded-2xl focus:ring-2 focus:ring-primary/50 transition-all font-mono"
-                                    placeholder={settings.provider === 'gemini' ? "AIzaSy..." : "sk-..."}
-                                />
+                                <div className="space-y-4">
+                                    <div className="relative group">
+                                        <input
+                                            type="password"
+                                            value={settings.api_key}
+                                            onChange={(e) => setSettings({ ...settings, api_key: e.target.value })}
+                                            className="w-full px-6 py-5 bg-white dark:bg-slate-900 border-2 border-transparent focus:border-primary/20 rounded-2xl shadow-sm transition-all font-mono text-sm dark:text-white"
+                                            placeholder={settings.provider === 'gemini' ? "AIzaSy..." : "sk-..."}
+                                        />
+                                        <button
+                                            className="absolute right-4 top-1/2 -translate-y-1/2 p-2 text-slate-300 hover:text-primary transition-colors"
+                                            title="Ver chave"
+                                            type="button"
+                                        >
+                                            <RefreshCcw className="w-4 h-4" />
+                                        </button>
+                                    </div>
+
+                                    <div className="flex items-center justify-between px-2">
+                                        <div className="flex items-center gap-2">
+                                            <div className={`w-2 h-2 rounded-full ${settings.api_key ? 'bg-emerald-500 animate-pulse' : 'bg-slate-300'}`}></div>
+                                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                                                {settings.api_key ? 'Token Configurado' : 'Aguardando Token'}
+                                            </span>
+                                        </div>
+                                        <a
+                                            href={settings.provider === 'gemini' ? "https://aistudio.google.com/" : "https://platform.openai.com/api-keys"}
+                                            target="_blank"
+                                            rel="noreferrer"
+                                            className={`text-[10px] font-black uppercase tracking-widest hover:underline flex items-center gap-1 ${settings.provider === 'gemini' ? 'text-primary' : 'text-emerald-500'}`}
+                                        >
+                                            <Zap className="w-3 h-3" />
+                                            Obter Chave
+                                        </a>
+                                    </div>
+                                </div>
                             </div>
-                            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider pl-2">
-                                {settings.provider === 'gemini' ? (
-                                    <>Onde obter? <a href="https://aistudio.google.com/" target="_blank" rel="noreferrer" className="text-primary hover:underline">Google AI Studio</a></>
-                                ) : (
-                                    <>Onde obter? <a href="https://platform.openai.com/api-keys" target="_blank" rel="noreferrer" className="text-emerald-500 hover:underline">OpenAI Dashboard</a></>
-                                )}
-                            </p>
                         </div>
                     </div>
 

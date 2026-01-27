@@ -129,7 +129,8 @@ const ContactsView: React.FC = () => {
             </div>
 
             <div className="bg-white dark:bg-slate-800 rounded-[2.5rem] border border-slate-100 dark:border-slate-700/50 overflow-hidden shadow-sm flex-1 flex flex-col min-h-0">
-                <div className="overflow-x-auto custom-scrollbar">
+                {/* Desktop Table View */}
+                <div className="hidden lg:block overflow-x-auto custom-scrollbar">
                     <table className="w-full text-left border-collapse">
                         <thead>
                             <tr className="border-b border-slate-50 dark:border-slate-700/50 bg-slate-50/50 dark:bg-slate-900/50">
@@ -197,6 +198,70 @@ const ContactsView: React.FC = () => {
                             )}
                         </tbody>
                     </table>
+                </div>
+
+                {/* Mobile Card View */}
+                <div className="lg:hidden flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar">
+                    {loading ? (
+                        <div className="py-20 text-center">
+                            <Loader2 className="w-8 h-8 animate-spin text-primary mx-auto mb-4" />
+                            <p className="text-slate-400 font-medium">Carregando contatos...</p>
+                        </div>
+                    ) : filteredContacts.length === 0 ? (
+                        <div className="py-20 text-center">
+                            <div className="w-20 h-20 bg-slate-50 dark:bg-slate-900/50 rounded-[2rem] flex items-center justify-center mx-auto mb-6 text-slate-300">
+                                <Search size={40} />
+                            </div>
+                            <p className="text-slate-400 font-bold text-lg">Nenhum contato encontrado</p>
+                        </div>
+                    ) : (
+                        filteredContacts.map((contact) => (
+                            <div key={contact.id} className="bg-slate-50/50 dark:bg-slate-900/30 p-5 rounded-3xl border border-slate-100 dark:border-slate-700/50 space-y-4">
+                                <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-4">
+                                        <img
+                                            src={contact.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(contact.name)}&background=random`}
+                                            alt={contact.name}
+                                            className="w-12 h-12 rounded-2xl object-cover shadow-sm"
+                                        />
+                                        <div className="min-w-0">
+                                            <h4 className="text-sm font-black dark:text-white truncate">{contact.name}</h4>
+                                            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider truncate">{contact.remote_jid.split('@')[0]}</p>
+                                        </div>
+                                    </div>
+                                    <div className="flex gap-1">
+                                        <button className="p-2.5 rounded-xl text-slate-400 hover:text-primary hover:bg-primary/5">
+                                            <Edit2 size={16} />
+                                        </button>
+                                        <button className="p-2.5 rounded-xl text-slate-400 hover:text-rose-500 hover:bg-rose-500/5">
+                                            <Trash2 size={16} />
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-3 pt-4 border-t border-slate-100 dark:border-slate-700/50">
+                                    <div className="space-y-1">
+                                        <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">WhatsApp ID</p>
+                                        <p className="text-[11px] font-mono text-slate-600 dark:text-slate-400 break-all leading-tight">{contact.remote_jid}</p>
+                                    </div>
+                                    <div className="space-y-1 text-right">
+                                        <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Cadastro</p>
+                                        <div className="flex flex-col">
+                                            <span className="text-[11px] font-bold dark:text-slate-300">{new Date(contact.created_at).toLocaleDateString()}</span>
+                                            <span className="text-[9px] text-slate-400 font-bold uppercase">{new Date(contact.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {contact.email && (
+                                    <div className="flex items-center gap-2 pt-2">
+                                        <Mail className="w-3.5 h-3.5 text-slate-400" />
+                                        <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400 truncate">{contact.email}</span>
+                                    </div>
+                                )}
+                            </div>
+                        ))
+                    )}
                 </div>
             </div>
         </div>

@@ -65,9 +65,10 @@ const UsersView: React.FC = () => {
             </div>
             <button
               onClick={() => showToast('Funcionalidade em desenvolvimento', 'info')}
-              className="p-3 bg-primary text-white rounded-2xl hover:bg-primary-light transition-all shadow-lg shadow-primary/20 active:scale-95"
+              className="px-6 py-3 bg-primary text-white font-black rounded-2xl hover:bg-primary-light transition-all shadow-lg shadow-primary/20 active:scale-95 flex items-center justify-center gap-2 text-xs uppercase"
             >
-              <UserPlus className="w-6 h-6" />
+              <UserPlus className="w-5 h-5" />
+              <span>Novo Membro</span>
             </button>
           </div>
         </div>
@@ -117,8 +118,8 @@ const UsersView: React.FC = () => {
                       </td>
                       <td className="px-8 py-5">
                         <span className={`px-3 py-1 rounded-lg text-[10px] font-black ${user.role === 'ADMIN' ? 'bg-indigo-100 text-indigo-600 dark:bg-indigo-500/20 dark:text-indigo-400' :
-                            user.role === 'OPERATOR' ? 'bg-emerald-100 text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-400' :
-                              'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-400'
+                          user.role === 'OPERATOR' ? 'bg-emerald-100 text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-400' :
+                            'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-400'
                           }`}>
                           {user.role}
                         </span>

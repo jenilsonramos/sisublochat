@@ -775,32 +775,45 @@ const InstancesView: React.FC<InstancesViewProps> = ({ isBlocked = false }) => {
         )
       }
 
-      {/* API Tokens Section */}
-      <div className="mt-12 mb-20">
+      <div className="mt-16 mb-20 space-y-8">
         <div className="bg-white dark:bg-slate-800 rounded-[2.5rem] shadow-sm border border-slate-100 dark:border-slate-700/50 overflow-hidden">
-          <div className="p-8 border-b border-slate-50 dark:border-slate-700/50 flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div>
-              <h2 className="text-xl font-bold dark:text-white flex items-center gap-2">
-                <Key className="w-5 h-5 text-amber-500" />
-                Tokens de API
-              </h2>
-              <p className="text-xs text-slate-500 dark:text-slate-400">Gerencie chaves para integração com sistemas externos.</p>
+          <div className="p-8 border-b border-slate-50 dark:border-slate-700/50">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 bg-amber-500/10 rounded-2xl flex items-center justify-center text-amber-600 shadow-sm">
+                  <Key className="w-6 h-6" />
+                </div>
+                <div>
+                  <h2 className="text-xl font-black dark:text-white tracking-tight">Tokens de Acesso API</h2>
+                  <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-0.5">Integração com sistemas externos</p>
+                </div>
+              </div>
+
+              <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
+                <div className="relative group flex-1 sm:min-w-[240px]">
+                  <input
+                    value={newKeyName}
+                    onChange={(e) => setNewKeyName(e.target.value)}
+                    placeholder="Nome Identificador (ex: CRM Vendas)"
+                    className="w-full px-5 py-3.5 bg-slate-50 dark:bg-slate-900 border-2 border-transparent focus:border-primary/20 rounded-2xl text-sm font-bold outline-none transition-all dark:text-white"
+                  />
+                </div>
+                <button
+                  onClick={handleGenerateApiKey}
+                  disabled={!newKeyName || processing === 'GENERATING_KEY'}
+                  className="px-8 py-3.5 bg-primary hover:bg-primary-light text-white text-sm font-black rounded-2xl transition-all flex items-center justify-center gap-2 shadow-xl shadow-primary/20 disabled:opacity-50 active:scale-95 uppercase tracking-wider"
+                >
+                  {processing === 'GENERATING_KEY' ? <Loader2 className="w-5 h-5 animate-spin" /> : <Plus className="w-5 h-5" />}
+                  Gerar Novo Token
+                </button>
+              </div>
             </div>
-            <div className="flex gap-2">
-              <input
-                value={newKeyName}
-                onChange={(e) => setNewKeyName(e.target.value)}
-                placeholder="Nome da Chave (ex: CRM)"
-                className="px-4 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-700 rounded-xl text-sm font-bold outline-none focus:ring-2 focus:ring-primary/20 dark:text-white"
-              />
-              <button
-                onClick={handleGenerateApiKey}
-                disabled={!newKeyName || processing === 'GENERATING_KEY'}
-                className="px-6 py-2 bg-primary text-white text-sm font-bold rounded-xl hover:bg-primary-light transition-all flex items-center gap-2 shadow-lg shadow-primary/20 disabled:opacity-50"
-              >
-                {processing === 'GENERATING_KEY' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
-                Gerar Token
-              </button>
+
+            <div className="mt-6 p-4 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border border-slate-100 dark:border-slate-700/50">
+              <p className="text-[10px] md:text-xs text-slate-500 font-medium leading-relaxed">
+                <strong className="text-amber-500 uppercase tracking-widest mr-2">Segurança:</strong>
+                Use tokens individuais para cada integração (CRM, Webhook, ERP). Se um token for comprometido, você poderá revogá-lo sem afetar os outros sistemas.
+              </p>
             </div>
           </div>
 

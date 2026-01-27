@@ -4,7 +4,6 @@ import React from 'react';
 interface HeaderProps {
   title: string;
   subtitle: string;
-  showAddButton?: boolean;
   onMenuClick: () => void;
   darkMode: boolean;
   toggleDarkMode: () => void;
@@ -14,7 +13,6 @@ interface HeaderProps {
 const Header: React.FC<HeaderProps> = ({
   title,
   subtitle,
-  showAddButton = false,
   onMenuClick,
   darkMode,
   toggleDarkMode,
@@ -22,22 +20,22 @@ const Header: React.FC<HeaderProps> = ({
 }) => {
   return (
     <header className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 lg:gap-6 mb-8 px-2 lg:px-0">
-      <div className="flex items-center justify-between lg:justify-start gap-4 animate-in fade-in slide-in-from-left duration-700">
+      <div className="flex items-center justify-between lg:justify-start gap-4 animate-in fade-in slide-in-from-left duration-700 min-w-0 flex-1">
         <div className="flex items-center gap-4">
           <button
             onClick={onMenuClick}
-            className="lg:hidden p-2.5 bg-white dark:bg-slate-800 rounded-xl shadow-sm text-slate-600 dark:text-slate-300 hover:bg-slate-50 transition-colors"
+            className="lg:hidden p-2.5 bg-white dark:bg-slate-800 rounded-xl shadow-sm text-slate-600 dark:text-slate-300 hover:bg-slate-50 transition-colors shrink-0"
           >
             <span className="material-icons-round">menu</span>
           </button>
-          <div>
-            <h1 className="text-xl md:text-2xl lg:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight leading-tight">{title}</h1>
-            <p className="text-slate-500 dark:text-slate-400 font-medium text-[10px] md:text-xs lg:text-sm mt-0.5">{subtitle}</p>
+          <div className="min-w-0 flex-1">
+            <h1 className="text-xl md:text-2xl lg:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight leading-tight truncate">{title}</h1>
+            <p className="text-slate-500 dark:text-slate-400 font-medium text-[10px] md:text-xs lg:text-sm mt-0.5 truncate">{subtitle}</p>
           </div>
         </div>
 
         {/* Mobile-only avatar or actions if needed */}
-        <div className="flex lg:hidden items-center gap-2">
+        <div className="flex lg:hidden items-center gap-2 shrink-0">
           <button
             onClick={toggleDarkMode}
             className="p-2.5 bg-white dark:bg-slate-800 rounded-xl shadow-sm text-slate-500 transition-all active:scale-95"
@@ -73,12 +71,6 @@ const Header: React.FC<HeaderProps> = ({
 
         <div className="flex items-center justify-between sm:justify-end gap-3 w-full sm:w-auto mt-1 sm:mt-0">
           <div className="flex items-center gap-3">
-            {showAddButton && (
-              <button className="flex-1 sm:flex-initial bg-primary hover:bg-primary-light text-white px-5 py-2.5 rounded-xl font-bold flex items-center justify-center gap-2 transition-all shadow-lg shadow-primary/20 active:scale-95 text-sm">
-                <span className="material-icons-round text-lg">add</span>
-                <span>Novo</span>
-              </button>
-            )}
 
             {activeTab === 'dashboard' && (
               <button className="p-2.5 bg-white dark:bg-slate-800 rounded-xl shadow-sm text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors relative">

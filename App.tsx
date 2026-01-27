@@ -277,7 +277,6 @@ const AppContent: React.FC = () => {
             title={getPageTitle()}
             subtitle={getPageSubtitle()}
             activeTab={activeTab}
-            showAddButton={activeTab === 'instances' || activeTab === 'chatbots' || activeTab === 'users'}
             onMenuClick={() => setIsMobileOpen(true)}
             darkMode={darkMode}
             toggleDarkMode={toggleDarkMode}
