@@ -93,8 +93,8 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, onRegister, onFor
     };
 
     return (
-        <div className="min-h-screen w-full bg-white dark:bg-slate-950 flex flex-col items-center justify-start sm:justify-center p-4 sm:p-6 lg:p-8">
-            <div className="w-full max-w-[440px] space-y-8 py-10 sm:py-12">
+        <div className="min-h-screen w-full bg-white dark:bg-slate-950 flex flex-col items-center justify-start p-4 sm:p-6 lg:p-8">
+            <div className="w-full max-w-[440px] space-y-8 py-12 sm:py-20">
                 {/* Logo Centralizado */}
                 <div className="flex flex-col items-center justify-center space-y-4 animate-in fade-in zoom-in duration-700">
                     <div className="w-16 h-16 bg-primary/10 rounded-2xl flex items-center justify-center">
