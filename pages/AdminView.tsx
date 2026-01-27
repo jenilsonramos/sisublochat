@@ -2525,8 +2525,17 @@ function CronTasks() {
             const { data, error } = await supabase.functions.invoke('cron-manager', {
                 body: { action: 'SETUP', apiKey }
             });
+
             if (error) throw error;
-            showToast('Estrutura de CRON inicializada com sucesso!', 'success');
+
+            if (data?.success) {
+                showToast('Estrutura de CRON inicializada com sucesso!', 'success');
+            } else {
+                const errorDetails = data?.results?.filter((r: any) => r.status === 'error').map((r: any) => `${r.name}: ${r.details}`).join('\n') || 'Erro desconhecido';
+                console.error('Setup Errors:', data?.results);
+                showToast('Alguns jobs falharam: ' + errorDetails, 'error');
+            }
+
             fetchData();
         } catch (err: any) {
             showToast('Erro no Setup: ' + err.message, 'error');
