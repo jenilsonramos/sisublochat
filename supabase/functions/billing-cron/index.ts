@@ -160,6 +160,40 @@ serve(async (req) => {
 async function sendEmail(settings: any, to: string, subject: string, body: string, sub: any) {
     if (!settings?.smtp_host) throw new Error("SMTP settings are incomplete");
 
+    const userName = sub?.profiles?.full_name || 'Usuário';
+    const expiryDate = sub?.current_period_end ? new Date(sub.current_period_end).toLocaleDateString('pt-BR') : '---';
+
+    const finalBody = body
+        .replace(/\{\{user_name\}\}/g, userName)
+        .replace(/\{\{plan_name\}\}/g, 'Seu Plano')
+        .replace(/\{\{expiry_date\}\}/g, expiryDate);
+
+    // Support for ZeptoMail API
+    if (settings.smtp_host.includes('zeptomail.com')) {
+        console.log(`Sending via ZeptoMail API to: ${to}`);
+        const response = await fetch("https://api.zeptomail.com/v1.1/email", {
+            method: "POST",
+            headers: {
+                "Accept": "application/json",
+                "Content-Type": "application/json",
+                "Authorization": settings.smtp_pass.startsWith('Zoho-') ? settings.smtp_pass : `Zoho-enczapikey ${settings.smtp_pass}`
+            },
+            body: JSON.stringify({
+                from: { address: settings.from_email, name: settings.from_name },
+                to: [{ email_address: { address: to, name: userName } }],
+                subject: subject,
+                htmlbody: `<div>${finalBody.replace(/\n/g, '<br>')}</div>`
+            })
+        });
+
+        if (!response.ok) {
+            const error = await response.text();
+            throw new Error(`ZeptoMail API Error: ${error}`);
+        }
+        return;
+    }
+
+    // Traditional SMTP
     console.log(`Connecting to SMTP: ${settings.smtp_host}:${settings.smtp_port}`);
     const client = new SMTPClient({
         connection: {
@@ -174,14 +208,6 @@ async function sendEmail(settings: any, to: string, subject: string, body: strin
     })
 
     try {
-        const userName = sub?.profiles?.full_name || 'Usuário';
-        const expiryDate = sub?.current_period_end ? new Date(sub.current_period_end).toLocaleDateString('pt-BR') : '---';
-
-        const finalBody = body
-            .replace(/\{\{user_name\}\}/g, userName)
-            .replace(/\{\{plan_name\}\}/g, 'Seu Plano')
-            .replace(/\{\{expiry_date\}\}/g, expiryDate);
-
         await client.send({
             from: `"${settings.from_name}" <${settings.from_email}>`,
             to,
