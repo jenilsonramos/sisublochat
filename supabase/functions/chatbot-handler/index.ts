@@ -162,56 +162,122 @@ Deno.serve(async (req) => {
             return new Response('No steps', { status: 200 })
         }
 
-        // 5. Identify Instance
-        const query = supabase.from('instances').select('name');
+        // 5. Identify Instance & Channel Type
+        const query = supabase.from('instances').select('id, name, channel_type');
         if (matchedBot.instance_id) {
             query.eq('id', matchedBot.instance_id);
         } else {
+            // Find an open instance for this user
+            // For Official, status is 'open' when created.
+            // For Evolution, status is 'open'.
             query.eq('user_id', userId).eq('status', 'open').limit(1);
         }
-        const { data: instanceData } = await query.single();
-        const instanceName = instanceData?.name
 
-        if (!instanceName) {
+        const { data: instanceData } = await query.single();
+
+        if (!instanceData) {
             await logDb(`No active instance found for bot ${matchedBot.name}`)
             return new Response('No instance', { status: 200 })
         }
+
+        const instanceName = instanceData.name;
+        const channelType = instanceData.channel_type || 'evolution'; // Default to evolution
 
         // 6. Execute Steps
         for (const step of steps) {
             if (step.delay) await delay(step.delay * 1000)
 
-            const presenceType = step.type === 'audio' ? 'recording' : 'composing'
-            await fetch(`${evolutionApiUrl}/chat/sendPresence/${instanceName}`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'apikey': evolutionApiKey! },
-                body: JSON.stringify({ number: remoteJid, delay: 3000, presence: presenceType })
-            }).catch(() => { })
+            // --- OFFICIAL API STRATEGY ---
+            if (channelType === 'official') {
+                await logDb(`Sending via Official API: ${step.type}`);
 
-            await delay(2000) // Sim typing
+                // Fetch Credentials
+                const { data: creds } = await supabase
+                    .from('whatsapp_official_resources')
+                    .select('*')
+                    .eq('instance_id', instanceData.id)
+                    .single();
 
-            let endpoint = '/message/sendText'
-            let body: any = { number: remoteJid }
+                if (!creds) {
+                    await logDb('Credentials missing for Official Instance');
+                    continue;
+                }
 
-            if (step.type === 'text') {
-                body.text = replaceVariables(step.content)
-            } else if (step.type === 'image') {
-                endpoint = '/message/sendMedia'
-                body.media = step.content
-                body.mediatype = 'image'
-            } else if (step.type === 'audio') {
-                endpoint = '/message/sendWhatsAppAudio'
-                body.audio = step.content
+                const phoneId = creds.phone_number_id;
+                const token = creds.access_token;
+                const targetNumber = remoteJid.replace('@s.whatsapp.net', '');
+
+                let msgPayload: any = {
+                    messaging_product: "whatsapp",
+                    to: targetNumber,
+                    type: "text",
+                };
+
+                // Type Handling
+                if (step.type === 'text') {
+                    msgPayload.type = 'text';
+                    msgPayload.text = { body: replaceVariables(step.content) };
+                } else if (step.type === 'image') {
+                    msgPayload.type = 'image';
+                    msgPayload.image = { link: step.content };
+                } else if (step.type === 'audio') {
+                    msgPayload.type = 'audio';
+                    msgPayload.audio = { link: step.content };
+                }
+
+                // Send request to Meta
+                try {
+                    const res = await fetch(`https://graph.facebook.com/v18.0/${phoneId}/messages`, {
+                        method: 'POST',
+                        headers: {
+                            'Authorization': `Bearer ${token}`,
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify(msgPayload)
+                    });
+
+                    const resJson = await res.json();
+                    if (!res.ok) {
+                        await logDb(`Meta API Error: ${JSON.stringify(resJson)}`);
+                    }
+                } catch (err: any) {
+                    await logDb(`Meta API Request Failed: ${err.message}`);
+                }
+
             }
+            // --- EVOLUTION API STRATEGY (Legacy) ---
+            else {
+                const presenceType = step.type === 'audio' ? 'recording' : 'composing'
+                await fetch(`${evolutionApiUrl}/chat/sendPresence/${instanceName}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'apikey': evolutionApiKey! },
+                    body: JSON.stringify({ number: remoteJid, delay: 3000, presence: presenceType })
+                }).catch(() => { })
 
-            const res = await fetch(`${evolutionApiUrl}${endpoint}/${instanceName}`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'apikey': evolutionApiKey! },
-                body: JSON.stringify(body)
-            })
+                await delay(2000) // Sim typing
 
-            const resText = await res.text()
-            await logDb(`Step ${step.type} sent to ${instanceName}. Status: ${res.status}`)
+                let endpoint = '/message/sendText'
+                let body: any = { number: remoteJid }
+
+                if (step.type === 'text') {
+                    body.text = replaceVariables(step.content)
+                } else if (step.type === 'image') {
+                    endpoint = '/message/sendMedia'
+                    body.media = step.content
+                    body.mediatype = 'image'
+                } else if (step.type === 'audio') {
+                    endpoint = '/message/sendWhatsAppAudio'
+                    body.audio = step.content
+                }
+
+                const res = await fetch(`${evolutionApiUrl}${endpoint}/${instanceName}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'apikey': evolutionApiKey! },
+                    body: JSON.stringify(body)
+                })
+
+                await logDb(`Step ${step.type} sent to ${instanceName} (Evolution). Status: ${res.status}`)
+            }
         }
 
         await supabase.from('chatbots').update({ last_run: new Date().toISOString() }).eq('id', matchedBot.id)

@@ -18,6 +18,11 @@ const InstancesView: React.FC<InstancesViewProps> = ({ isBlocked = false }) => {
 
   // Form State
   const [newInstanceName, setNewInstanceName] = useState('');
+  const [connectionType, setConnectionType] = useState<'evolution' | 'official'>('evolution');
+  const [metaPhoneId, setMetaPhoneId] = useState('');
+  const [metaBusinessId, setMetaBusinessId] = useState('');
+  const [metaToken, setMetaToken] = useState('');
+
   const [apiKeys, setApiKeys] = useState<any[]>([]);
   const [newKeyName, setNewKeyName] = useState('');
   const [showKeyId, setShowKeyId] = useState<string | null>(null);
@@ -180,28 +185,55 @@ const InstancesView: React.FC<InstancesViewProps> = ({ isBlocked = false }) => {
     try {
       setProcessing('CREATING');
 
-      // 1. Create in Evolution API
-      await evolutionApi.createInstance(newInstanceName.trim());
+      let instanceId = null;
+
+      // 1. Create in Evolution API (ONLY if type is evolution)
+      if (connectionType === 'evolution') {
+        await evolutionApi.createInstance(newInstanceName.trim());
+      }
 
       // 2. Get User ID
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Usuário não autenticado');
 
-      // 3. Save to Supabase
-      const { error: dbError } = await supabase.from('instances').insert({
+      // 3. Save to Supabase (Instances Table)
+      const { data: insertedInstance, error: dbError } = await supabase.from('instances').insert({
         name: newInstanceName.trim(),
         identifier: newInstanceName.trim(),
-        status: 'connecting',
+        status: connectionType === 'official' ? 'open' : 'connecting', // Official is 'open' directly as we have tokens
         type: 'whatsapp',
+        channel_type: connectionType,
         user_id: user.id,
         sector: 'Comercial'
-      });
+      }).select('id').single();
 
       if (dbError) throw dbError;
+      instanceId = insertedInstance.id;
 
-      showToast('Instância criada e salva no banco!', 'success');
+      // 4. Save Official Credentials (if applicable)
+      if (connectionType === 'official') {
+        const { error: metaError } = await supabase.from('whatsapp_official_resources').insert({
+          instance_id: instanceId,
+          phone_number_id: metaPhoneId.trim(),
+          business_account_id: metaBusinessId.trim(),
+          access_token: metaToken.trim(),
+          verify_token: `verify_${Math.random().toString(36).substring(7)}` // Auto-generate verify token
+        });
+
+        if (metaError) {
+          // Rollback instance creation if meta config fails
+          await supabase.from('instances').delete().eq('id', instanceId);
+          throw metaError;
+        }
+      }
+
+      showToast('Instância criada e configurada com sucesso!', 'success');
       setShowModal(false);
       setNewInstanceName('');
+      setMetaPhoneId('');
+      setMetaBusinessId('');
+      setMetaToken('');
+      setConnectionType('evolution');
       fetchInstances();
     } catch (error: any) {
       console.error('Creation Error:', error);
@@ -217,14 +249,19 @@ const InstancesView: React.FC<InstancesViewProps> = ({ isBlocked = false }) => {
     try {
       setProcessing(name);
 
-      // 1. Delete from Evolution API first
-      try {
-        await evolutionApi.deleteInstance(name);
-      } catch (apiError: any) {
-        console.warn('Evolution API delete failed (may already be deleted):', apiError);
+      const instanceToDelete = instances.find(i => i.name === name);
+      const isOfficial = instanceToDelete?.channel_type === 'official';
+
+      // 1. Delete from Evolution API first (ONLY if NOT official)
+      if (!isOfficial) {
+        try {
+          await evolutionApi.deleteInstance(name);
+        } catch (apiError: any) {
+          console.warn('Evolution API delete failed (may already be deleted):', apiError);
+        }
       }
 
-      // 2. Delete from Supabase
+      // 2. Delete from Supabase (Cascade will handle official resources)
       const { error } = await supabase.from('instances').delete().eq('name', name);
       if (error) throw error;
 
@@ -445,8 +482,8 @@ const InstancesView: React.FC<InstancesViewProps> = ({ isBlocked = false }) => {
                     <tr key={instance.id || instance.instanceId} className="group hover:bg-slate-50/50 dark:hover:bg-slate-900/30 transition-colors">
                       <td className="px-8 py-5">
                         <div className="flex items-center gap-4">
-                          <div className={`w-12 h-12 rounded-2xl bg-${statusColor}-100 dark:bg-${statusColor}-500/10 flex items-center justify-center text-${statusColor}-500`}>
-                            <Smartphone className="w-6 h-6" />
+                          <div className={`w-12 h-12 rounded-2xl ${instance.channel_type === 'official' ? 'bg-emerald-100 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-500' : `bg-${statusColor}-100 text-${statusColor}-500 dark:bg-${statusColor}-500/10`} flex items-center justify-center`}>
+                            {instance.channel_type === 'official' ? <div className="font-black text-xs">OFF</div> : <Smartphone className="w-6 h-6" />}
                           </div>
                           <div>
                             <div className="flex items-center gap-2">
@@ -459,7 +496,9 @@ const InstancesView: React.FC<InstancesViewProps> = ({ isBlocked = false }) => {
                                 {copiedInstanceName === instance.name ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
                               </button>
                             </div>
-                            <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Evolution V2</span>
+                            <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">
+                              {instance.channel_type === 'official' ? 'WhatsApp Oficial (Meta)' : 'Evolution V2'}
+                            </span>
                           </div>
                         </div>
                       </td>
@@ -476,24 +515,26 @@ const InstancesView: React.FC<InstancesViewProps> = ({ isBlocked = false }) => {
                       </td>
                       <td className="px-8 py-5 text-right">
                         <div className="flex items-center justify-end gap-2">
-                          {!isConnected ? (
-                            <button
-                              onClick={() => handleConnect(instance.name)}
-                              disabled={isProcessing}
-                              className="px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold rounded-xl flex items-center gap-2 transition-all active:scale-95"
-                            >
-                              {isProcessing ? <Loader2 className="w-4 h-4 animate-spin" /> : <QrCode className="w-4 h-4" />}
-                              QR Code
-                            </button>
-                          ) : (
-                            <button
-                              onClick={() => handleLogout(instance.name)}
-                              disabled={isProcessing}
-                              className="px-4 py-2 bg-rose-500 hover:bg-rose-600 text-white text-xs font-bold rounded-xl flex items-center gap-2 transition-all active:scale-95"
-                            >
-                              {isProcessing ? <Loader2 className="w-4 h-4 animate-spin" /> : <WifiOff className="w-4 h-4" />}
-                              Desconectar
-                            </button>
+                          {instance.channel_type !== 'official' && (
+                            !isConnected ? (
+                              <button
+                                onClick={() => handleConnect(instance.name)}
+                                disabled={isProcessing}
+                                className="px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold rounded-xl flex items-center gap-2 transition-all active:scale-95"
+                              >
+                                {isProcessing ? <Loader2 className="w-4 h-4 animate-spin" /> : <QrCode className="w-4 h-4" />}
+                                QR Code
+                              </button>
+                            ) : (
+                              <button
+                                onClick={() => handleLogout(instance.name)}
+                                disabled={isProcessing}
+                                className="px-4 py-2 bg-rose-500 hover:bg-rose-600 text-white text-xs font-bold rounded-xl flex items-center gap-2 transition-all active:scale-95"
+                              >
+                                {isProcessing ? <Loader2 className="w-4 h-4 animate-spin" /> : <WifiOff className="w-4 h-4" />}
+                                Desconectar
+                              </button>
+                            )
                           )}
                           <button
                             onClick={() => handleDeleteInstance(instance.name)}
@@ -602,11 +643,37 @@ const InstancesView: React.FC<InstancesViewProps> = ({ isBlocked = false }) => {
       {/* Create Modal */}
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in">
-          <div className="bg-white dark:bg-slate-800 w-full max-w-md rounded-[2.5rem] p-8 shadow-2xl animate-in zoom-in duration-300">
+          <div className="bg-white dark:bg-slate-800 w-full max-w-xl rounded-[2.5rem] p-8 shadow-2xl animate-in zoom-in duration-300">
             <h2 className="text-2xl font-black text-slate-900 dark:text-white mb-2">Nova Instância</h2>
-            <p className="text-slate-500 mb-8">Digite um nome para identificar sua nova conexão.</p>
+            <p className="text-slate-500 mb-8">Configure sua nova conexão do WhatsApp.</p>
 
             <form onSubmit={handleCreateInstance} className="space-y-6">
+
+              {/* Type Selection */}
+              <div className="grid grid-cols-2 gap-4 mb-6">
+                <div
+                  onClick={() => setConnectionType('evolution')}
+                  className={`cursor-pointer p-4 rounded-2xl border-2 transition-all ${connectionType === 'evolution' ? 'border-primary bg-primary/5' : 'border-slate-100 dark:border-slate-700 hover:border-slate-300'}`}
+                >
+                  <div className="flex items-center gap-3 mb-2">
+                    <QrCode className={`w-5 h-5 ${connectionType === 'evolution' ? 'text-primary' : 'text-slate-400'}`} />
+                    <span className={`font-bold ${connectionType === 'evolution' ? 'text-primary' : 'text-slate-500 dark:text-slate-400'}`}>QR Code</span>
+                  </div>
+                  <p className="text-xs text-slate-500">Conecte seu WhatsApp existente escaneando um código.</p>
+                </div>
+
+                <div
+                  onClick={() => setConnectionType('official')}
+                  className={`cursor-pointer p-4 rounded-2xl border-2 transition-all ${connectionType === 'official' ? 'border-emerald-500 bg-emerald-500/5' : 'border-slate-100 dark:border-slate-700 hover:border-slate-300'}`}
+                >
+                  <div className="flex items-center gap-3 mb-2">
+                    <div className="w-5 h-5 rounded-full bg-emerald-500 flex items-center justify-center text-white text-[10px] font-bold">M</div>
+                    <span className={`font-bold ${connectionType === 'official' ? 'text-emerald-500' : 'text-slate-500 dark:text-slate-400'}`}>API Oficial</span>
+                  </div>
+                  <p className="text-xs text-slate-500">Use a API Cloud da Meta para alta performance e estabilidade.</p>
+                </div>
+              </div>
+
               <div>
                 <label className="text-xs font-bold uppercase tracking-widest text-slate-400 ml-1">Nome da Instância</label>
                 <input
@@ -618,7 +685,44 @@ const InstancesView: React.FC<InstancesViewProps> = ({ isBlocked = false }) => {
                 />
               </div>
 
-              <div className="flex gap-3">
+              {connectionType === 'official' && (
+                <div className="space-y-4 pt-4 border-t border-slate-100 dark:border-slate-700">
+                  <h3 className="text-sm font-black text-slate-700 dark:text-white">Credenciais da Meta (Facebook)</h3>
+
+                  <div>
+                    <label className="text-xs font-bold uppercase tracking-widest text-slate-400 ml-1">Phone Number ID</label>
+                    <input
+                      value={metaPhoneId}
+                      onChange={(e) => setMetaPhoneId(e.target.value)}
+                      placeholder="Ex: 1059..."
+                      className="w-full mt-1 p-3 bg-slate-50 dark:bg-slate-900 rounded-xl text-sm font-medium outline-none focus:ring-2 focus:ring-emerald-500/20 dark:text-white"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-bold uppercase tracking-widest text-slate-400 ml-1">Business Account ID</label>
+                    <input
+                      value={metaBusinessId}
+                      onChange={(e) => setMetaBusinessId(e.target.value)}
+                      placeholder="Ex: 1023..."
+                      className="w-full mt-1 p-3 bg-slate-50 dark:bg-slate-900 rounded-xl text-sm font-medium outline-none focus:ring-2 focus:ring-emerald-500/20 dark:text-white"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-bold uppercase tracking-widest text-slate-400 ml-1">Access Token</label>
+                    <div className="relative">
+                      <input
+                        value={metaToken}
+                        onChange={(e) => setMetaToken(e.target.value)}
+                        placeholder="Ex: EAAG..."
+                        type="password"
+                        className="w-full mt-1 p-3 bg-slate-50 dark:bg-slate-900 rounded-xl text-sm font-medium outline-none focus:ring-2 focus:ring-emerald-500/20 dark:text-white"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <div className="flex gap-3 pt-2">
                 <button
                   type="button"
                   onClick={() => setShowModal(false)}
@@ -628,8 +732,8 @@ const InstancesView: React.FC<InstancesViewProps> = ({ isBlocked = false }) => {
                 </button>
                 <button
                   type="submit"
-                  disabled={processing === 'CREATING' || !newInstanceName}
-                  className="flex-1 py-4 bg-primary text-white font-bold rounded-2xl hover:bg-primary-light transition-all shadow-lg shadow-primary/20 disabled:opacity-50 flex items-center justify-center gap-2"
+                  disabled={processing === 'CREATING' || !newInstanceName || (connectionType === 'official' && (!metaPhoneId || !metaToken))}
+                  className={`flex-1 py-4 text-white font-bold rounded-2xl transition-all shadow-lg disabled:opacity-50 flex items-center justify-center gap-2 ${connectionType === 'official' ? 'bg-emerald-500 hover:bg-emerald-600 shadow-emerald-500/20' : 'bg-primary hover:bg-primary-light shadow-primary/20'}`}
                 >
                   {processing === 'CREATING' ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Criar'}
                 </button>
