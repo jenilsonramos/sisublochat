@@ -3,8 +3,9 @@ import { useToast } from '../components/ToastProvider';
 import ConfirmationModal from '../components/ConfirmationModal';
 import { evolutionApi, EvolutionInstance } from '../lib/evolution';
 import { supabase } from '../lib/supabase';
-import { Loader2, Send, Search, Info, X, Smartphone, MessageCircle, Volume2, VolumeX, Settings, Paperclip, ImageIcon, FileText, Mic, Square, Trash2, ChevronLeft, ChevronRight, Smile, AlertCircle, Reply, Video, Download, UserCog, CheckCircle2, Tag, Plus, StickyNote, Save } from 'lucide-react';
+import { Loader2, Send, Search, Info, X, Smartphone, MessageCircle, Volume2, VolumeX, Settings, Paperclip, ImageIcon, FileText, Mic, Square, Trash2, ChevronLeft, ChevronRight, Smile, AlertCircle, Reply, Video, Download, UserCog, CheckCircle2, Tag, Plus, StickyNote, Save, Maximize2, Minimize2 } from 'lucide-react';
 import EmojiPicker, { Theme } from 'emoji-picker-react';
+import { formatMessage } from '../lib/chatUtils';
 
 // Types updated to match Supabase Schema
 interface Conversation {
@@ -77,6 +78,7 @@ const LiveChatView: React.FC<LiveChatViewProps> = ({ isBlocked = false }) => {
 
   // Layout State
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [isFullScreen, setIsFullScreen] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [replyingTo, setReplyingTo] = useState<ChatMessage | null>(null);
 
@@ -878,7 +880,7 @@ const LiveChatView: React.FC<LiveChatViewProps> = ({ isBlocked = false }) => {
   };
 
   return (
-    <div className="flex h-full w-full bg-white dark:bg-slate-800 rounded-2xl md:rounded-[2.5rem] shadow-xl border border-slate-100 dark:border-slate-700/50 overflow-hidden min-h-0 relative">
+    <div className={`flex h-full w-full bg-white dark:bg-slate-800 shadow-xl border border-slate-100 dark:border-slate-700/50 overflow-hidden min-h-0 relative ${isFullScreen ? 'fixed inset-0 z-[9999] rounded-0' : 'rounded-2xl md:rounded-[2.5rem]'}`}>
 
       {/* Sidebar - Contacts List using Supabase Data */}
       <div className={`border-r border-slate-50 dark:border-slate-700/50 flex flex-col min-h-0 shrink-0 transition-all duration-300 relative ${sidebarCollapsed ? 'w-20 md:w-24' : 'w-full md:w-80 lg:w-96'} ${selectedChat ? 'hidden md:flex' : 'flex'}`}>
@@ -1133,6 +1135,13 @@ const LiveChatView: React.FC<LiveChatViewProps> = ({ isBlocked = false }) => {
                   </div>
                 )}
                 <button
+                  onClick={() => setIsFullScreen(!isFullScreen)}
+                  className={`p-2 md:p-3 rounded-2xl transition-all ${isFullScreen ? 'bg-primary text-white shadow-lg' : 'text-slate-400 hover:text-primary hover:bg-slate-50 dark:hover:bg-slate-700'}`}
+                  title={isFullScreen ? "Sair da tela cheia" : "Tela cheia"}
+                >
+                  {isFullScreen ? <Minimize2 className="w-5 h-5" /> : <Maximize2 className="w-5 h-5" />}
+                </button>
+                <button
                   onClick={() => setShowDetails(!showDetails)}
                   className={`p-2 md:p-3 rounded-2xl transition-all ${showDetails ? 'bg-primary text-white shadow-lg' : 'text-slate-400 hover:text-primary hover:bg-slate-50 dark:hover:bg-slate-700'}`}
                 >
@@ -1369,7 +1378,9 @@ const LiveChatView: React.FC<LiveChatViewProps> = ({ isBlocked = false }) => {
                                 </div>
                               )}
 
-                              <p className="text-sm leading-relaxed whitespace-pre-wrap break-words">{msg.text || (msg.media_type ? '' : '...')}</p>
+                              <div className={`text-sm leading-relaxed whitespace-pre-wrap break-words ${msg.sender === 'me' ? 'text-white' : 'text-slate-700 dark:text-slate-200'}`}>
+                                {formatMessage(msg.text || (msg.media_type ? '' : '...'))}
+                              </div>
                               <div className={`flex items-center gap-1.5 justify-end mt-2 opacity-60 text-[10px] font-bold uppercase`}>
                                 <span>{new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                                 {msg.sender === 'me' && (
