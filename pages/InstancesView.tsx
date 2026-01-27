@@ -819,24 +819,21 @@ const InstancesView: React.FC<InstancesViewProps> = ({ isBlocked = false }) => {
                   )}
 
                   <div
-                    onClick={() => !isEditing && setConnectionType('official')}
-                    className={`cursor-pointer p-4 rounded-2xl border-2 transition-all relative overflow-hidden ${connectionType === 'official' ? 'border-emerald-500 bg-emerald-500/5 shadow-lg shadow-emerald-500/5' : 'border-slate-100 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600'} ${isEditing ? 'col-span-2' : ''}`}
+                    onClick={() => {
+                      if (!isEditing) showToast('Em manutenção. Aguarde novidades!', 'info');
+                    }}
+                    className={`cursor-not-allowed opacity-50 p-4 rounded-2xl border-2 transition-all relative overflow-hidden border-slate-100 dark:border-slate-700 hover:border-slate-100 dark:hover:border-slate-700 ${isEditing ? 'col-span-2' : ''}`}
                   >
                     <div className="flex items-center gap-3 mb-2">
-                      <div className={`p-2 rounded-xl flex items-center justify-center ${connectionType === 'official' ? 'bg-emerald-500 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-400'}`}>
+                      <div className={`p-2 rounded-xl flex items-center justify-center bg-slate-100 dark:bg-slate-800 text-slate-400`}>
                         <span className="font-bold text-xs">M</span>
                       </div>
-                      <span className={`font-bold ${connectionType === 'official' ? 'text-emerald-500' : 'text-slate-500 dark:text-slate-400'}`}>API Oficial</span>
+                      <span className={`font-bold text-slate-500 dark:text-slate-400`}>API Oficial</span>
+                      <span className="px-2 py-0.5 bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-500 text-[10px] font-bold uppercase tracking-wider rounded-lg">
+                        Em Breve
+                      </span>
                     </div>
                     <p className="text-xs text-slate-500 leading-relaxed">Use a API Cloud da Meta para alta performance e estabilidade.</p>
-
-                    {connectionType === 'official' && (
-                      <div className="absolute top-2 right-2">
-                        <div className="w-4 h-4 rounded-full bg-emerald-500 flex items-center justify-center">
-                          <Check className="w-2.5 h-2.5 text-white" />
-                        </div>
-                      </div>
-                    )}
                   </div>
                 </div>
 
