@@ -17,8 +17,16 @@ serve(async (req) => {
             Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
         )
 
-        // 1. Buscar campanhas que estão PROCESSANDO ou PENDENTES (se foram iniciadas agora)
-        // Buscamos apenas campanhas 'PROCESSING' que tenham mensagens 'PENDING'
+        // 0. Activate pending scheduled campaigns
+        const { error: activeError } = await supabaseClient
+            .from('campaigns')
+            .update({ status: 'PROCESSING' })
+            .eq('status', 'PENDING')
+            .lte('scheduled_at', new Date().toISOString());
+
+        if (activeError) console.error("Error activating scheduled campaigns:", activeError);
+
+        // 1. Buscar campanhas que estão PROCESSANDO
         const { data: campaigns, error: campaignError } = await supabaseClient
             .from('campaigns')
             .select('*, instances(name)')

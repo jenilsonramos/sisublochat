@@ -65,6 +65,9 @@ const BroadcastView: React.FC<BroadcastViewProps> = ({ isBlocked }) => {
         contacts_raw: ''
     });
 
+    const [scheduleType, setScheduleType] = useState<'NOW' | 'SCHEDULED'>('NOW');
+    const [scheduledAt, setScheduledAt] = useState('');
+
 
 
     useEffect(() => {
@@ -197,7 +200,8 @@ const BroadcastView: React.FC<BroadcastViewProps> = ({ isBlocked }) => {
                     min_delay: newCampaign.min_delay,
                     max_delay: newCampaign.max_delay,
                     total_messages: contactsToInsert.length,
-                    status: 'PENDING'
+                    status: scheduleType === 'NOW' ? 'PROCESSING' : 'PENDING',
+                    scheduled_at: scheduleType === 'SCHEDULED' && scheduledAt ? new Date(scheduledAt).toISOString() : null
                 })
                 .select()
                 .single();
@@ -227,6 +231,8 @@ const BroadcastView: React.FC<BroadcastViewProps> = ({ isBlocked }) => {
                 max_delay: 45,
                 contacts_raw: ''
             });
+            setScheduleType('NOW');
+            setScheduledAt('');
             fetchCampaigns();
         } catch (error: any) {
             showToast(error.message || 'Erro ao criar campanha', 'error');
@@ -627,6 +633,38 @@ const BroadcastView: React.FC<BroadcastViewProps> = ({ isBlocked }) => {
                                     <p className="col-span-2 text-center text-[10px] font-bold text-primary/60 italic">
                                         Delays aleatórios ajudam a simular o comportamento humano
                                     </p>
+                                </div>
+
+                                <div className="space-y-4">
+                                    <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-xl">
+                                        <button
+                                            type="button"
+                                            onClick={() => setScheduleType('NOW')}
+                                            className={`flex-1 py-2 text-xs font-black rounded-lg transition-all ${scheduleType === 'NOW' ? 'bg-white dark:bg-slate-700 text-primary shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+                                        >
+                                            ENVIAR AGORA
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => setScheduleType('SCHEDULED')}
+                                            className={`flex-1 py-2 text-xs font-black rounded-lg transition-all ${scheduleType === 'SCHEDULED' ? 'bg-white dark:bg-slate-700 text-primary shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+                                        >
+                                            AGENDAR
+                                        </button>
+                                    </div>
+
+                                    {scheduleType === 'SCHEDULED' && (
+                                        <div className="space-y-2 animate-in fade-in slide-in-from-top-2">
+                                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Data e Hora do Disparo</label>
+                                            <input
+                                                type="datetime-local"
+                                                required
+                                                value={scheduledAt}
+                                                onChange={(e) => setScheduledAt(e.target.value)}
+                                                className="w-full px-4 py-4 bg-slate-50 dark:bg-slate-800 border-none rounded-2xl focus:ring-4 focus:ring-primary/5 dark:text-white outline-none font-medium appearance-none"
+                                            />
+                                        </div>
+                                    )}
                                 </div>
 
                                 <button
