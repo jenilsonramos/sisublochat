@@ -107,6 +107,8 @@ const LiveChatView: React.FC<LiveChatViewProps> = ({ isBlocked = false }) => {
   const [msgToDelete, setMsgToDelete] = useState<ChatMessage | null>(null);
   const [isMsgDeleteModalOpen, setIsMsgDeleteModalOpen] = useState(false);
   const [isDeletingMsg, setIsDeletingMsg] = useState(false);
+  const [isResolveModalOpen, setIsResolveModalOpen] = useState(false);
+  const [isResolving, setIsResolving] = useState(false);
 
   // Audio Settings
   const [soundEnabled, setSoundEnabled] = useState(() => localStorage.getItem('chatSoundEnabled') !== 'false');
@@ -411,6 +413,66 @@ const LiveChatView: React.FC<LiveChatViewProps> = ({ isBlocked = false }) => {
       showToast('Erro ao salvar nota', 'error');
     } finally {
       setIsSavingDetails(false);
+    }
+  };
+
+  const handleResolveConversation = async () => {
+    if (!selectedChat || !activeInstance) return;
+
+    try {
+      setIsResolving(true);
+
+      // Generate Protocol: PROTO-YYYYMMDD-HHMMSS
+      const now = new Date();
+      const datePart = now.toISOString().split('T')[0].replace(/-/g, '');
+      const timePart = now.toTimeString().split(' ')[0].replace(/:/g, '');
+      const protocol = `PROTO-${datePart}-${timePart}`;
+
+      const closingMessage = `*Atendimento Encerrado*\n\nEstamos encerrando este atendimento. Caso precise novamente, estamos à disposição.\n\n*Número do Protocolo:* ${protocol}\n\nVocê pode consultar este atendimento através deste número caso precise.`;
+
+      // 1. Send message via Evolution API
+      await evolutionApi.sendTextMessage(activeInstance.name, selectedChat.remote_jid, closingMessage);
+
+      // 2. Save message to Supabase
+      const { data: savedMsg, error: msgError } = await supabase
+        .from('messages')
+        .insert({
+          conversation_id: selectedChat.id,
+          text: closingMessage,
+          sender: 'me',
+          status: 'sent'
+        })
+        .select()
+        .single();
+
+      if (msgError) throw msgError;
+
+      // 3. Update Conversation Status to Resolved
+      const { error: convError } = await supabase
+        .from('conversations')
+        .update({
+          status: 'resolved',
+          last_message: 'Atendimento Encerrado',
+          last_message_time: new Date().toISOString()
+        })
+        .eq('id', selectedChat.id);
+
+      if (convError) throw convError;
+
+      // 4. Update local state
+      setConversations(prev => prev.map(c =>
+        c.id === selectedChat.id ? { ...c, status: 'resolved', last_message: 'Atendimento Encerrado' } : c
+      ));
+
+      showToast('Atendimento resolvido com sucesso!', 'success');
+      setSelectedChat(null);
+      setIsResolveModalOpen(false);
+
+    } catch (error: any) {
+      console.error('Resolve Error:', error);
+      showToast('Erro ao encerrar atendimento: ' + (error.message || 'Erro desconhecido'), 'error');
+    } finally {
+      setIsResolving(false);
     }
   };
 
@@ -1106,6 +1168,14 @@ const LiveChatView: React.FC<LiveChatViewProps> = ({ isBlocked = false }) => {
                   <option value="resolved">Resolvido</option>
                 </select>
                 <button
+                  onClick={() => setIsResolveModalOpen(true)}
+                  className="p-2 md:p-3 rounded-2xl text-slate-400 hover:text-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-500/10 transition-all flex items-center gap-2 group"
+                  title="Resolver atendimento"
+                >
+                  <CheckCircle2 className="w-5 h-5" />
+                  <span className="hidden xl:inline text-xs font-black uppercase tracking-widest">Resolver</span>
+                </button>
+                <button
                   onClick={handleDeleteClick}
                   className="p-2 md:p-3 rounded-2xl text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-500/10 transition-all"
                   title="Apagar conversa"
@@ -1674,6 +1744,18 @@ const LiveChatView: React.FC<LiveChatViewProps> = ({ isBlocked = false }) => {
         confirmText="Excluir"
         isLoading={isDeletingMsg}
         type="danger"
+      />
+
+      <ConfirmationModal
+        isOpen={isResolveModalOpen}
+        onClose={() => setIsResolveModalOpen(false)}
+        onConfirm={handleResolveConversation}
+        title="Encerrar Atendimento"
+        message="Deseja realmente marcar este atendimento como resolvido? Uma mensagem de encerramento com o número do protocolo será enviada ao contato e a conversa será movida para resolvidos."
+        confirmText="Sim, Resolver"
+        cancelText="Não, Cancelar"
+        isLoading={isResolving}
+        type="info"
       />
     </div >
   );
