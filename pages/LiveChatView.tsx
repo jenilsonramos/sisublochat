@@ -88,6 +88,7 @@ const LiveChatView: React.FC<LiveChatViewProps> = ({ isBlocked = false }) => {
   const [newTag, setNewTag] = useState('');
   const [isSavingDetails, setIsSavingDetails] = useState(false);
   const emojiPickerRef = useRef<HTMLDivElement>(null);
+  const chatContainerRef = useRef<HTMLDivElement>(null);
 
   // Close emoji picker when clicking outside
   useEffect(() => {
@@ -130,6 +131,27 @@ const LiveChatView: React.FC<LiveChatViewProps> = ({ isBlocked = false }) => {
     audio.volume = volumeRef.current;
     audio.play().catch(e => console.log('Audio play failed', e));
   };
+
+  const toggleFullScreen = () => {
+    if (!chatContainerRef.current) return;
+
+    if (!document.fullscreenElement) {
+      chatContainerRef.current.requestFullscreen().catch(err => {
+        console.error(`Error attempting to enable full-screen mode: ${err.message}`);
+      });
+    } else {
+      document.exitFullscreen();
+    }
+  };
+
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullScreen(!!document.fullscreenElement);
+    };
+
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
+  }, []);
 
   // 1. Initial Load & Subscriptions
   useEffect(() => {
@@ -880,7 +902,10 @@ const LiveChatView: React.FC<LiveChatViewProps> = ({ isBlocked = false }) => {
   };
 
   return (
-    <div className={`flex h-full w-full bg-white dark:bg-slate-800 shadow-xl border border-slate-100 dark:border-slate-700/50 overflow-hidden min-h-0 relative ${isFullScreen ? 'fixed inset-0 z-[9999] rounded-0' : 'rounded-2xl md:rounded-[2.5rem]'}`}>
+    <div
+      ref={chatContainerRef}
+      className={`flex h-full w-full bg-white dark:bg-slate-800 shadow-xl border border-slate-100 dark:border-slate-700/50 overflow-hidden min-h-0 relative ${isFullScreen ? 'fixed inset-0 z-[9999] rounded-0' : 'rounded-2xl md:rounded-[2.5rem]'}`}
+    >
 
       {/* Sidebar - Contacts List using Supabase Data */}
       <div className={`border-r border-slate-50 dark:border-slate-700/50 flex flex-col min-h-0 shrink-0 transition-all duration-300 relative ${sidebarCollapsed ? 'w-20 md:w-24' : 'w-full md:w-80 lg:w-96'} ${selectedChat ? 'hidden md:flex' : 'flex'}`}>
@@ -1135,7 +1160,7 @@ const LiveChatView: React.FC<LiveChatViewProps> = ({ isBlocked = false }) => {
                   </div>
                 )}
                 <button
-                  onClick={() => setIsFullScreen(!isFullScreen)}
+                  onClick={toggleFullScreen}
                   className={`p-2 md:p-3 rounded-2xl transition-all ${isFullScreen ? 'bg-primary text-white shadow-lg' : 'text-slate-400 hover:text-primary hover:bg-slate-50 dark:hover:bg-slate-700'}`}
                   title={isFullScreen ? "Sair da tela cheia" : "Tela cheia"}
                 >
@@ -1379,7 +1404,7 @@ const LiveChatView: React.FC<LiveChatViewProps> = ({ isBlocked = false }) => {
                               )}
 
                               <div className={`text-sm leading-relaxed whitespace-pre-wrap break-words ${msg.sender === 'me' ? 'text-white' : 'text-slate-700 dark:text-slate-200'}`}>
-                                {formatMessage(msg.text || (msg.media_type ? '' : '...'))}
+                                {formatMessage(msg.text || (msg.media_type ? '' : '...'), msg.sender === 'me')}
                               </div>
                               <div className={`flex items-center gap-1.5 justify-end mt-2 opacity-60 text-[10px] font-bold uppercase`}>
                                 <span>{new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
