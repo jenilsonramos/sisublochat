@@ -142,7 +142,11 @@ serve(async (req) => {
                 }).eq('id', existing.id);
             }
 
-            return new Response(JSON.stringify({ success: true, jobId }), {
+            return new Response(JSON.stringify({
+                success: true,
+                broadcast_job_id: jobId,
+                billing_job_id: billingJson.jobId
+            }), {
                 headers: { ...corsHeaders, 'Content-Type': 'application/json' },
             })
         }
