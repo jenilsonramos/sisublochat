@@ -25,7 +25,7 @@ const navItems: NavItem[] = [
   { id: 'contacts', icon: 'person', label: 'Contatos' },
   { id: 'chatbots', icon: 'smart_toy', label: 'Chatbots' },
   { id: 'flowbuilder', icon: 'account_tree', label: 'Flow Builder' },
-  { id: 'broadcast', icon: 'send', label: 'Trasmição' },
+  { id: 'broadcast', icon: 'send', label: 'Transmissão' },
   { id: 'analytics', icon: 'analytics', label: 'Relatórios' },
   { id: 'users', icon: 'groups', label: 'Usuários' },
   { id: 'subscription', icon: 'credit_card', label: 'Meu Plano' },
