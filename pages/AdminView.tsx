@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+// Version: 1.0.1 - SMTP Fix
 import { supabase } from '../lib/supabase';
 import { useToast } from '../components/ToastProvider';
 import {
