@@ -21,7 +21,7 @@ import FlowBuilderView from './pages/FlowBuilderView';
 import BroadcastView from './pages/BroadcastView';
 import { TabType } from './types';
 import { ToastProvider, useToast } from './components/ToastProvider';
-import { AlertCircle } from 'lucide-react';
+import { AlertCircle, Lock } from 'lucide-react';
 
 const AppContent: React.FC = () => {
   const { showToast } = useToast();
