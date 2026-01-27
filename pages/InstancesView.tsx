@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { evolutionApi, EvolutionInstance } from '../lib/evolution';
 import { supabase } from '../lib/supabase';
 import { useToast } from '../components/ToastProvider';
-import { Loader2, Plus, Smartphone, WifiOff, Battery, Trash2, QrCode, RefreshCw, Key, Copy, Check, Eye, EyeOff, AlertCircle, Webhook } from 'lucide-react';
+import { Loader2, Plus, Smartphone, WifiOff, Battery, Trash2, QrCode, RefreshCw, Key, Copy, Check, Eye, EyeOff, AlertCircle, Webhook, Pencil } from 'lucide-react';
 import { usePlanLimits } from '../hooks/usePlanLimits';
 
 interface InstancesViewProps {
@@ -21,8 +21,11 @@ const InstancesView: React.FC<InstancesViewProps> = ({ isBlocked = false }) => {
   const [selectedOfficialConfig, setSelectedOfficialConfig] = useState<any>(null);
 
   // Form State
+  const [isEditing, setIsEditing] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [newInstanceName, setNewInstanceName] = useState('');
   const [connectionType, setConnectionType] = useState<'evolution' | 'official'>('evolution');
+  const [metaPhoneNumber, setMetaPhoneNumber] = useState(''); // Display Phone Number
   const [metaPhoneId, setMetaPhoneId] = useState('');
   const [metaBusinessId, setMetaBusinessId] = useState('');
   const [metaToken, setMetaToken] = useState('');
@@ -208,7 +211,9 @@ const InstancesView: React.FC<InstancesViewProps> = ({ isBlocked = false }) => {
         type: 'whatsapp',
         channel_type: connectionType,
         user_id: user.id,
-        sector: 'Comercial'
+
+        sector: 'Comercial',
+        owner_jid: connectionType === 'official' && metaPhoneNumber ? `${metaPhoneNumber.replace(/\D/g, '')}@s.whatsapp.net` : null
       }).select('id').single();
 
       if (dbError) throw dbError;
@@ -237,11 +242,95 @@ const InstancesView: React.FC<InstancesViewProps> = ({ isBlocked = false }) => {
       setMetaPhoneId('');
       setMetaBusinessId('');
       setMetaToken('');
+      setMetaPhoneNumber('');
+      setIsEditing(false);
+      setEditingId(null);
       setConnectionType('evolution');
       fetchInstances();
     } catch (error: any) {
       console.error('Creation Error:', error);
       showToast(error.message || 'Erro ao criar instância', 'error');
+    } finally {
+      setProcessing(null);
+    }
+  };
+
+  const handleEditOfficial = async (instance: any) => {
+    try {
+      setProcessing('FETCH_EDIT');
+      console.log('Fetching official config for:', instance.id);
+      const { data, error } = await supabase
+        .from('whatsapp_official_resources')
+        .select('*')
+        .eq('instance_id', instance.id)
+        .single();
+
+      if (error) throw error;
+
+      setNewInstanceName(instance.name);
+      setConnectionType('official');
+      setMetaPhoneId(data.phone_number_id);
+      setMetaBusinessId(data.business_account_id);
+      setMetaToken(data.access_token);
+      // Clean phone number from owner_jid which is usually 5511...@s.whatsapp.net
+      setMetaPhoneNumber(instance.owner_jid ? instance.owner_jid.split('@')[0] : '');
+      setEditingId(instance.id);
+      setIsEditing(true);
+      setShowModal(true);
+    } catch (err: any) {
+      showToast('Erro ao carregar dados para edição', 'error');
+      console.error(err);
+    } finally {
+      setProcessing(null);
+    }
+  };
+
+  const handleUpdateInstance = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingId || !newInstanceName.trim()) return;
+
+    try {
+      setProcessing('UPDATING');
+
+      // Update Instance Name & Phone
+      const ownerJid = metaPhoneNumber ? `${metaPhoneNumber.replace(/\D/g, '')}@s.whatsapp.net` : null;
+      const { error: instError } = await supabase
+        .from('instances')
+        .update({
+          name: newInstanceName.trim(),
+          owner_jid: ownerJid
+        })
+        .eq('id', editingId);
+
+      if (instError) throw instError;
+
+      if (connectionType === 'official') {
+        const { error: metaError } = await supabase
+          .from('whatsapp_official_resources')
+          .update({
+            phone_number_id: metaPhoneId.trim(),
+            business_account_id: metaBusinessId.trim(),
+            access_token: metaToken.trim()
+          })
+          .eq('instance_id', editingId);
+
+        if (metaError) throw metaError;
+      }
+
+      showToast('Instância atualizada com sucesso!', 'success');
+      setShowModal(false);
+      setIsEditing(false);
+      setEditingId(null);
+      setNewInstanceName('');
+      setMetaPhoneId('');
+      setMetaBusinessId('');
+      setMetaToken('');
+      setMetaPhoneNumber('');
+      setConnectionType('evolution');
+      fetchInstances();
+    } catch (err: any) {
+      console.error(err);
+      showToast('Erro ao atualizar instância', 'error');
     } finally {
       setProcessing(null);
     }
@@ -461,7 +550,16 @@ const InstancesView: React.FC<InstancesViewProps> = ({ isBlocked = false }) => {
             onClick={() => {
               if (isLimitReached('instances')) {
                 showToast(`Limite do plano atingido (${limits?.max_instances} instâncias). Faça upgrade para adicionar mais.`, 'error');
+
               } else {
+                setIsEditing(false);
+                setEditingId(null);
+                setNewInstanceName('');
+                setMetaPhoneNumber('');
+                setMetaPhoneId('');
+                setMetaBusinessId('');
+                setMetaToken('');
+                setConnectionType('evolution');
                 setShowModal(true);
               }
             }}
@@ -474,120 +572,131 @@ const InstancesView: React.FC<InstancesViewProps> = ({ isBlocked = false }) => {
       </div>
 
       {/* List Table */}
-      {loading ? (
-        <div className="flex items-center justify-center h-64">
-          <Loader2 className="w-10 h-10 text-primary animate-spin" />
-        </div>
-      ) : instances.length === 0 ? (
-        <div className="text-center py-20 bg-white dark:bg-slate-800 rounded-[2.5rem]">
-          <Smartphone className="w-16 h-16 text-slate-300 mx-auto mb-4" />
-          <p className="text-slate-500 dark:text-slate-400 font-medium">Nenhuma instância encontrada.</p>
-        </div>
-      ) : (
-        <div className="bg-white dark:bg-slate-800 rounded-[2.5rem] border border-slate-100 dark:border-slate-700/50 overflow-hidden shadow-sm">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="border-b border-slate-50 dark:border-slate-700/50 bg-slate-50/50 dark:bg-slate-900/50">
-                  <th className="px-8 py-5 text-xs font-black text-slate-400 uppercase tracking-widest">Instância</th>
-                  <th className="px-8 py-5 text-xs font-black text-slate-400 uppercase tracking-widest">WhatsApp</th>
-                  <th className="px-8 py-5 text-xs font-black text-slate-400 uppercase tracking-widest">Status</th>
-                  <th className="px-8 py-5 text-xs font-black text-slate-400 uppercase tracking-widest text-right">Ações</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-50 dark:divide-slate-700/30">
-                {instances.map((instance) => {
-                  const status = instance.connectionStatus || instance.status || 'close';
-                  const statusColor = getStatusColor(status);
-                  const isProcessing = processing === instance.name;
-                  const isConnected = status === 'open' || status === 'open.scanning' || status === 'open.pairing';
-                  const whatsappNumber = instance.owner_jid ? `+${instance.owner_jid.split('@')[0]}` : '-';
+      {
+        loading ? (
+          <div className="flex items-center justify-center h-64">
+            <Loader2 className="w-10 h-10 text-primary animate-spin" />
+          </div>
+        ) : instances.length === 0 ? (
+          <div className="text-center py-20 bg-white dark:bg-slate-800 rounded-[2.5rem]">
+            <Smartphone className="w-16 h-16 text-slate-300 mx-auto mb-4" />
+            <p className="text-slate-500 dark:text-slate-400 font-medium">Nenhuma instância encontrada.</p>
+          </div>
+        ) : (
+          <div className="bg-white dark:bg-slate-800 rounded-[2.5rem] border border-slate-100 dark:border-slate-700/50 overflow-hidden shadow-sm">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="border-b border-slate-50 dark:border-slate-700/50 bg-slate-50/50 dark:bg-slate-900/50">
+                    <th className="px-8 py-5 text-xs font-black text-slate-400 uppercase tracking-widest">Instância</th>
+                    <th className="px-8 py-5 text-xs font-black text-slate-400 uppercase tracking-widest">WhatsApp</th>
+                    <th className="px-8 py-5 text-xs font-black text-slate-400 uppercase tracking-widest">Status</th>
+                    <th className="px-8 py-5 text-xs font-black text-slate-400 uppercase tracking-widest text-right">Ações</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-50 dark:divide-slate-700/30">
+                  {instances.map((instance) => {
+                    const status = instance.connectionStatus || instance.status || 'close';
+                    const statusColor = getStatusColor(status);
+                    const isProcessing = processing === instance.name;
+                    const isConnected = status === 'open' || status === 'open.scanning' || status === 'open.pairing';
+                    const whatsappNumber = instance.owner_jid ? `+${instance.owner_jid.split('@')[0]}` : '-';
 
-                  return (
-                    <tr key={instance.id || instance.instanceId} className="group hover:bg-slate-50/50 dark:hover:bg-slate-900/30 transition-colors">
-                      <td className="px-8 py-5">
-                        <div className="flex items-center gap-4">
-                          <div className={`w-12 h-12 rounded-2xl ${instance.channel_type === 'official' ? 'bg-emerald-100 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-500' : `bg-${statusColor}-100 text-${statusColor}-500 dark:bg-${statusColor}-500/10`} flex items-center justify-center`}>
-                            {instance.channel_type === 'official' ? <div className="font-black text-xs">OFF</div> : <Smartphone className="w-6 h-6" />}
-                          </div>
-                          <div>
-                            <div className="flex items-center gap-2">
-                              <h4 className="text-sm font-black dark:text-white">{instance.name}</h4>
-                              <button
-                                onClick={() => handleCopyInstanceName(instance.name)}
-                                className="p-1 text-slate-400 hover:text-primary transition-colors"
-                                title="Copiar nome da instância"
-                              >
-                                {copiedInstanceName === instance.name ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
-                              </button>
+                    return (
+                      <tr key={instance.id || instance.instanceId} className="group hover:bg-slate-50/50 dark:hover:bg-slate-900/30 transition-colors">
+                        <td className="px-8 py-5">
+                          <div className="flex items-center gap-4">
+                            <div className={`w-12 h-12 rounded-2xl ${instance.channel_type === 'official' ? 'bg-emerald-100 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-500' : `bg-${statusColor}-100 text-${statusColor}-500 dark:bg-${statusColor}-500/10`} flex items-center justify-center`}>
+                              {instance.channel_type === 'official' ? <div className="font-black text-xs">OFF</div> : <Smartphone className="w-6 h-6" />}
                             </div>
-                            <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">
-                              {instance.channel_type === 'official' ? 'WhatsApp Oficial (Meta)' : 'Evolution V2'}
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <h4 className="text-sm font-black dark:text-white">{instance.name}</h4>
+                                <button
+                                  onClick={() => handleCopyInstanceName(instance.name)}
+                                  className="p-1 text-slate-400 hover:text-primary transition-colors"
+                                  title="Copiar nome da instância"
+                                >
+                                  {copiedInstanceName === instance.name ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
+                                </button>
+                              </div>
+                              <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">
+                                {instance.channel_type === 'official' ? 'WhatsApp Oficial (Meta)' : 'Evolution V2'}
+                              </span>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-8 py-5">
+                          <span className="text-sm font-mono font-bold text-slate-600 dark:text-slate-300">{whatsappNumber}</span>
+                        </td>
+                        <td className="px-8 py-5">
+                          <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-${statusColor}-50 dark:bg-${statusColor}-500/10`}>
+                            <span className={`w-2 h-2 rounded-full bg-${statusColor}-500 animate-pulse`}></span>
+                            <span className={`text-xs font-black uppercase tracking-widest text-${statusColor}-600 dark:text-${statusColor}-400`}>
+                              {getStatusLabel(status)}
                             </span>
                           </div>
-                        </div>
-                      </td>
-                      <td className="px-8 py-5">
-                        <span className="text-sm font-mono font-bold text-slate-600 dark:text-slate-300">{whatsappNumber}</span>
-                      </td>
-                      <td className="px-8 py-5">
-                        <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-${statusColor}-50 dark:bg-${statusColor}-500/10`}>
-                          <span className={`w-2 h-2 rounded-full bg-${statusColor}-500 animate-pulse`}></span>
-                          <span className={`text-xs font-black uppercase tracking-widest text-${statusColor}-600 dark:text-${statusColor}-400`}>
-                            {getStatusLabel(status)}
-                          </span>
-                        </div>
-                      </td>
-                      <td className="px-8 py-5 text-right">
-                        <div className="flex items-center justify-end gap-2">
-                          {instance.channel_type !== 'official' && (
-                            !isConnected ? (
-                              <button
-                                onClick={() => handleConnect(instance.name)}
-                                disabled={isProcessing}
-                                className="px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold rounded-xl flex items-center gap-2 transition-all active:scale-95"
-                              >
-                                {isProcessing ? <Loader2 className="w-4 h-4 animate-spin" /> : <QrCode className="w-4 h-4" />}
-                                QR Code
-                              </button>
-                            ) : (
-                              <button
-                                onClick={() => handleLogout(instance.name)}
-                                disabled={isProcessing}
-                                className="px-4 py-2 bg-rose-500 hover:bg-rose-600 text-white text-xs font-bold rounded-xl flex items-center gap-2 transition-all active:scale-95"
-                              >
-                                {isProcessing ? <Loader2 className="w-4 h-4 animate-spin" /> : <WifiOff className="w-4 h-4" />}
-                                Desconectar
-                              </button>
-                            )
-                          )}
-                          {instance.channel_type === 'official' && (
+                        </td>
+                        <td className="px-8 py-5 text-right">
+                          <div className="flex items-center justify-end gap-2">
+                            {instance.channel_type !== 'official' && (
+                              !isConnected ? (
+                                <button
+                                  onClick={() => handleConnect(instance.name)}
+                                  disabled={isProcessing}
+                                  className="px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold rounded-xl flex items-center gap-2 transition-all active:scale-95"
+                                >
+                                  {isProcessing ? <Loader2 className="w-4 h-4 animate-spin" /> : <QrCode className="w-4 h-4" />}
+                                  QR Code
+                                </button>
+                              ) : (
+                                <button
+                                  onClick={() => handleLogout(instance.name)}
+                                  disabled={isProcessing}
+                                  className="px-4 py-2 bg-rose-500 hover:bg-rose-600 text-white text-xs font-bold rounded-xl flex items-center gap-2 transition-all active:scale-95"
+                                >
+                                  {isProcessing ? <Loader2 className="w-4 h-4 animate-spin" /> : <WifiOff className="w-4 h-4" />}
+                                  Desconectar
+                                </button>
+                              )
+                            )}
+                            {instance.channel_type === 'official' && (
+                              <>
+                                <button
+                                  onClick={() => handleShowOfficialConfig(instance.id)}
+                                  className="p-2 hover:bg-emerald-50 dark:hover:bg-emerald-500/10 rounded-xl text-slate-400 hover:text-emerald-500 transition-colors"
+                                  title="Ver Webhook"
+                                >
+                                  <Webhook className="w-5 h-5" />
+                                </button>
+                                <button
+                                  onClick={() => handleEditOfficial(instance)}
+                                  className="p-2 hover:bg-amber-50 dark:hover:bg-amber-500/10 rounded-xl text-slate-400 hover:text-amber-500 transition-colors"
+                                  title="Editar Conexão"
+                                >
+                                  <Pencil className="w-5 h-5" />
+                                </button>
+                              </>
+                            )}
                             <button
-                              onClick={() => handleShowOfficialConfig(instance.id)}
-                              className="p-2 hover:bg-emerald-50 dark:hover:bg-emerald-500/10 rounded-xl text-slate-400 hover:text-emerald-500 transition-colors"
-                              title="Ver Webhook"
+                              onClick={() => handleDeleteInstance(instance.name)}
+                              disabled={isProcessing}
+                              className="p-2 hover:bg-rose-50 dark:hover:bg-rose-900/20 rounded-xl text-slate-400 hover:text-rose-500 transition-colors"
+                              title="Deletar"
                             >
-                              <Webhook className="w-5 h-5" />
+                              <Trash2 className="w-5 h-5" />
                             </button>
-                          )}
-                          <button
-                            onClick={() => handleDeleteInstance(instance.name)}
-                            disabled={isProcessing}
-                            className="p-2 hover:bg-rose-50 dark:hover:bg-rose-900/20 rounded-xl text-slate-400 hover:text-rose-500 transition-colors"
-                            title="Deletar"
-                          >
-                            <Trash2 className="w-5 h-5" />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
           </div>
-        </div>
-      )}
+        )
+      }
 
       {/* API Tokens Section */}
       <div className="mt-12 mb-20">
@@ -679,37 +788,39 @@ const InstancesView: React.FC<InstancesViewProps> = ({ isBlocked = false }) => {
         showModal && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in">
             <div className="bg-white dark:bg-slate-800 w-full max-w-lg md:max-w-2xl rounded-[2rem] md:rounded-[2.5rem] p-6 md:p-8 shadow-2xl animate-in zoom-in duration-300 max-h-[90vh] overflow-y-auto">
-              <h2 className="text-xl md:text-2xl font-black text-slate-900 dark:text-white mb-2">Nova Instância</h2>
-              <p className="text-sm md:text-base text-slate-500 mb-6 md:mb-8">Configure sua nova conexão do WhatsApp.</p>
+              <h2 className="text-xl md:text-2xl font-black text-slate-900 dark:text-white mb-2">{isEditing ? 'Editar Instância' : 'Nova Instância'}</h2>
+              <p className="text-sm md:text-base text-slate-500 mb-6 md:mb-8">{isEditing ? 'Atualize os dados da conexão.' : 'Configure sua nova conexão do WhatsApp.'}</p>
 
-              <form onSubmit={handleCreateInstance} className="space-y-6">
+              <form onSubmit={isEditing ? handleUpdateInstance : handleCreateInstance} className="space-y-6">
 
                 {/* Type Selection */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                  <div
-                    onClick={() => setConnectionType('evolution')}
-                    className={`cursor-pointer p-4 rounded-2xl border-2 transition-all relative overflow-hidden ${connectionType === 'evolution' ? 'border-primary bg-primary/5 shadow-lg shadow-primary/5' : 'border-slate-100 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600'}`}
-                  >
-                    <div className="flex items-center gap-3 mb-2">
-                      <div className={`p-2 rounded-xl ${connectionType === 'evolution' ? 'bg-primary text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-400'}`}>
-                        <QrCode className="w-5 h-5" />
-                      </div>
-                      <span className={`font-bold ${connectionType === 'evolution' ? 'text-primary' : 'text-slate-500 dark:text-slate-400'}`}>QR Code</span>
-                    </div>
-                    <p className="text-xs text-slate-500 leading-relaxed">Conecte seu WhatsApp existente escaneando um código.</p>
-
-                    {connectionType === 'evolution' && (
-                      <div className="absolute top-2 right-2">
-                        <div className="w-4 h-4 rounded-full bg-primary flex items-center justify-center">
-                          <Check className="w-2.5 h-2.5 text-white" />
+                  {!isEditing && (
+                    <div
+                      onClick={() => setConnectionType('evolution')}
+                      className={`cursor-pointer p-4 rounded-2xl border-2 transition-all relative overflow-hidden ${connectionType === 'evolution' ? 'border-primary bg-primary/5 shadow-lg shadow-primary/5' : 'border-slate-100 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600'}`}
+                    >
+                      <div className="flex items-center gap-3 mb-2">
+                        <div className={`p-2 rounded-xl ${connectionType === 'evolution' ? 'bg-primary text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-400'}`}>
+                          <QrCode className="w-5 h-5" />
                         </div>
+                        <span className={`font-bold ${connectionType === 'evolution' ? 'text-primary' : 'text-slate-500 dark:text-slate-400'}`}>QR Code</span>
                       </div>
-                    )}
-                  </div>
+                      <p className="text-xs text-slate-500 leading-relaxed">Conecte seu WhatsApp existente escaneando um código.</p>
+
+                      {connectionType === 'evolution' && (
+                        <div className="absolute top-2 right-2">
+                          <div className="w-4 h-4 rounded-full bg-primary flex items-center justify-center">
+                            <Check className="w-2.5 h-2.5 text-white" />
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
 
                   <div
-                    onClick={() => setConnectionType('official')}
-                    className={`cursor-pointer p-4 rounded-2xl border-2 transition-all relative overflow-hidden ${connectionType === 'official' ? 'border-emerald-500 bg-emerald-500/5 shadow-lg shadow-emerald-500/5' : 'border-slate-100 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600'}`}
+                    onClick={() => !isEditing && setConnectionType('official')}
+                    className={`cursor-pointer p-4 rounded-2xl border-2 transition-all relative overflow-hidden ${connectionType === 'official' ? 'border-emerald-500 bg-emerald-500/5 shadow-lg shadow-emerald-500/5' : 'border-slate-100 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600'} ${isEditing ? 'col-span-2' : ''}`}
                   >
                     <div className="flex items-center gap-3 mb-2">
                       <div className={`p-2 rounded-xl flex items-center justify-center ${connectionType === 'official' ? 'bg-emerald-500 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-400'}`}>
@@ -747,6 +858,17 @@ const InstancesView: React.FC<InstancesViewProps> = ({ isBlocked = false }) => {
                         <span className="text-emerald-600 dark:text-emerald-500 font-bold text-xs">ID</span>
                       </div>
                       <h3 className="text-sm font-black text-slate-700 dark:text-white">Credenciais da Meta</h3>
+                    </div>
+
+                    <div>
+                      <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400 ml-1">WhatsApp Number</label>
+                      <input
+                        value={metaPhoneNumber}
+                        onChange={(e) => setMetaPhoneNumber(e.target.value)}
+                        placeholder="Ex: 5511999999999"
+                        className="w-full mt-1 p-3 bg-slate-50 dark:bg-slate-900 rounded-xl text-sm font-medium outline-none focus:ring-2 focus:ring-emerald-500/20 dark:text-white border border-slate-100 dark:border-slate-700/50"
+                      />
+                      <p className="text-[10px] text-slate-400 mt-1 ml-1">Número completo com código do país (DDI + DDD + Número)</p>
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
