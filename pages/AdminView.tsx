@@ -2143,6 +2143,8 @@ function BillingSettings() {
         blockage_body: 'Olá {{user_name}}, seu plano não foi renovado e as funcionalidades foram bloqueadas. Regularize sua situação para voltar a usar.'
     });
 
+    const [testingEmail, setTestingEmail] = useState(false);
+
     useEffect(() => {
         fetchBillingSettings();
     }, []);
@@ -2152,24 +2154,7 @@ function BillingSettings() {
             const { data, error } = await supabase.from('billing_settings').select('*').single();
             if (error && error.code !== 'PGRST116') throw error;
             if (data) {
-                setFormData({
-                    smtp_host: data.smtp_host || '',
-                    smtp_port: data.smtp_port || 587,
-                    smtp_user: data.smtp_user || '',
-                    smtp_pass: data.smtp_pass || '',
-                    from_email: data.from_email || '',
-                    from_name: data.from_name || 'Ublo Chat Billing',
-                    reminder_3d_subject: data.reminder_3d_subject || 'Seu plano vence em 3 dias',
-                    reminder_3d_body: data.reminder_3d_body || 'Olá {{user_name}}, seu plano no Ublo Chat vence em 3 dias. Renove agora para evitar o bloqueio!',
-                    reminder_2d_subject: data.reminder_2d_subject || 'Seu plano vence em 2 dias',
-                    reminder_2d_body: data.reminder_2d_body || 'Olá {{user_name}}, restam apenas 2 dias para o vencimento do seu plano. Não perca o acesso!',
-                    reminder_0d_subject: data.reminder_0d_subject || 'Seu plano vence HOJE',
-                    reminder_0d_body: data.reminder_0d_body || 'Olá {{user_name}}, seu plano vence hoje à meia-noite. Renove agora!',
-                    expiry_subject: data.expiry_subject || 'Seu plano expirou',
-                    expiry_body: data.expiry_body || 'Olá {{user_name}}, seu plano expirou hoje. Você tem 24h de carência antes do bloqueio das funcionalidades.',
-                    blockage_subject: data.blockage_subject || 'Funcionalidades Bloqueadas',
-                    blockage_body: data.blockage_body || 'Olá {{user_name}}, seu plano não foi renovado e as funcionalidades foram bloqueadas. Regularize sua situação para voltar a usar.'
-                });
+                setFormData(prev => ({ ...prev, ...data }));
             }
         } catch (err: any) {
             showToast('Erro ao carregar faturamento: ' + err.message, 'error');
@@ -2199,6 +2184,22 @@ function BillingSettings() {
         }
     };
 
+    const handleTestEmail = async () => {
+        if (!formData.from_email || !formData.smtp_host) return showToast('Preencha os dados do SMTP primeiro', 'error');
+        setTestingEmail(true);
+        try {
+            const { error } = await supabase.functions.invoke('billing-cron', {
+                body: { action: 'TEST_SMTP', settings: formData, to: formData.from_email }
+            });
+            if (error) throw error;
+            showToast('E-mail de teste enviado para ' + formData.from_email, 'success');
+        } catch (err: any) {
+            showToast('Falha no teste: ' + err.message, 'error');
+        } finally {
+            setTestingEmail(false);
+        }
+    };
+
     if (fetching) return <div className="flex justify-center p-12"><Loader2 className="w-10 h-10 animate-spin text-primary" /></div>;
 
     return (
@@ -2208,14 +2209,24 @@ function BillingSettings() {
                     <h2 className="text-xl font-black dark:text-white">Faturamento & Notificações por E-mail</h2>
                     <p className="text-sm text-slate-500">Configure o servidor de e-mail e os modelos de aviso automático</p>
                 </div>
-                <button
-                    onClick={handleSave}
-                    disabled={loading}
-                    className="bg-primary hover:bg-primary-light text-white px-8 py-3 rounded-2xl font-black shadow-lg shadow-primary/20 transition-all hover:scale-105 active:scale-95 flex items-center gap-2"
-                >
-                    {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}
-                    Salvar Configurações
-                </button>
+                <div className="flex gap-3">
+                    <button
+                        onClick={handleTestEmail}
+                        disabled={testingEmail || loading}
+                        className="bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 px-6 py-3 rounded-2xl font-black transition-all flex items-center gap-2 border border-slate-200 dark:border-slate-700"
+                    >
+                        {testingEmail ? <Loader2 className="w-5 h-5 animate-spin" /> : <Mail className="w-5 h-5" />}
+                        Testar SMTP
+                    </button>
+                    <button
+                        onClick={handleSave}
+                        disabled={loading || testingEmail}
+                        className="bg-primary hover:bg-primary-light text-white px-8 py-3 rounded-2xl font-black shadow-lg shadow-primary/20 transition-all hover:scale-105 active:scale-95 flex items-center gap-2"
+                    >
+                        {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}
+                        Salvar Configurações
+                    </button>
+                </div>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -2278,7 +2289,7 @@ function BillingSettings() {
                             <input
                                 value={formData.from_name}
                                 onChange={e => setFormData({ ...formData, from_name: e.target.value })}
-                                placeholder="Ublo Chat Faturameno"
+                                placeholder="Ublo Chat Faturamento"
                                 className="w-full mt-2 p-4 bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 outline-none focus:border-primary/50 transition-all dark:text-white font-medium"
                             />
                         </div>
@@ -2457,9 +2468,6 @@ function BillingSettings() {
         </div>
     );
 }
-
-export default AdminView;
-
 function CronTasks() {
     const [apiKey, setApiKey] = useState('');
     const [status, setStatus] = useState<string>('loading');
@@ -2674,3 +2682,5 @@ function CronTasks() {
         </div>
     );
 }
+
+export default AdminView;

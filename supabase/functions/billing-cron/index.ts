@@ -16,6 +16,13 @@ serve(async (req) => {
             Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
         )
 
+        const { action, settings: testSettings, to: testTo } = await req.json().catch(() => ({}));
+
+        if (action === 'TEST_SMTP') {
+            await sendEmail(testSettings, testTo, "Teste de Conexão SMTP - Ublo Chat", "Se você recebeu este e-mail, sua configuração de SMTP está correta!", { profiles: { full_name: 'Administrador' }, current_period_end: new Date().toISOString() });
+            return new Response(JSON.stringify({ success: true }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+        }
+
         // 1. Get Billing Settings
         const { data: settings } = await supabase.from('billing_settings').select('*').single()
         if (!settings || !settings.smtp_host) {

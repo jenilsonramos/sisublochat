@@ -152,15 +152,34 @@ serve(async (req) => {
         }
 
         if (action === 'DELETE') {
-            const { data: settings } = await supabaseClient.from('system_settings').select('cron_job_id, cron_api_key').single();
-            if (settings?.cron_job_id && settings?.cron_api_key) {
-                await fetch(`https://api.cron-job.org/jobs/${settings.cron_job_id}`, {
-                    method: 'DELETE',
-                    headers: {
-                        'Authorization': `Bearer ${settings.cron_api_key}`
-                    }
-                });
-                await supabaseClient.from('system_settings').update({ cron_job_id: null, cron_api_key: null }).eq('id', settings.id); // Or keep api key? User probably wants to disable.
+            const { data: settings } = await supabaseClient.from('system_settings').select('id, cron_job_id, cron_api_key, test_phone').single();
+            if (settings?.cron_api_key) {
+                // Delete main job
+                if (settings.cron_job_id) {
+                    await fetch(`https://api.cron-job.org/jobs/${settings.cron_job_id}`, {
+                        method: 'DELETE',
+                        headers: { 'Authorization': `Bearer ${settings.cron_api_key}` }
+                    });
+                }
+
+                // Delete extra jobs from test_phone
+                if (settings.test_phone) {
+                    try {
+                        const extra = JSON.parse(settings.test_phone);
+                        if (extra.billing_job_id) {
+                            await fetch(`https://api.cron-job.org/jobs/${extra.billing_job_id}`, {
+                                method: 'DELETE',
+                                headers: { 'Authorization': `Bearer ${settings.cron_api_key}` }
+                            });
+                        }
+                    } catch (e) { console.error("Error parsing extra job IDs:", e) }
+                }
+
+                await supabaseClient.from('system_settings').update({
+                    cron_job_id: null,
+                    cron_api_key: null,
+                    test_phone: null
+                }).eq('id', settings.id);
             }
             return new Response(JSON.stringify({ success: true }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
         }
