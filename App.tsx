@@ -211,7 +211,8 @@ const AppContent: React.FC = () => {
 
   const getPageTitle = () => {
     switch (activeTab) {
-      case 'dashboard': return 'Resumo de Chamadas';
+      case 'dashboard':
+        return `Olá, ${userProfile?.full_name?.split(' ')[0] || 'Bem-vindo'}! 👋`;
       case 'instances': return 'Gerenciamento';
       case 'analytics': return 'Relatórios e Métricas';
       case 'chatbots': return 'Automações Inteligentes';
@@ -230,7 +231,17 @@ const AppContent: React.FC = () => {
 
   const getPageSubtitle = () => {
     switch (activeTab) {
-      case 'dashboard': return 'Dashboard Evolution API Analytics';
+      case 'dashboard': {
+        const date = new Date();
+        const formatter = new Intl.DateTimeFormat('pt-BR', {
+          day: 'numeric',
+          month: 'long',
+          year: 'numeric',
+          weekday: 'long'
+        });
+        const formattedDate = formatter.format(date);
+        return formattedDate.charAt(0).toUpperCase() + formattedDate.slice(1);
+      }
       case 'instances': return 'Controle suas conexões em tempo real';
       case 'analytics': return 'Acompanhe a saúde das suas conversas';
       case 'chatbots': return 'Crie fluxos e respostas automáticas';
