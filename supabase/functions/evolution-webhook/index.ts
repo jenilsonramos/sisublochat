@@ -152,14 +152,20 @@ Deno.serve(async (req) => {
 
             if (existingConv) {
                 convId = existingConv.id
-                await supabase.from('conversations').update({
+                const updateData: any = {
                     user_id: userId,
                     instance_id: instanceId,
                     last_message: text || (mediaType ? `[${mediaType}]` : 'Msg'),
                     last_message_time: timestamp,
                     unread_count: fromMe ? 0 : (existingConv.unread_count || 0) + 1,
                     contact_name: (!existingConv.contact_name || existingConv.contact_name === remoteJid.split('@')[0]) ? pushName : existingConv.contact_name
-                }).eq('id', convId)
+                }
+
+                if (!fromMe && existingConv.status === 'resolved') {
+                    updateData.status = 'pending'
+                }
+
+                await supabase.from('conversations').update(updateData).eq('id', convId)
             } else {
                 const { data: newConv } = await supabase.from('conversations').insert({
                     user_id: userId,

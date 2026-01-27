@@ -20,6 +20,7 @@ interface Conversation {
   is_blocked?: boolean;
   instance_id: string; // Added to fix instance mixing
   assigned_agent_id?: string; // Added to track human assignment
+  protocol?: string;
 }
 
 interface ChatMessage {
@@ -87,6 +88,7 @@ const LiveChatView: React.FC<LiveChatViewProps> = ({ isBlocked = false }) => {
   const [loadingDetails, setLoadingDetails] = useState(false);
   const [newTag, setNewTag] = useState('');
   const [isSavingDetails, setIsSavingDetails] = useState(false);
+  const [isReopening, setIsReopening] = useState(false);
   const emojiPickerRef = useRef<HTMLDivElement>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
 
@@ -453,7 +455,8 @@ const LiveChatView: React.FC<LiveChatViewProps> = ({ isBlocked = false }) => {
         .update({
           status: 'resolved',
           last_message: 'Atendimento Encerrado',
-          last_message_time: new Date().toISOString()
+          last_message_time: new Date().toISOString(),
+          protocol: protocol
         })
         .eq('id', selectedChat.id);
 
@@ -473,6 +476,33 @@ const LiveChatView: React.FC<LiveChatViewProps> = ({ isBlocked = false }) => {
       showToast('Erro ao encerrar atendimento: ' + (error.message || 'Erro desconhecido'), 'error');
     } finally {
       setIsResolving(false);
+    }
+  };
+
+  const handleReopenConversation = async () => {
+    if (!selectedChat) return;
+
+    try {
+      setIsReopening(true);
+      const { error } = await supabase
+        .from('conversations')
+        .update({ status: 'pending' })
+        .eq('id', selectedChat.id);
+
+      if (error) throw error;
+
+      setConversations(prev => prev.map(c =>
+        c.id === selectedChat.id ? { ...c, status: 'pending' } : c
+      ));
+
+      showToast('Atendimento reaberto!', 'success');
+      setSelectedChat(prev => prev ? { ...prev, status: 'pending' } : null);
+
+    } catch (error: any) {
+      console.error('Reopen Error:', error);
+      showToast('Erro ao reabrir atendimento', 'error');
+    } finally {
+      setIsReopening(false);
     }
   };
 
@@ -1009,7 +1039,8 @@ const LiveChatView: React.FC<LiveChatViewProps> = ({ isBlocked = false }) => {
                 {[
                   { id: 'all', label: 'Abertos', color: 'bg-primary' },
                   { id: 'pending', label: 'Pendentes', color: 'bg-slate-400' },
-                  { id: 'analyzing', label: 'Em Análise', color: 'bg-amber-500' }
+                  { id: 'analyzing', label: 'Em Análise', color: 'bg-amber-500' },
+                  { id: 'resolved', label: 'Fechados', color: 'bg-emerald-500' }
                 ].map((f) => (
                   <button
                     key={f.id}
@@ -1043,7 +1074,8 @@ const LiveChatView: React.FC<LiveChatViewProps> = ({ isBlocked = false }) => {
             conversations
               .filter(conv => {
                 const matchesSearch = conv.contact_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                  conv.remote_jid.toLowerCase().includes(searchTerm.toLowerCase());
+                  conv.remote_jid.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                  (conv.protocol && conv.protocol.toLowerCase().includes(searchTerm.toLowerCase()));
                 const matchesStatus = statusFilter === 'all' ? conv.status !== 'resolved' : conv.status === statusFilter;
                 return matchesSearch && matchesStatus;
               })
@@ -1136,18 +1168,31 @@ const LiveChatView: React.FC<LiveChatViewProps> = ({ isBlocked = false }) => {
               <div className="flex items-center gap-1 md:gap-2 relative">
                 {/* Status Selector */}
                 <div className="hidden lg:flex items-center bg-slate-50 dark:bg-slate-900/50 p-1 rounded-2xl border border-slate-100 dark:border-slate-700/50 mr-2">
-                  <button
-                    onClick={() => updateConversationStatus(selectedChat.id, 'pending')}
-                    className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase transition-all ${selectedChat.status === 'pending' ? 'bg-white dark:bg-slate-800 text-slate-600 shadow-sm' : 'text-slate-400 hover:text-slate-500'}`}
-                  >
-                    Pendente
-                  </button>
-                  <button
-                    onClick={() => updateConversationStatus(selectedChat.id, 'analyzing')}
-                    className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase transition-all ${selectedChat.status === 'analyzing' ? 'bg-amber-500 text-white shadow-lg shadow-amber-500/20' : 'text-slate-400 hover:text-amber-500'}`}
-                  >
-                    Em Análise
-                  </button>
+                  {selectedChat.status === 'resolved' ? (
+                    <button
+                      onClick={handleReopenConversation}
+                      disabled={isReopening}
+                      className="px-4 py-1.5 bg-primary text-white rounded-xl text-[10px] font-black uppercase transition-all shadow-lg shadow-primary/20 flex items-center gap-2"
+                    >
+                      {isReopening ? <Loader2 size={12} className="animate-spin" /> : <MessageCircle size={12} />}
+                      Reabrir Atendimento
+                    </button>
+                  ) : (
+                    <>
+                      <button
+                        onClick={() => updateConversationStatus(selectedChat.id, 'pending')}
+                        className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase transition-all ${selectedChat.status === 'pending' ? 'bg-white dark:bg-slate-800 text-slate-600 shadow-sm' : 'text-slate-400 hover:text-slate-500'}`}
+                      >
+                        Pendente
+                      </button>
+                      <button
+                        onClick={() => updateConversationStatus(selectedChat.id, 'analyzing')}
+                        className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase transition-all ${selectedChat.status === 'analyzing' ? 'bg-amber-500 text-white shadow-lg shadow-amber-500/20' : 'text-slate-400 hover:text-amber-500'}`}
+                      >
+                        Em Análise
+                      </button>
+                    </>
+                  )}
                 </div>
 
                 {/* Mobile/Compact Status Selector */}
@@ -1159,14 +1204,16 @@ const LiveChatView: React.FC<LiveChatViewProps> = ({ isBlocked = false }) => {
                   <option value="pending">Pendente</option>
                   <option value="analyzing">Em Análise</option>
                 </select>
-                <button
-                  onClick={() => setIsResolveModalOpen(true)}
-                  className="p-2 md:p-3 rounded-2xl text-emerald-600 bg-emerald-500/10 border border-emerald-500/20 hover:bg-emerald-500/20 transition-all flex items-center gap-2 group shadow-sm active:scale-95"
-                  title="Resolver atendimento"
-                >
-                  <CheckCircle2 className="w-5 h-5" />
-                  <span className="hidden xl:inline text-xs font-black uppercase tracking-widest">Resolver</span>
-                </button>
+                {selectedChat.status !== 'resolved' && (
+                  <button
+                    onClick={() => setIsResolveModalOpen(true)}
+                    className="p-2 md:p-3 rounded-2xl text-emerald-600 bg-emerald-500/10 border border-emerald-500/20 hover:bg-emerald-500/20 transition-all flex items-center gap-2 group shadow-sm active:scale-95"
+                    title="Resolver atendimento"
+                  >
+                    <CheckCircle2 className="w-5 h-5" />
+                    <span className="hidden xl:inline text-xs font-black uppercase tracking-widest">Resolver</span>
+                  </button>
+                )}
                 <button
                   onClick={handleDeleteClick}
                   className="p-2 md:p-3 rounded-2xl text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-500/10 transition-all"
