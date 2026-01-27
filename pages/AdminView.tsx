@@ -33,7 +33,7 @@ import {
 } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, Cell } from 'recharts';
 
-type AdminTab = 'plans' | 'users' | 'payments' | 'evolution' | 'reports' | 'security' | 'whatsapp' | 'cron' | 'seo';
+type AdminTab = 'plans' | 'users' | 'payments' | 'evolution' | 'reports' | 'security' | 'whatsapp' | 'cron' | 'seo' | 'billing';
 
 const AdminView: React.FC = () => {
     const [activeTab, setActiveTab] = useState<AdminTab>('plans');
@@ -98,6 +98,7 @@ const AdminView: React.FC = () => {
             case 'whatsapp' as any: return <WhatsAppManagement />;
             case 'cron': return <CronTasks />;
             case 'seo': return <SEOSettings />;
+            case 'billing': return <BillingSettings />;
             default: return <PlansManagement />;
         }
     };
@@ -105,7 +106,7 @@ const AdminView: React.FC = () => {
     return (
         <div className="flex flex-col h-full gap-8 animate-in fade-in duration-500">
             <div className="flex items-center gap-2 p-1 bg-slate-100 dark:bg-slate-900/50 rounded-2xl w-fit overflow-x-auto no-scrollbar max-w-full">
-                {(['plans', 'users', 'payments', 'evolution', 'reports', 'security', 'whatsapp', 'cron', 'seo'] as any[]).map((tab) => (
+                {(['plans', 'users', 'billing', 'payments', 'evolution', 'reports', 'security', 'whatsapp', 'cron', 'seo'] as any[]).map((tab) => (
                     <button
                         key={tab}
                         onClick={() => setActiveTab(tab)}
@@ -116,9 +117,10 @@ const AdminView: React.FC = () => {
                     >
                         {tab === 'plans' && 'Planos'}
                         {tab === 'users' && 'Usuários'}
-                        {tab === 'payments' && 'Pagamentos'}
+                        {tab === 'payments' && 'Meios de Pagamento'}
                         {tab === 'evolution' && 'Evolution API'}
-                        {tab === 'reports' && 'Faturamento'}
+                        {tab === 'reports' && 'Relatórios'}
+                        {tab === 'billing' && 'Faturamento & E-mail'}
                         {tab === 'security' && 'Segurança'}
                         {tab === 'whatsapp' && 'WhatsApp Admin'}
                         {tab === 'cron' && 'Tarefas CRON'}
@@ -2109,6 +2111,344 @@ function SEOSettings() {
                                 placeholder="© 2024 Ublo Chat - Todos os direitos reservados"
                                 className="w-full mt-2 p-4 bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 outline-none focus:border-primary/50 transition-all dark:text-white font-medium"
                             />
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+}
+
+function BillingSettings() {
+    const [loading, setLoading] = useState(false);
+    const [fetching, setFetching] = useState(true);
+    const { showToast } = useToast();
+    const [formData, setFormData] = useState({
+        smtp_host: '',
+        smtp_port: 587,
+        smtp_user: '',
+        smtp_pass: '',
+        from_email: '',
+        from_name: 'Ublo Chat Billing',
+        reminder_3d_subject: 'Seu plano vence em 3 dias',
+        reminder_3d_body: 'Olá {{user_name}}, seu plano no Ublo Chat vence em 3 dias. Renove agora para evitar o bloqueio!',
+        reminder_2d_subject: 'Seu plano vence em 2 dias',
+        reminder_2d_body: 'Olá {{user_name}}, restam apenas 2 dias para o vencimento do seu plano. Não perca o acesso!',
+        reminder_0d_subject: 'Seu plano vence HOJE',
+        reminder_0d_body: 'Olá {{user_name}}, seu plano vence hoje à meia-noite. Renove agora!',
+        expiry_subject: 'Seu plano expirou',
+        expiry_body: 'Olá {{user_name}}, seu plano expirou hoje. Você tem 24h de carência antes do bloqueio das funcionalidades.',
+        blockage_subject: 'Funcionalidades Bloqueadas',
+        blockage_body: 'Olá {{user_name}}, seu plano não foi renovado e as funcionalidades foram bloqueadas. Regularize sua situação para voltar a usar.'
+    });
+
+    useEffect(() => {
+        fetchBillingSettings();
+    }, []);
+
+    const fetchBillingSettings = async () => {
+        try {
+            const { data, error } = await supabase.from('billing_settings').select('*').single();
+            if (error && error.code !== 'PGRST116') throw error;
+            if (data) {
+                setFormData({
+                    smtp_host: data.smtp_host || '',
+                    smtp_port: data.smtp_port || 587,
+                    smtp_user: data.smtp_user || '',
+                    smtp_pass: data.smtp_pass || '',
+                    from_email: data.from_email || '',
+                    from_name: data.from_name || 'Ublo Chat Billing',
+                    reminder_3d_subject: data.reminder_3d_subject || 'Seu plano vence em 3 dias',
+                    reminder_3d_body: data.reminder_3d_body || 'Olá {{user_name}}, seu plano no Ublo Chat vence em 3 dias. Renove agora para evitar o bloqueio!',
+                    reminder_2d_subject: data.reminder_2d_subject || 'Seu plano vence em 2 dias',
+                    reminder_2d_body: data.reminder_2d_body || 'Olá {{user_name}}, restam apenas 2 dias para o vencimento do seu plano. Não perca o acesso!',
+                    reminder_0d_subject: data.reminder_0d_subject || 'Seu plano vence HOJE',
+                    reminder_0d_body: data.reminder_0d_body || 'Olá {{user_name}}, seu plano vence hoje à meia-noite. Renove agora!',
+                    expiry_subject: data.expiry_subject || 'Seu plano expirou',
+                    expiry_body: data.expiry_body || 'Olá {{user_name}}, seu plano expirou hoje. Você tem 24h de carência antes do bloqueio das funcionalidades.',
+                    blockage_subject: data.blockage_subject || 'Funcionalidades Bloqueadas',
+                    blockage_body: data.blockage_body || 'Olá {{user_name}}, seu plano não foi renovado e as funcionalidades foram bloqueadas. Regularize sua situação para voltar a usar.'
+                });
+            }
+        } catch (err: any) {
+            showToast('Erro ao carregar faturamento: ' + err.message, 'error');
+        } finally {
+            setFetching(false);
+        }
+    };
+
+    const handleSave = async () => {
+        setLoading(true);
+        try {
+            const { data: existing } = await supabase.from('billing_settings').select('id').single();
+            let error;
+            if (existing) {
+                const { error: err } = await supabase.from('billing_settings').update(formData).eq('id', existing.id);
+                error = err;
+            } else {
+                const { error: err } = await supabase.from('billing_settings').insert(formData);
+                error = err;
+            }
+            if (error) throw error;
+            showToast('Configurações de faturamento salvas!', 'success');
+        } catch (err: any) {
+            showToast('Erro ao salvar: ' + err.message, 'error');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    if (fetching) return <div className="flex justify-center p-12"><Loader2 className="w-10 h-10 animate-spin text-primary" /></div>;
+
+    return (
+        <div className="space-y-6">
+            <div className="flex justify-between items-center">
+                <div>
+                    <h2 className="text-xl font-black dark:text-white">Faturamento & Notificações por E-mail</h2>
+                    <p className="text-sm text-slate-500">Configure o servidor de e-mail e os modelos de aviso automático</p>
+                </div>
+                <button
+                    onClick={handleSave}
+                    disabled={loading}
+                    className="bg-primary hover:bg-primary-light text-white px-8 py-3 rounded-2xl font-black shadow-lg shadow-primary/20 transition-all hover:scale-105 active:scale-95 flex items-center gap-2"
+                >
+                    {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}
+                    Salvar Configurações
+                </button>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                {/* SMTP Config */}
+                <div className="bg-slate-50 dark:bg-slate-900/50 p-8 rounded-[2.5rem] border border-slate-100 dark:border-slate-700/50 space-y-6">
+                    <h3 className="font-black text-sm uppercase tracking-widest text-primary flex items-center gap-2">
+                        <Mail className="w-4 h-4" />
+                        Configurações de Servidor SMTP
+                    </h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">SMTP Host</label>
+                            <input
+                                value={formData.smtp_host}
+                                onChange={e => setFormData({ ...formData, smtp_host: e.target.value })}
+                                placeholder="smtp.resend.com"
+                                className="w-full mt-2 p-4 bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 outline-none focus:border-primary/50 transition-all dark:text-white font-medium"
+                            />
+                        </div>
+                        <div>
+                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">SMTP Port</label>
+                            <input
+                                value={formData.smtp_port}
+                                onChange={e => setFormData({ ...formData, smtp_port: parseInt(e.target.value) || 587 })}
+                                type="number"
+                                placeholder="587"
+                                className="w-full mt-2 p-4 bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 outline-none focus:border-primary/50 transition-all dark:text-white font-medium"
+                            />
+                        </div>
+                        <div>
+                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Usuário</label>
+                            <input
+                                value={formData.smtp_user}
+                                onChange={e => setFormData({ ...formData, smtp_user: e.target.value })}
+                                placeholder="resend"
+                                className="w-full mt-2 p-4 bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 outline-none focus:border-primary/50 transition-all dark:text-white font-medium"
+                            />
+                        </div>
+                        <div>
+                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Senha / API Key</label>
+                            <input
+                                value={formData.smtp_pass}
+                                onChange={e => setFormData({ ...formData, smtp_pass: e.target.value })}
+                                type="password"
+                                placeholder="re_..."
+                                className="w-full mt-2 p-4 bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 outline-none focus:border-primary/50 transition-all dark:text-white font-medium"
+                            />
+                        </div>
+                        <div>
+                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">E-mail de Remetente</label>
+                            <input
+                                value={formData.from_email}
+                                onChange={e => setFormData({ ...formData, from_email: e.target.value })}
+                                placeholder="financeiro@ublochat.site"
+                                className="w-full mt-2 p-4 bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 outline-none focus:border-primary/50 transition-all dark:text-white font-medium"
+                            />
+                        </div>
+                        <div>
+                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Nome de Remetente</label>
+                            <input
+                                value={formData.from_name}
+                                onChange={e => setFormData({ ...formData, from_name: e.target.value })}
+                                placeholder="Ublo Chat Faturameno"
+                                className="w-full mt-2 p-4 bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 outline-none focus:border-primary/50 transition-all dark:text-white font-medium"
+                            />
+                        </div>
+                    </div>
+                </div>
+
+                {/* Templates Summary */}
+                <div className="bg-slate-50 dark:bg-slate-900/50 p-8 rounded-[2.5rem] border border-slate-100 dark:border-slate-700/50 space-y-6">
+                    <h3 className="font-black text-sm uppercase tracking-widest text-primary flex items-center gap-2">
+                        <Bell className="w-4 h-4" />
+                        Status da Automação
+                    </h3>
+                    <div className="space-y-4">
+                        <div className="p-4 bg-white dark:bg-slate-800 rounded-2xl border border-slate-100 dark:border-slate-700 flex items-center gap-4">
+                            <div className="w-10 h-10 rounded-xl bg-blue-100 text-blue-600 flex items-center justify-center font-black text-xs italic">00h</div>
+                            <div>
+                                <h4 className="font-bold text-sm dark:text-white leading-tight">Verificação de Vencimento</h4>
+                                <p className="text-[10px] text-slate-500 uppercase font-black tracking-widest">Mark as Expired & UI Warning</p>
+                            </div>
+                        </div>
+                        <div className="p-4 bg-white dark:bg-slate-800 rounded-2xl border border-slate-100 dark:border-slate-700 flex items-center gap-4">
+                            <div className="w-10 h-10 rounded-xl bg-orange-100 text-orange-600 flex items-center justify-center font-black text-xs italic">09h</div>
+                            <div>
+                                <h4 className="font-bold text-sm dark:text-white leading-tight">E-mail de Expiração</h4>
+                                <p className="text-[10px] text-slate-500 uppercase font-black tracking-widest">Notify via Email (Expired today)</p>
+                            </div>
+                        </div>
+                        <div className="p-4 bg-white dark:bg-slate-800 rounded-2xl border border-slate-100 dark:border-slate-700 flex items-center gap-4">
+                            <div className="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-600 flex items-center justify-center font-black text-xs italic">14h</div>
+                            <div>
+                                <h4 className="font-bold text-sm dark:text-white leading-tight">Lembretes Preventivos</h4>
+                                <p className="text-[10px] text-slate-500 uppercase font-black tracking-widest">Emails (3d, 2d, Today-Expiring)</p>
+                            </div>
+                        </div>
+                        <div className="p-4 bg-white dark:bg-slate-800 rounded-2xl border border-slate-100 dark:border-slate-700 flex items-center gap-4">
+                            <div className="w-10 h-10 rounded-xl bg-rose-100 text-rose-600 flex items-center justify-center font-black text-xs italic">+24h</div>
+                            <div>
+                                <h4 className="font-bold text-sm dark:text-white leading-tight">Bloqueio de Funções</h4>
+                                <p className="text-[10px] text-slate-500 uppercase font-black tracking-widest">Mark as Blocked & Notify Email</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Email Templates */}
+                <div className="lg:col-span-2 bg-slate-50 dark:bg-slate-900/50 p-8 rounded-[2.5rem] border border-slate-100 dark:border-slate-700/50 space-y-8">
+                    <h3 className="font-black text-sm uppercase tracking-widest text-primary flex items-center gap-2">
+                        <Database className="w-4 h-4" />
+                        Modelos de Mensagem (Templates)
+                    </h3>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                        {/* 3 Days Before */}
+                        <div className="space-y-4 p-6 bg-white dark:bg-slate-800 rounded-3xl border border-slate-100 dark:border-slate-700">
+                            <h4 className="text-xs font-black text-slate-400 uppercase tracking-[0.2em] mb-2">Vencimento em 3 Dias (14h)</h4>
+                            <div>
+                                <label className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">Assunto</label>
+                                <input
+                                    value={formData.reminder_3d_subject}
+                                    onChange={e => setFormData({ ...formData, reminder_3d_subject: e.target.value })}
+                                    className="w-full mt-1 p-3 bg-slate-50 dark:bg-slate-900 rounded-xl border border-slate-100 dark:border-slate-700 outline-none focus:border-primary/50 text-sm font-bold"
+                                />
+                            </div>
+                            <div>
+                                <label className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">Corpo do E-mail</label>
+                                <textarea
+                                    value={formData.reminder_3d_body}
+                                    onChange={e => setFormData({ ...formData, reminder_3d_body: e.target.value })}
+                                    rows={3}
+                                    className="w-full mt-1 p-3 bg-slate-50 dark:bg-slate-900 rounded-xl border border-slate-100 dark:border-slate-700 outline-none focus:border-primary/50 text-xs font-medium resize-none"
+                                />
+                            </div>
+                        </div>
+
+                        {/* 2 Days Before */}
+                        <div className="space-y-4 p-6 bg-white dark:bg-slate-800 rounded-3xl border border-slate-100 dark:border-slate-700">
+                            <h4 className="text-xs font-black text-slate-400 uppercase tracking-[0.2em] mb-2">Vencimento em 2 Dias (14h)</h4>
+                            <div>
+                                <label className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">Assunto</label>
+                                <input
+                                    value={formData.reminder_2d_subject}
+                                    onChange={e => setFormData({ ...formData, reminder_2d_subject: e.target.value })}
+                                    className="w-full mt-1 p-3 bg-slate-50 dark:bg-slate-900 rounded-xl border border-slate-100 dark:border-slate-700 outline-none focus:border-primary/50 text-sm font-bold"
+                                />
+                            </div>
+                            <div>
+                                <label className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">Corpo do E-mail</label>
+                                <textarea
+                                    value={formData.reminder_2d_body}
+                                    onChange={e => setFormData({ ...formData, reminder_2d_body: e.target.value })}
+                                    rows={3}
+                                    className="w-full mt-1 p-3 bg-slate-50 dark:bg-slate-900 rounded-xl border border-slate-100 dark:border-slate-700 outline-none focus:border-primary/50 text-xs font-medium resize-none"
+                                />
+                            </div>
+                        </div>
+
+                        {/* Expiring Today */}
+                        <div className="space-y-4 p-6 bg-white dark:bg-slate-800 rounded-3xl border border-slate-100 dark:border-slate-700">
+                            <h4 className="text-xs font-black text-slate-400 uppercase tracking-[0.2em] mb-2">Vence Hoje (14h)</h4>
+                            <div>
+                                <label className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">Assunto</label>
+                                <input
+                                    value={formData.reminder_0d_subject}
+                                    onChange={e => setFormData({ ...formData, reminder_0d_subject: e.target.value })}
+                                    className="w-full mt-1 p-3 bg-slate-50 dark:bg-slate-900 rounded-xl border border-slate-100 dark:border-slate-700 outline-none focus:border-primary/50 text-sm font-bold"
+                                />
+                            </div>
+                            <div>
+                                <label className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">Corpo do E-mail</label>
+                                <textarea
+                                    value={formData.reminder_0d_body}
+                                    onChange={e => setFormData({ ...formData, reminder_0d_body: e.target.value })}
+                                    rows={3}
+                                    className="w-full mt-1 p-3 bg-slate-50 dark:bg-slate-900 rounded-xl border border-slate-100 dark:border-slate-700 outline-none focus:border-primary/50 text-xs font-medium resize-none"
+                                />
+                            </div>
+                        </div>
+
+                        {/* Expired Notification */}
+                        <div className="space-y-4 p-6 bg-white dark:bg-slate-800 rounded-3xl border border-slate-100 dark:border-slate-700 border-dashed">
+                            <h4 className="text-xs font-black text-orange-500 uppercase tracking-[0.2em] mb-2">Plano Expirado (09h)</h4>
+                            <div>
+                                <label className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">Assunto</label>
+                                <input
+                                    value={formData.expiry_subject}
+                                    onChange={e => setFormData({ ...formData, expiry_subject: e.target.value })}
+                                    className="w-full mt-1 p-3 bg-slate-50 dark:bg-slate-900 rounded-xl border border-slate-100 dark:border-slate-700 outline-none focus:border-primary/50 text-sm font-bold"
+                                />
+                            </div>
+                            <div>
+                                <label className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">Corpo do E-mail</label>
+                                <textarea
+                                    value={formData.expiry_body}
+                                    onChange={e => setFormData({ ...formData, expiry_body: e.target.value })}
+                                    rows={3}
+                                    className="w-full mt-1 p-3 bg-slate-50 dark:bg-slate-900 rounded-xl border border-slate-100 dark:border-slate-700 outline-none focus:border-primary/50 text-xs font-medium resize-none"
+                                />
+                            </div>
+                        </div>
+
+                        {/* Blockage Notification */}
+                        <div className="space-y-4 p-6 bg-white dark:bg-slate-800 rounded-3xl border border-rose-100 dark:border-rose-900/30">
+                            <h4 className="text-xs font-black text-rose-500 uppercase tracking-[0.2em] mb-2">Bloqueio (+24h)</h4>
+                            <div>
+                                <label className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">Assunto</label>
+                                <input
+                                    value={formData.blockage_subject}
+                                    onChange={e => setFormData({ ...formData, blockage_subject: e.target.value })}
+                                    className="w-full mt-1 p-3 bg-slate-50 dark:bg-slate-900 rounded-xl border border-slate-100 dark:border-slate-700 outline-none focus:border-primary/50 text-sm font-bold"
+                                />
+                            </div>
+                            <div>
+                                <label className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">Corpo do E-mail</label>
+                                <textarea
+                                    value={formData.blockage_body}
+                                    onChange={e => setFormData({ ...formData, blockage_body: e.target.value })}
+                                    rows={3}
+                                    className="w-full mt-1 p-3 bg-slate-50 dark:bg-slate-900 rounded-xl border border-slate-100 dark:border-slate-700 outline-none focus:border-primary/50 text-xs font-medium resize-none"
+                                />
+                            </div>
+                        </div>
+
+                        {/* Placeholder Info */}
+                        <div className="flex flex-col justify-center p-8 bg-slate-100 dark:bg-slate-900/50 rounded-3xl border border-transparent">
+                            <h4 className="font-black text-sm dark:text-white mb-2">Dica de Personalização</h4>
+                            <p className="text-xs text-slate-500 leading-relaxed font-medium">
+                                Use as tags abaixo nos textos para personalizar as mensagens:<br />
+                                <strong className="text-primary">{"{{user_name}}"}</strong> - Nome do usuário<br />
+                                <strong className="text-primary">{"{{plan_name}}"}</strong> - Nome do plano<br />
+                                <strong className="text-primary">{"{{expiry_date}}"}</strong> - Data de vencimento
+                            </p>
                         </div>
                     </div>
                 </div>

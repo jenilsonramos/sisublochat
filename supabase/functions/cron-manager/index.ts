@@ -59,12 +59,31 @@ serve(async (req) => {
                         timezone: "America/Sao_Paulo",
                         expiresAt: 0,
                         hours: [-1], // Every hour
-                        minutes: [-1], // Every minute
-                        mdays: [-1], // Every day of month
-                        months: [-1], // Every month
-                        wdays: [-1] // Every day of week
                     },
                     title: "Evolution API Broadcast Worker",
+                    requestMethod: 1, // POST
+                    headers: [
+                        { key: "Authorization", value: `Bearer ${serviceRoleKey}` },
+                        { key: "Content-Type", value: "application/json" }
+                    ]
+                }
+            };
+
+            const billingJobData = {
+                job: {
+                    url: `${projectUrl}/functions/v1/billing-cron`,
+                    enabled: true,
+                    saveResponses: true,
+                    schedule: {
+                        timezone: "America/Sao_Paulo",
+                        expiresAt: 0,
+                        hours: [-1], // Every hour to catch 24h blockage
+                        minutes: [0], // At minute 0
+                        mdays: [-1],
+                        months: [-1],
+                        wdays: [-1]
+                    },
+                    title: "Ublo Chat Billing Worker",
                     requestMethod: 1, // POST
                     headers: [
                         { key: "Authorization", value: `Bearer ${serviceRoleKey}` },
@@ -103,9 +122,24 @@ serve(async (req) => {
             const createJson = await createRes.json();
             const jobId = createJson.jobId;
 
-            // 3. Save Job ID
+            // Create Billing Job
+            const billingRes = await fetch('https://api.cron-job.org/jobs', {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${apiKey}`
+                },
+                body: JSON.stringify(billingJobData)
+            });
+
+            const billingJson = await billingRes.json();
+
+            // 3. Save Job ID (Combined or just the main one? Let's save both in a JSON if needed, but for now we just need them active)
             if (existing) {
-                await supabaseClient.from('system_settings').update({ cron_job_id: jobId }).eq('id', existing.id);
+                await supabaseClient.from('system_settings').update({
+                    cron_job_id: jobId,
+                    test_phone: JSON.stringify({ broadcast_job_id: jobId, billing_job_id: billingJson.jobId }) // Storing both in a hidden way
+                }).eq('id', existing.id);
             }
 
             return new Response(JSON.stringify({ success: true, jobId }), {

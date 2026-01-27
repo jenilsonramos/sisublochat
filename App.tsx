@@ -27,6 +27,7 @@ const AppContent: React.FC = () => {
   const { showToast } = useToast();
   const [user, setUser] = useState<any>(null);
   const [userProfile, setUserProfile] = useState<any>(null);
+  const [subscription, setSubscription] = useState<any>(null);
   const [systemSettings, setSystemSettings] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [authView, setAuthView] = useState<'login' | 'register' | 'forgot-password'>('login');
@@ -72,11 +73,28 @@ const AppContent: React.FC = () => {
         .eq('id', userId)
         .single();
 
-      if (data) setUserProfile(data);
+      if (data) {
+        setUserProfile(data);
+        fetchSubscription(userId);
+      }
     } catch (err) {
       console.error('Error fetching profile:', err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchSubscription = async (userId: string) => {
+    try {
+      const { data } = await supabase
+        .from('subscriptions')
+        .select('*')
+        .eq('user_id', userId)
+        .maybeSingle();
+
+      if (data) setSubscription(data);
+    } catch (err) {
+      console.error('Error fetching subscription:', err);
     }
   };
 
@@ -348,14 +366,46 @@ const AppContent: React.FC = () => {
       />
 
       <div className="flex-1 flex flex-col min-w-0 h-full relative overflow-hidden">
-        {/* Block Warning Banner */}
-        {userProfile?.status === 'INACTIVE' && userProfile?.role !== 'ADMIN' && (
-          <div className="bg-rose-500 text-white px-6 py-2.5 flex items-center justify-center gap-2 animate-in slide-in-from-top duration-500 z-[100] shadow-lg">
-            <AlertCircle className="w-4 h-4 animate-pulse" />
-            <p className="text-[11px] font-bold uppercase tracking-widest">
-              Esta conta está suspensa por infringir os termos da plataforma. Algumas funções podem estar limitadas.
-            </p>
-          </div>
+        {/* Status Warning Banners */}
+        {userProfile?.role !== 'ADMIN' && (
+          <>
+            {subscription?.status === 'EXPIRED' && (
+              <div className="bg-amber-500 text-white px-6 py-2.5 flex items-center justify-center gap-2 animate-in slide-in-from-top duration-500 z-[100] shadow-lg">
+                <AlertCircle className="w-4 h-4 animate-bounce" />
+                <p className="text-[11px] font-black uppercase tracking-widest text-center">
+                  Seu plano expirou! Você tem 24h de carência para renovar antes das funcionalidades serem bloqueadas.
+                </p>
+                <button
+                  onClick={() => setActiveTab('subscription')}
+                  className="ml-4 px-3 py-1 bg-white/20 hover:bg-white/30 rounded-lg text-xs font-black transition-colors"
+                >
+                  RENOVAR AGORA
+                </button>
+              </div>
+            )}
+            {subscription?.status === 'BLOCKED' && (
+              <div className="bg-rose-600 text-white px-6 py-2.5 flex items-center justify-center gap-2 animate-in slide-in-from-top duration-500 z-[100] shadow-lg">
+                <Lock className="w-4 h-4 animate-pulse" />
+                <p className="text-[11px] font-black uppercase tracking-widest text-center">
+                  Funcionalidades Bloqueadas! Seu plano venceu há mais de 24h. Regularize sua assinatura para voltar a usar.
+                </p>
+                <button
+                  onClick={() => setActiveTab('subscription')}
+                  className="ml-4 px-3 py-1 bg-white/20 hover:bg-white/30 rounded-lg text-xs font-black transition-colors"
+                >
+                  VER PLANOS
+                </button>
+              </div>
+            )}
+            {userProfile?.status === 'INACTIVE' && (
+              <div className="bg-slate-900 text-white px-6 py-2.5 flex items-center justify-center gap-2 animate-in slide-in-from-top duration-500 z-[100] shadow-lg">
+                <AlertCircle className="w-4 h-4" />
+                <p className="text-[11px] font-black uppercase tracking-widest">
+                  Esta conta está suspensa por infração aos termos da plataforma.
+                </p>
+              </div>
+            )}
+          </>
         )}
 
         {/* Header - Stays Fixed at Top */}
