@@ -19,11 +19,20 @@ serve(async (req) => {
             Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
         )
 
-        const { action, settings: testSettings, to: testTo } = await req.json().catch(() => ({}));
+        const body = await req.json().catch(() => ({}));
+        const { action, settings: testSettings, to: testTo } = body;
 
         if (action === 'TEST_SMTP') {
-            await sendEmail(testSettings, testTo, "Teste de Conexão SMTP - Ublo Chat", "Se você recebeu este e-mail, sua configuração de SMTP está correta!", { profiles: { full_name: 'Administrador' }, current_period_end: new Date().toISOString() });
-            return new Response(JSON.stringify({ success: true }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+            try {
+                await sendEmail(testSettings, testTo, "Teste de Conexão SMTP - Ublo Chat", "Se você recebeu este e-mail, sua configuração de SMTP está correta!", { profiles: { full_name: 'Administrador' }, current_period_end: new Date().toISOString() });
+                return new Response(JSON.stringify({ success: true }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+            } catch (smtpErr) {
+                console.error('SMTP Test Error:', smtpErr);
+                return new Response(JSON.stringify({ error: smtpErr.message }), {
+                    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+                    status: 400
+                });
+            }
         }
 
         // 1. Get Billing Settings
@@ -132,6 +141,7 @@ serve(async (req) => {
         })
 
     } catch (error) {
+        console.error('Global Function Error:', error);
         return new Response(JSON.stringify({ error: error.message }), {
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
             status: 400,
@@ -140,11 +150,12 @@ serve(async (req) => {
 })
 
 async function sendEmail(settings: any, to: string, subject: string, body: string, sub: any) {
+    console.log(`Connecting to SMTP: ${settings.smtp_host}:${settings.smtp_port} (User: ${settings.smtp_user})`);
     const client = new SMTPClient({
         connection: {
             hostname: settings.smtp_host,
             port: settings.smtp_port,
-            tls: true,
+            tls: settings.smtp_port === 465, // Force TLS only for 465 (Implicit), others use STARTTLS
             auth: {
                 username: settings.smtp_user,
                 password: settings.smtp_pass,
