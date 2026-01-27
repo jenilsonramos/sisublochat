@@ -1913,62 +1913,173 @@ function WhatsAppManagement() {
     );
 };
 
+
+
+
+export default AdminView;
+
 function CronTasks() {
-    const [running, setRunning] = useState(false);
+    const [apiKey, setApiKey] = useState('');
+    const [status, setStatus] = useState<string>('loading');
+    const [loading, setLoading] = useState(false);
     const { showToast } = useToast();
 
-    const handleRunManual = async () => {
-        setRunning(true);
-        // Simulation for now
-        setTimeout(() => {
-            setRunning(false);
-            showToast('Tarefa CRON executada manualmente!', 'success');
-        }, 3000);
+    useEffect(() => {
+        checkStatus();
+    }, []);
+
+    const checkStatus = async () => {
+        const { data } = await supabase.from('system_settings').select('cron_api_key, cron_job_id').single();
+        if (data?.cron_job_id) {
+            setStatus('active');
+            setApiKey(data.cron_api_key || '');
+        } else {
+            setStatus('inactive');
+            if (data?.cron_api_key) setApiKey(data.cron_api_key);
+        }
+    };
+
+    const handleActivate = async () => {
+        if (!apiKey) return showToast('Insira a API Key do cron-job.org', 'error');
+        setLoading(true);
+        try {
+            const { error } = await supabase.functions.invoke('cron-manager', {
+                body: { action: 'SETUP', apiKey }
+            });
+            if (error) throw error;
+            setStatus('active');
+            showToast('Integração ativada com sucesso!', 'success');
+        } catch (err: any) {
+            console.error(err);
+            showToast('Erro ao ativar: ' + err.message, 'error');
+            setStatus('error');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleDeactivate = async () => {
+        if (!confirm('Desativar automação?')) return;
+        setLoading(true);
+        try {
+            const { error } = await supabase.functions.invoke('cron-manager', {
+                body: { action: 'DELETE' }
+            });
+            if (error) throw error;
+            setStatus('inactive');
+            setApiKey('');
+            showToast('Integração desativada.', 'success');
+        } catch (err: any) {
+            showToast('Erro ao desativar: ' + err.message, 'error');
+        } finally {
+            setLoading(false);
+        }
     };
 
     return (
-        <div className="space-y-12">
-            <div className="p-10 bg-amber-50 dark:bg-amber-900/10 rounded-[3rem] border border-amber-100 dark:border-amber-500/10 flex items-center justify-between gap-8">
-                <div className="flex items-center gap-8">
-                    <div className="w-20 h-20 bg-white dark:bg-slate-800 rounded-[2rem] flex items-center justify-center shadow-xl shadow-amber-500/10">
-                        <Zap className={`w-10 h-10 text-amber-500 ${running ? 'animate-pulse' : ''}`} />
-                    </div>
-                    <div>
-                        <h3 className="text-2xl font-black dark:text-white">Subscription Processor</h3>
-                        <p className="text-sm text-slate-500 font-medium max-w-md mt-2">
-                            Gatilho manual para processamento de pagamentos, expiração de tokens e limpeza de logs temporários.
-                        </p>
-                    </div>
+        <div className="space-y-6">
+            <div className="flex justify-between items-center">
+                <div>
+                    <h2 className="text-xl font-black dark:text-white">Automação de Tarefas (CRON)</h2>
+                    <p className="text-sm text-slate-500">Configure o processamento em segundo plano</p>
                 </div>
-                <button
-                    onClick={handleRunManual}
-                    disabled={running}
-                    className="bg-primary text-white px-10 py-5 rounded-[1.5rem] font-black flex items-center gap-4 transition-all active:scale-95 shadow-xl shadow-primary/20 disabled:opacity-50 hover:bg-primary-light"
-                >
-                    {running ? <Loader2 className="w-6 h-6 animate-spin" /> : <RefreshCw className="w-6 h-6" />}
-                    FORÇAR EXECUÇÃO
-                </button>
             </div>
 
-            <div className="space-y-6">
-                <div className="flex items-center justify-between px-1">
-                    <h3 className="text-sm font-black uppercase tracking-widest text-slate-400">Eventos de Sistema</h3>
-                    <div className="flex items-center gap-2">
-                        <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                        <span className="text-[10px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest">Cron Ativo</span>
+            <div className="bg-slate-50 dark:bg-slate-900/50 p-8 rounded-[2.5rem] border border-slate-100 dark:border-slate-700/50">
+                <div className="flex flex-col md:flex-row gap-8">
+                    <div className="flex-1 space-y-6">
+                        <div className={`p-6 rounded-2xl border ${status === 'active' ? 'bg-emerald-50 border-emerald-100 dark:bg-emerald-900/20 dark:border-emerald-800' : 'bg-white dark:bg-slate-800 border-slate-100 dark:border-slate-700'}`}>
+                            <div className="flex items-center gap-4 mb-4">
+                                <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${status === 'active' ? 'bg-emerald-100 text-emerald-600' : 'bg-slate-100 text-slate-400'}`}>
+                                    <Zap className="w-6 h-6" />
+                                </div>
+                                <div>
+                                    <h3 className="font-black text-lg dark:text-white">Status da Integração</h3>
+                                    <p className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                                        {status === 'active' ? 'Ativo e Operante' : status === 'loading' ? 'Verificando...' : 'Inativo'}
+                                    </p>
+                                </div>
+                            </div>
+
+                            {status === 'active' ? (
+                                <div className="space-y-4">
+                                    <p className="text-sm text-emerald-700 dark:text-emerald-400 font-medium">
+                                        O sistema está conectado ao <strong>cron-job.org</strong>. As campanhas de transmissão serão processadas automaticamente a cada minuto.
+                                    </p>
+                                    <button
+                                        onClick={handleDeactivate}
+                                        disabled={loading}
+                                        className="px-4 py-2 bg-white dark:bg-slate-900 text-rose-500 text-xs font-black uppercase tracking-wider rounded-lg shadow-sm border border-rose-100 dark:border-rose-900/30 hover:bg-rose-50 transition-colors"
+                                    >
+                                        {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Desativar Integração'}
+                                    </button>
+                                </div>
+                            ) : (
+                                <div className="space-y-4">
+                                    <p className="text-sm text-slate-500">
+                                        Para ativar o processamento automático, você precisa de uma chave de API gratuita do <strong>cron-job.org</strong>.
+                                    </p>
+                                    <ol className="list-decimal list-inside text-xs text-slate-400 space-y-1 ml-1">
+                                        <li>Crie uma conta em <a href="https://cron-job.org" target="_blank" className="underline hover:text-primary">cron-job.org</a></li>
+                                        <li>Vá em Settings &gt; API</li>
+                                        <li>Crie uma nova API Key e cole abaixo</li>
+                                    </ol>
+                                </div>
+                            )}
+                        </div>
+
+                        {status !== 'active' && (
+                            <div className="space-y-4">
+                                <div>
+                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Cron-Job.org API Key</label>
+                                    <div className="flex gap-2 mt-2">
+                                        <input
+                                            value={apiKey}
+                                            onChange={e => setApiKey(e.target.value)}
+                                            type="password"
+                                            placeholder="Ex: cjo_..."
+                                            className="flex-1 p-4 bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 outline-none focus:border-primary/50 transition-all font-mono text-sm dark:text-white"
+                                        />
+                                        <button
+                                            onClick={handleActivate}
+                                            disabled={loading || !apiKey}
+                                            className="bg-primary hover:bg-primary-light text-white px-6 rounded-2xl font-black shadow-lg shadow-primary/20 transition-all disabled:opacity-50 disabled:shadow-none"
+                                        >
+                                            {loading ? <Loader2 className="w-6 h-6 animate-spin" /> : 'Ativar'}
+                                        </button>
+                                    </div>
+                                    <p className="text-[10px] text-slate-400 mt-2 ml-1">Esta chave será usada para criar e gerenciar o job automaticamente.</p>
+                                </div>
+                            </div>
+                        )}
                     </div>
-                </div>
-                <div className="bg-slate-50 dark:bg-slate-900/50 p-24 rounded-[3rem] border border-slate-100 dark:border-slate-800 text-center">
-                    <div className="w-24 h-24 bg-white dark:bg-slate-800 rounded-[2.5rem] flex items-center justify-center mx-auto mb-8 shadow-sm">
-                        <Terminal className="w-12 h-12 text-slate-200" />
+
+                    <div className="flex-1 bg-white dark:bg-slate-800 rounded-2xl p-6 border border-slate-100 dark:border-slate-700">
+                        <h3 className="font-black text-sm dark:text-white mb-4 flex items-center gap-2">
+                            <Terminal className="w-4 h-4 text-primary" />
+                            Log de Execução (Simulado)
+                        </h3>
+                        <div className="space-y-3">
+                            <div className="flex gap-3 items-start text-xs">
+                                <span className="font-mono text-slate-400">10:00</span>
+                                <span className="text-emerald-500 font-bold">Job Started</span>
+                            </div>
+                            <div className="flex gap-3 items-start text-xs">
+                                <span className="font-mono text-slate-400">10:00</span>
+                                <span className="text-slate-600 dark:text-slate-300">Checking pending campaigns...</span>
+                            </div>
+                            <div className="flex gap-3 items-start text-xs">
+                                <span className="font-mono text-slate-400">10:01</span>
+                                <span className="text-blue-500 font-bold">Processed 5 messages</span>
+                            </div>
+                            <div className="flex gap-3 items-start text-xs">
+                                <span className="font-mono text-slate-400">10:01</span>
+                                <span className="text-slate-500">Sleep until next run...</span>
+                            </div>
+                        </div>
                     </div>
-                    <p className="text-slate-400 font-black text-lg">System Idle</p>
-                    <p className="text-slate-500 text-sm mt-2 font-medium">Nenhuma tarefa pendente no momento.</p>
                 </div>
             </div>
         </div>
     );
-};
-
-
-export default AdminView;
+}

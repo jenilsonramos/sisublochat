@@ -65,9 +65,7 @@ const BroadcastView: React.FC<BroadcastViewProps> = ({ isBlocked }) => {
         contacts_raw: ''
     });
 
-    const [showCronConfig, setShowCronConfig] = useState(false);
-    const [webhookUrl, setWebhookUrl] = useState('');
-    const [webhookToken, setWebhookToken] = useState('');
+
 
     useEffect(() => {
         fetchData();
@@ -99,13 +97,6 @@ const BroadcastView: React.FC<BroadcastViewProps> = ({ isBlocked }) => {
         const { data } = await supabase.from('system_settings').select('api_url, api_key').single();
         if (data) {
             setSettings(data);
-            // Construct Webhook URL
-            const { data: { session } } = await supabase.auth.getSession();
-            const projectUrl = import.meta.env.VITE_SUPABASE_URL; // Using env var for reliability
-            if (projectUrl && session) {
-                setWebhookUrl(`${projectUrl}/functions/v1/evolution-cron`);
-                setWebhookToken(session.access_token); // In a real scenario, generate a specific secure token
-            }
         }
     };
 
@@ -361,13 +352,7 @@ const BroadcastView: React.FC<BroadcastViewProps> = ({ isBlocked }) => {
                             <Plus className="w-4 h-4" />
                             Nova Transmissão
                         </button>
-                        <button
-                            onClick={() => setShowCronConfig(true)}
-                            className="w-12 py-3 bg-slate-100 dark:bg-slate-800 text-slate-500 rounded-xl hover:bg-slate-200 dark:hover:bg-slate-700 transition-all flex items-center justify-center"
-                            title="Configurar Cron Job"
-                        >
-                            <Settings className="w-5 h-5" />
-                        </button>
+
                     </div>
                 </div>
             </div>
@@ -662,47 +647,7 @@ const BroadcastView: React.FC<BroadcastViewProps> = ({ isBlocked }) => {
                 </div>
             )}
             {/* Cron Config Modal */}
-            {showCronConfig && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-                    <div className="absolute inset-0 bg-black/60 backdrop-blur-md animate-in fade-in duration-300" onClick={() => setShowCronConfig(false)}></div>
-                    <div className="bg-white dark:bg-slate-900 w-full max-w-lg rounded-[2.5rem] shadow-2xl relative z-10 overflow-hidden animate-in zoom-in duration-300">
-                        <div className="p-8 pb-0 flex items-center justify-between">
-                            <h3 className="text-xl font-black text-slate-900 dark:text-white">Configurar Automação</h3>
-                            <button onClick={() => setShowCronConfig(false)} className="w-8 h-8 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center hover:text-primary"><X size={18} /></button>
-                        </div>
-                        <div className="p-8 space-y-6">
-                            <div className="bg-blue-50 dark:bg-blue-900/10 p-4 rounded-2xl border border-blue-100 dark:border-blue-800/30">
-                                <p className="text-sm text-blue-800 dark:text-blue-300 font-medium">
-                                    Para que as campanhas rodem automaticamente (mesmo com o PC desligado), configure o <strong className="underline">cron-job.org</strong> (grátis) para chamar esta URL a cada <strong>1 minuto</strong>.
-                                </p>
-                            </div>
 
-                            <div className="space-y-2">
-                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Webhook URL (Target URL)</label>
-                                <div className="relative group">
-                                    <input readOnly value={webhookUrl} className="w-full pl-4 pr-10 py-3 bg-slate-50 dark:bg-slate-800 rounded-xl text-xs font-mono text-slate-600 dark:text-slate-300 outline-none border border-slate-200 dark:border-slate-700 select-all" />
-                                    <button onClick={() => { navigator.clipboard.writeText(webhookUrl); showToast('Copiado!', 'success'); }} className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-primary"><FileText size={14} /></button>
-                                </div>
-                            </div>
-
-                            <div className="space-y-2">
-                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Bearer Token (Authorization Header)</label>
-                                <p className="text-[10px] text-slate-400 mb-1">Adicione um header: <code className="bg-slate-100 dark:bg-slate-800 px-1 rounded">Authorization: Bearer &lt;TOKEN&gt;</code></p>
-                                <div className="relative group">
-                                    <input readOnly value={webhookToken} type="password" className="w-full pl-4 pr-10 py-3 bg-slate-50 dark:bg-slate-800 rounded-xl text-xs font-mono text-slate-600 dark:text-slate-300 outline-none border border-slate-200 dark:border-slate-700 select-all" />
-                                    <button onClick={() => { navigator.clipboard.writeText(webhookToken); showToast('Copiado!', 'success'); }} className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-primary"><FileText size={14} /></button>
-                                </div>
-                            </div>
-
-                            <div className="pt-2">
-                                <a href="https://cron-job.org/en/members/jobs/add/" target="_blank" rel="noreferrer" className="block w-full py-4 bg-slate-900 dark:bg-white text-white dark:text-slate-900 text-center font-black rounded-xl hover:opacity-90 transition-opacity">
-                                    Abrir Cron-Job.org
-                                </a>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            )}
         </div>
     );
 };
