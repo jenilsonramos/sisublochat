@@ -2191,10 +2191,15 @@ function BillingSettings() {
         if (!formData.smtp_host) return showToast('Configure o Host SMTP primeiro', 'error');
         setTestingEmail(true);
         try {
-            const { error } = await supabase.functions.invoke('billing-cron', {
+            const { data, error } = await supabase.functions.invoke('billing-cron', {
                 body: { action: 'TEST_SMTP', settings: formData, to: testTo }
             });
+
             if (error) throw error;
+            if (data?.success === false) {
+                throw new Error(data.error || 'Erro desconhecido no servidor de e-mail');
+            }
+
             showToast('E-mail de teste enviado para ' + testTo, 'success');
         } catch (err: any) {
             showToast('Falha no teste: ' + err.message, 'error');
