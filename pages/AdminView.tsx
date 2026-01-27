@@ -2144,6 +2144,7 @@ function BillingSettings() {
     });
 
     const [testingEmail, setTestingEmail] = useState(false);
+    const [testTo, setTestTo] = useState('');
 
     useEffect(() => {
         fetchBillingSettings();
@@ -2185,14 +2186,15 @@ function BillingSettings() {
     };
 
     const handleTestEmail = async () => {
-        if (!formData.from_email || !formData.smtp_host) return showToast('Preencha os dados do SMTP primeiro', 'error');
+        if (!testTo) return showToast('Insira o e-mail de destino para o teste', 'error');
+        if (!formData.smtp_host) return showToast('Configure o Host SMTP primeiro', 'error');
         setTestingEmail(true);
         try {
             const { error } = await supabase.functions.invoke('billing-cron', {
-                body: { action: 'TEST_SMTP', settings: formData, to: formData.from_email }
+                body: { action: 'TEST_SMTP', settings: formData, to: testTo }
             });
             if (error) throw error;
-            showToast('E-mail de teste enviado para ' + formData.from_email, 'success');
+            showToast('E-mail de teste enviado para ' + testTo, 'success');
         } catch (err: any) {
             showToast('Falha no teste: ' + err.message, 'error');
         } finally {
@@ -2209,7 +2211,16 @@ function BillingSettings() {
                     <h2 className="text-xl font-black dark:text-white">Faturamento & Notificações por E-mail</h2>
                     <p className="text-sm text-slate-500">Configure o servidor de e-mail e os modelos de aviso automático</p>
                 </div>
-                <div className="flex gap-3">
+                <div className="flex flex-col md:flex-row items-end gap-3">
+                    <div className="flex-1">
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">E-mail para Teste</label>
+                        <input
+                            value={testTo}
+                            onChange={e => setTestTo(e.target.value)}
+                            placeholder="seu@email.com"
+                            className="w-full mt-2 p-3 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 outline-none focus:border-primary/50 transition-all dark:text-white text-sm"
+                        />
+                    </div>
                     <button
                         onClick={handleTestEmail}
                         disabled={testingEmail || loading}
