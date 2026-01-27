@@ -409,9 +409,11 @@ const InstancesView: React.FC<InstancesViewProps> = ({ isBlocked = false }) => {
 
 
   const handleLogout = async (instanceName: string) => {
+    if (!confirm(`Tem certeza que deseja desconectar a instância "${instanceName}"?`)) return;
+
     try {
       setProcessing(instanceName);
-      showToast('Desconectando...', 'info');
+      showToast('Iniciando processo de desconexão...', 'info');
 
       // 1. Update Supabase FIRST for instant UI feedback
       const { error: updateError } = await supabase
@@ -428,13 +430,18 @@ const InstancesView: React.FC<InstancesViewProps> = ({ isBlocked = false }) => {
 
       // 2. Then call Evolution API (in background, don't wait)
       evolutionApi.logoutInstance(instanceName)
-        .then(() => console.log('Evolution API logout completed'))
-        .catch((err) => console.warn('Evolution API logout failed:', err));
+        .then(() => {
+          console.log('Evolution API logout completed');
+          showToast('Desconectado com segurança e sucesso! 👋', 'success');
+        })
+        .catch((err) => {
+          console.warn('Evolution API logout failed:', err);
+          showToast('Sessão encerrada localmente, mas houve um erro na API.', 'warning');
+        });
 
-      showToast('Desconectado com sucesso!', 'success');
     } catch (error: any) {
       console.error('Logout error:', error);
-      showToast('Erro ao desconectar', 'error');
+      showToast('Erro ao processar desconexão', 'error');
     } finally {
       setProcessing(null);
     }

@@ -326,6 +326,16 @@ const FlowBuilderView: React.FC<FlowBuilderViewProps> = ({ isBlocked = false }) 
         );
     }
 
+    const [isMobile, setIsMobile] = useState(false);
+    useEffect(() => {
+        const checkMobile = () => {
+            setIsMobile(window.innerWidth < 1024);
+        };
+        checkMobile();
+        window.addEventListener('resize', checkMobile);
+        return () => window.removeEventListener('resize', checkMobile);
+    }, []);
+
     if (loading) {
         return (
             <div className="flex-1 flex items-center justify-center p-20">
@@ -334,6 +344,24 @@ const FlowBuilderView: React.FC<FlowBuilderViewProps> = ({ isBlocked = false }) 
                     <p className="text-slate-500 font-bold animate-pulse uppercase tracking-widest text-xs">
                         Carregando seus fluxos...
                     </p>
+                </div>
+            </div>
+        );
+    }
+
+    if (isMobile) {
+        return (
+            <div className="flex-1 flex items-center justify-center p-6 text-center animate-in fade-in duration-500">
+                <div className="max-w-sm space-y-8 bg-white dark:bg-slate-800 p-10 rounded-[3rem] shadow-2xl border border-slate-100 dark:border-slate-700/50">
+                    <div className="w-24 h-24 bg-rose-50 dark:bg-rose-500/10 rounded-[2.5rem] flex items-center justify-center mx-auto mb-6 transform -rotate-12">
+                        <Smartphone className="w-12 h-12 text-rose-500" />
+                    </div>
+                    <div className="space-y-4">
+                        <h2 className="text-2xl font-black dark:text-white leading-tight">FlowBuilder é exclusivo para Desktop</h2>
+                        <p className="text-sm text-slate-500 dark:text-slate-400 font-medium leading-relaxed">
+                            Para garantir a melhor experiência na criação de fluxos complexos, utilize um <b>computador ou notebook</b>.
+                        </p>
+                    </div>
                 </div>
             </div>
         );

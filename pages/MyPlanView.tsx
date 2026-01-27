@@ -225,44 +225,46 @@ const MyPlanView: React.FC = () => {
 
             {/* Top Banner: Current Plan */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                <div className="lg:col-span-2 bg-gradient-to-br from-indigo-600 to-primary p-1 rounded-[3rem] shadow-2xl shadow-primary/20">
-                    <div className="bg-white dark:bg-slate-800 h-full w-full rounded-[2.9rem] p-10 flex flex-col md:flex-row justify-between items-center gap-8 border-4 border-transparent">
-                        <div className="space-y-6 text-center md:text-left">
-                            <div className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 rounded-full text-xs font-black uppercase tracking-widest">
+                <div className="lg:col-span-2 bg-gradient-to-br from-indigo-600 via-primary to-emerald-500 p-[2px] rounded-[3rem] shadow-2xl shadow-primary/20 hover:shadow-primary/30 transition-all duration-500">
+                    <div className="bg-white dark:bg-slate-900 h-full w-full rounded-[2.9rem] p-10 flex flex-col md:flex-row justify-between items-center gap-8 relative overflow-hidden">
+                        {/* Ambient light effect */}
+                        <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-full blur-3xl pointer-events-none" />
+
+                        <div className="space-y-6 text-center md:text-left relative z-10">
+                            <div className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 rounded-2xl text-[10px] font-black uppercase tracking-widest border border-indigo-100 dark:border-indigo-500/20">
                                 <ShieldCheck className="w-4 h-4" />
-                                Seu Plano Atual
+                                Seu status contratual
                             </div>
-                            <h1 className="text-5xl font-black dark:text-white tracking-tight">
+                            <h1 className="text-5xl md:text-6xl font-black dark:text-white tracking-tighter italic">
                                 {subscription?.plan.name || 'Básico'}
                             </h1>
-                            <p className="text-slate-500 dark:text-slate-400 font-medium max-w-md">
+                            <p className="text-slate-500 dark:text-slate-400 font-medium max-w-md text-base leading-relaxed">
                                 {subscription?.plan.description || 'Aproveite os recursos essenciais do Evolution Leve.'}
                             </p>
-                            <div className="flex items-center gap-4 text-sm font-bold text-slate-400 justify-center md:justify-start">
+                            <div className="flex flex-wrap items-center gap-6 text-sm font-bold text-slate-400 justify-center md:justify-start">
                                 <div className="flex items-center gap-2">
-                                    <Clock className="w-4 h-4" />
-                                    Renova em: {subscription?.current_period_end ? new Date(subscription.current_period_end).toLocaleDateString() : '-'}
+                                    <Clock className="w-4 h-4 text-primary" />
+                                    Renovação: <span className="dark:text-white">{subscription?.current_period_end ? new Date(subscription.current_period_end).toLocaleDateString() : '-'}</span>
                                 </div>
-                                <div className="w-1.5 h-1.5 bg-slate-200 rounded-full" />
-                                <div className="flex items-center gap-2 text-emerald-500 uppercase tracking-widest">
-                                    <Zap className="w-4 h-4 fill-emerald-500" />
-                                    Ativo
+                                <div className="flex items-center gap-2 text-emerald-500 uppercase tracking-widest bg-emerald-500/10 px-3 py-1 rounded-lg border border-emerald-500/20">
+                                    <Zap className="w-3.5 h-3.5 fill-emerald-500" />
+                                    Assinatura Ativa
                                 </div>
                             </div>
                         </div>
 
-                        <div className="bg-slate-50 dark:bg-slate-900 p-8 rounded-[2.5rem] text-center min-w-[200px] border border-slate-100 dark:border-slate-700/50 shadow-inner">
-                            <p className="text-xs font-black text-slate-400 uppercase tracking-widest mb-1">Investimento Mensal</p>
+                        <div className="bg-slate-50 dark:bg-slate-800/50 p-8 rounded-[2.5rem] text-center min-w-[220px] border border-slate-100 dark:border-slate-700/50 shadow-inner relative z-10 group">
+                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Custo Mensal</p>
                             <div className="flex items-end justify-center gap-1">
                                 <span className="text-sm font-bold text-slate-400 mb-2">R$</span>
-                                <span className="text-5xl font-black text-primary dark:text-white">{subscription?.plan.price.toFixed(2).split('.')[0]}</span>
-                                <span className="text-xl font-bold text-slate-400 mb-2">,{subscription?.plan.price.toFixed(2).split('.')[1]}</span>
+                                <span className="text-6xl font-black text-slate-900 dark:text-white group-hover:scale-110 transition-transform duration-500 inline-block">{subscription?.plan.price.toFixed(2).split('.')[0]}</span>
+                                <span className="text-2xl font-bold text-slate-400 mb-2">,{subscription?.plan.price.toFixed(2).split('.')[1]}</span>
                             </div>
                             <button
                                 onClick={() => plansRef.current?.scrollIntoView({ behavior: 'smooth' })}
-                                className="mt-6 w-full py-4 bg-[#063327] hover:bg-[#0a4a3a] text-white text-xs font-black rounded-xl transition-all shadow-lg active:scale-95"
+                                className="mt-8 w-full py-5 bg-slate-900 dark:bg-white text-white dark:text-slate-900 text-[10px] font-black rounded-2xl transition-all shadow-2xl shadow-black/20 dark:shadow-white/10 active:scale-95 uppercase tracking-widest hover:bg-black dark:hover:bg-slate-200"
                             >
-                                Alterar Plano
+                                Gerenciar Plano
                             </button>
                         </div>
                     </div>
@@ -372,72 +374,78 @@ const MyPlanView: React.FC = () => {
                     {plans.map((plan) => (
                         <div
                             key={plan.id}
-                            className={`relative bg-white dark:bg-slate-800 p-10 rounded-[3rem] shadow-sm border transition-all hover:scale-[1.02] hover:shadow-2xl duration-500 ${plan.id === subscription?.plan.id
-                                ? 'border-primary ring-4 ring-primary/10'
-                                : 'border-slate-100 dark:border-slate-700/50'
+                            className={`relative bg-white dark:bg-slate-900 p-12 rounded-[4rem] shadow-sm border transition-all hover:translate-y-[-8px] hover:shadow-[0_32px_64px_-12px_rgba(0,0,0,0.1)] duration-700 group ${plan.id === subscription?.plan.id
+                                ? 'border-primary ring-[12px] ring-primary/5'
+                                : 'border-slate-100 dark:border-slate-800'
                                 }`}
                         >
                             {plan.id === subscription?.plan.id && (
-                                <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-primary text-white px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest shadow-lg">
-                                    Plano Atual
+                                <div className="absolute -top-5 left-1/2 -translate-x-1/2 bg-primary text-white px-6 py-2 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] shadow-2xl shadow-primary/40 flex items-center gap-2">
+                                    <CheckCircle2 className="w-3.5 h-3.5" />
+                                    Contratado
                                 </div>
                             )}
 
-                            <div className="space-y-6">
+                            <div className="space-y-8">
                                 <div className="flex justify-between items-start">
                                     <div>
-                                        <h3 className="text-2xl font-black dark:text-white">{plan.name}</h3>
-                                        <p className="text-sm font-bold text-primary mt-1">R$ {plan.price.toFixed(2)} /mês</p>
+                                        <h3 className="text-3xl font-black dark:text-white tracking-tighter">{plan.name}</h3>
+                                        <div className="flex items-baseline gap-1 mt-2">
+                                            <span className="text-sm font-bold text-slate-400">R$</span>
+                                            <span className="text-4xl font-black text-primary">{plan.price.toFixed(2).split('.')[0]}</span>
+                                            <span className="text-sm font-bold text-slate-400">,{plan.price.toFixed(2).split('.')[1]}</span>
+                                        </div>
                                     </div>
-                                    <Package className={`w-8 h-8 ${plan.name === 'Enterprise' ? 'text-amber-500' : 'text-slate-200'}`} />
+                                    <div className={`w-14 h-14 rounded-3xl flex items-center justify-center transition-all duration-500 group-hover:rotate-12 ${plan.name === 'Enterprise'
+                                            ? 'bg-amber-500/10 text-amber-500'
+                                            : 'bg-primary/10 text-primary'
+                                        }`}>
+                                        <Package className="w-7 h-7" />
+                                    </div>
                                 </div>
 
-                                <p className="text-sm text-slate-500 leading-relaxed min-h-[40px]">
+                                <p className="text-sm text-slate-500 dark:text-slate-400 leading-relaxed font-medium min-h-[48px]">
                                     {plan.description}
                                 </p>
 
-                                <div className="space-y-4 pt-6 border-t border-slate-50 dark:border-slate-700/50">
-                                    <div className="flex items-center gap-3 text-sm font-bold text-slate-600 dark:text-slate-300">
-                                        <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
+                                <div className="space-y-5 pt-8 border-t border-slate-50 dark:border-slate-800">
+                                    <div className="flex items-center gap-4 text-sm font-bold text-slate-700 dark:text-slate-200">
+                                        <div className="w-6 h-6 rounded-lg bg-emerald-500/10 flex items-center justify-center shrink-0">
+                                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
+                                        </div>
                                         {plan.max_instances} {plan.max_instances === 1 ? 'Instância' : 'Instâncias'}
                                     </div>
-                                    <div className="flex items-center gap-3 text-sm font-bold text-slate-600 dark:text-slate-300">
-                                        <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
+                                    <div className="flex items-center gap-4 text-sm font-bold text-slate-700 dark:text-slate-200">
+                                        <div className="w-6 h-6 rounded-lg bg-emerald-500/10 flex items-center justify-center shrink-0">
+                                            <Users className="w-3.5 h-3.5 text-emerald-500" />
+                                        </div>
                                         {plan.max_contacts.toLocaleString()} Contatos
                                     </div>
-                                    <div className="flex items-center gap-3 text-sm font-bold text-slate-600 dark:text-slate-300">
-                                        <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
+                                    <div className="flex items-center gap-4 text-sm font-bold text-slate-700 dark:text-slate-200">
+                                        <div className="w-6 h-6 rounded-lg bg-emerald-500/10 flex items-center justify-center shrink-0">
+                                            <Bot className="w-3.5 h-3.5 text-emerald-500" />
+                                        </div>
                                         {plan.max_chatbots} {plan.max_chatbots === 1 ? 'Chatbot' : 'Chatbots'}
                                     </div>
-                                    <div className="flex items-center gap-3 text-sm font-bold text-slate-600 dark:text-slate-300">
-                                        <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
-                                        {plan.max_users} {plan.max_users === 1 ? 'Usuário' : 'Usuários'}
-                                    </div>
-                                    <div className="flex items-center gap-3 text-sm font-bold text-slate-600 dark:text-slate-300">
-                                        {plan.ai_enabled ? (
-                                            <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
-                                        ) : (
-                                            <X className="w-4 h-4 text-rose-500 shrink-0" />
-                                        )}
-                                        Inteligência Artificial (Gemini/GPT)
-                                    </div>
-                                    {plan.features.map((feature, idx) => (
-                                        <div key={idx} className="flex items-center gap-3 text-sm font-bold text-slate-600 dark:text-slate-300">
-                                            <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
-                                            {feature}
+                                    <div className="flex items-center gap-4 text-sm font-bold text-slate-700 dark:text-slate-200">
+                                        <div className="w-6 h-6 rounded-lg bg-indigo-500/10 flex items-center justify-center shrink-0">
+                                            <Zap className="w-3.5 h-3.5 text-indigo-500" />
                                         </div>
-                                    ))}
+                                        IA (Gemini/GPT) {plan.ai_enabled ? 'Inclusa' : 'Premium'}
+                                    </div>
                                 </div>
 
                                 <button
                                     disabled={plan.id === subscription?.plan.id || !!subscribingId}
                                     onClick={() => handleSubscribe(plan)}
-                                    className={`w-full py-4 mt-8 rounded-[1.5rem] font-black text-sm transition-all shadow-xl ${plan.id === subscription?.plan.id
-                                        ? 'bg-slate-100 text-slate-400 cursor-not-allowed shadow-none'
-                                        : 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 hover:scale-95 shadow-black/10'
+                                    className={`w-full py-5 rounded-[2rem] font-black text-[11px] uppercase tracking-[0.2em] transition-all shadow-2xl relative overflow-hidden group/btn ${plan.id === subscription?.plan.id
+                                        ? 'bg-slate-100 dark:bg-slate-800 text-slate-400 cursor-not-allowed shadow-none'
+                                        : 'bg-primary text-white hover:scale-[1.05] shadow-primary/20 hover:shadow-primary/40 active:scale-95'
                                         }`}
                                 >
-                                    {subscribingId === plan.id ? <Loader2 className="w-5 h-5 animate-spin mx-auto" /> : (plan.id === subscription?.plan.id ? 'Plano Ativo' : 'Escolher este Plano')}
+                                    <span className="relative z-10">
+                                        {subscribingId === plan.id ? <Loader2 className="w-5 h-5 animate-spin mx-auto" /> : (plan.id === subscription?.plan.id ? 'Plano Ativo' : 'Fazer Upgrade')}
+                                    </span>
                                 </button>
                             </div>
                         </div>

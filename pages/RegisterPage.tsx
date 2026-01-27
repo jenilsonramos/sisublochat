@@ -82,6 +82,7 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onLogin, onForgotPassword }
                     data: {
                         full_name: name,
                         whatsapp: whatsapp,
+                        avatar_url: `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(name)}&backgroundColor=059669,10b981,34d399`,
                     },
                     captchaToken: currentCaptchaToken || undefined,
                 },
