@@ -5,8 +5,168 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { v4 as uuidv4 } from 'uuid';
 import pool from './db.js';
+import cron from 'node-cron'; // Import node-cron
 
 dotenv.config();
+
+// --- INTERNAL CRON SCHEDULER ---
+const SUPABASE_URL = process.env.SUPABASE_URL;
+const CRON_SECRET = process.env.CRON_SECRET;
+
+const triggerCron = async (action) => {
+    if (!SUPABASE_URL || !CRON_SECRET) {
+        console.error("❌ Cron Failed: Missing SUPABASE_URL or CRON_SECRET in .env");
+        return;
+    }
+    console.log(`⏳ Triggering Internal Cron: ${action}...`);
+    try {
+        const res = await fetch(`${SUPABASE_URL}/functions/v1/billing-cron`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${CRON_SECRET}`
+            },
+            body: JSON.stringify({ trigger_action: action })
+        });
+        const data = await res.json();
+        console.log(`✅ Cron Result (${action}):`, data);
+    } catch (error) {
+        console.error(`❌ Cron Error (${action}):`, error.message);
+    }
+};
+
+// 1. Verificação Diária (00:00)
+cron.schedule('0 0 * * *', () => {
+    console.log('🕛 Executing Midnight Job: DAILY_CHECK');
+    triggerCron('DAILY_CHECK');
+}, {
+    timezone: "America/Sao_Paulo"
+});
+
+// 2. Notificação (09:00)
+cron.schedule('0 9 * * *', () => {
+    console.log('🕘 Executing Morning Job: DAILY_EMAIL');
+    triggerCron('DAILY_EMAIL');
+}, {
+    timezone: "America/Sao_Paulo"
+});
+
+// 3. Campaign Processor (Every 60s)
+cron.schedule('* * * * *', async () => {
+    console.log('🔄 Executing Campaign Processor (Every 60s)');
+    await processCampaigns();
+}, { timezone: "America/Sao_Paulo" });
+
+console.log('🚀 Internal Cron Scheduler Started (Timezone: America/Sao_Paulo)');
+
+// Helper: Send Message via Evolution API
+async function sendEvolutionMessage(instanceName, remoteJid, text, apiKey, apiUrl) {
+    if (!apiKey || !apiUrl) return false;
+    try {
+        const url = `${apiUrl}/message/sendText/${instanceName}`;
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'apikey': apiKey
+            },
+            body: JSON.stringify({
+                number: remoteJid,
+                text: text
+            })
+        });
+        const data = await response.json();
+        return response.ok; // data.sent or similar
+    } catch (e) {
+        console.error('Evolution API Error:', e.message);
+        return false;
+    }
+}
+
+// Logic: Process Campaigns
+async function processCampaigns() {
+    try {
+        // 1. Activate Scheduled Campaigns
+        await pool.query(`
+            UPDATE campaigns 
+            SET status = 'PROCESSING' 
+            WHERE status = 'PENDING' 
+            AND scheduled_at IS NOT NULL 
+            AND scheduled_at <= NOW()
+        `);
+
+        // 2. Fetch Active Campaigns
+        const [campaigns] = await pool.query(`
+            SELECT c.*, i.name as instance_name 
+            FROM campaigns c 
+            JOIN instances i ON c.instance_id = i.id 
+            WHERE c.status = 'PROCESSING'
+        `);
+
+        if (campaigns.length === 0) return;
+
+        // 3. Get System Settings (API Key/URL)
+        const [settings] = await pool.query('SELECT api_url, api_key FROM system_settings LIMIT 1');
+        const config = settings[0];
+        if (!config || !config.api_url || !config.api_key) {
+            console.log('⚠️ Campaign Skip: System settings (API URL/Key) not configured.');
+            return;
+        }
+
+        // 4. Process each campaign
+        for (const camp of campaigns) {
+            // Fetch PENDING messages (Limit 5 per cycle per campaign to be safe/incremental)
+            const [messages] = await pool.query(`
+                SELECT * FROM campaign_messages 
+                WHERE campaign_id = ? AND status = 'PENDING' 
+                LIMIT 5
+            `, [camp.id]);
+
+            if (messages.length === 0) {
+                // If no pending messages, mark campaign as COMPLETED
+                const [remaining] = await pool.query('SELECT COUNT(*) as count FROM campaign_messages WHERE campaign_id = ? AND status = "PENDING"', [camp.id]);
+                if (remaining[0].count === 0) {
+                    await pool.query('UPDATE campaigns SET status = "COMPLETED" WHERE id = ?', [camp.id]);
+                    console.log(`✅ Campaign Completed: ${camp.name}`);
+                }
+                continue;
+            }
+
+            // Send messages
+            for (const msg of messages) {
+                // Replace Variables
+                let finalText = camp.message_template || '';
+                if (msg.variables) {
+                    const vars = typeof msg.variables === 'string' ? JSON.parse(msg.variables) : msg.variables;
+                    Object.keys(vars).forEach(key => {
+                        finalText = finalText.replace(new RegExp(`{{${key}}}`, 'g'), vars[key]);
+                    });
+                }
+
+                // Send
+                const success = await sendEvolutionMessage(camp.instance_name, msg.remote_jid, finalText, config.api_key, config.api_url);
+
+                // Update Status
+                if (success) {
+                    await pool.query('UPDATE campaign_messages SET status = "SENT", sent_at = NOW() WHERE id = ?', [msg.id]);
+                    await pool.query('UPDATE campaigns SET sent_messages = sent_messages + 1, updated_at = NOW() WHERE id = ?', [camp.id]);
+                    console.log(`-> Sent to ${msg.remote_jid} (Camp: ${camp.name})`);
+                } else {
+                    await pool.query('UPDATE campaign_messages SET status = "ERROR", error_message = "Failed to send", sent_at = NOW() WHERE id = ?', [msg.id]);
+                    await pool.query('UPDATE campaigns SET error_messages = error_messages + 1, updated_at = NOW() WHERE id = ?', [camp.id]);
+                    console.log(`-> Failed to ${msg.remote_jid} (Camp: ${camp.name})`);
+                }
+
+                // Random Delay (Simple sleep)
+                const delay = Math.floor(Math.random() * (camp.max_delay - camp.min_delay + 1) + camp.min_delay) * 1000;
+                await new Promise(r => setTimeout(r, 1000)); // Minimal 1s wait here, relying on 60s cron loop for pacing
+            }
+        }
+
+    } catch (e) {
+        console.error('❌ Campaign Processor Error:', e);
+    }
+}
 
 const app = express();
 const PORT = process.env.PORT || 3001;
