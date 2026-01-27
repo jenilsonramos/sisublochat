@@ -908,10 +908,10 @@ const LiveChatView: React.FC<LiveChatViewProps> = ({ isBlocked = false }) => {
                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
                 <input
                   type="text"
-                  placeholder="Buscar..."
+                  placeholder="Buscar conversa..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-11 pr-4 py-3 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-700 rounded-2xl focus:ring-2 focus:ring-primary-light text-sm dark:text-white transition-all outline-none"
+                  className="w-full pl-11 pr-4 py-3.5 bg-white dark:bg-slate-800 shadow-xl shadow-slate-200/50 dark:shadow-none border-0 rounded-2xl text-sm font-medium dark:text-white placeholder:text-slate-400 focus:ring-2 focus:ring-primary/50 transition-all outline-none"
                 />
               </div>
 
@@ -964,7 +964,9 @@ const LiveChatView: React.FC<LiveChatViewProps> = ({ isBlocked = false }) => {
                   key={conv.id}
                   onClick={() => setSelectedChat(conv)}
                   title={sidebarCollapsed ? conv.contact_name : undefined}
-                  className={`w-full p-4 flex items-center gap-4 border-b border-slate-50 dark:border-slate-700/30 transition-all hover:bg-slate-50 dark:hover:bg-slate-900/50 group ${selectedChat?.id === conv.id ? 'bg-primary/5 dark:bg-primary/10 border-l-4 border-l-primary' : 'border-l-4 border-l-transparent'} ${sidebarCollapsed ? 'justify-center px-2' : ''}`}
+                  className={`w-full p-4 flex items-center gap-4 border-b border-dashed border-slate-100 dark:border-slate-700/50 transition-all duration-300 group relative overflow-hidden ${selectedChat?.id === conv.id
+                    ? 'bg-gradient-to-r from-primary/10 to-transparent border-l-4 border-l-primary'
+                    : 'hover:bg-slate-50 dark:hover:bg-slate-800/50 border-l-4 border-l-transparent hover:pl-5'} ${sidebarCollapsed ? 'justify-center px-2' : ''}`}
                 >
                   <div className="relative flex-shrink-0">
                     <img
@@ -1142,11 +1144,12 @@ const LiveChatView: React.FC<LiveChatViewProps> = ({ isBlocked = false }) => {
             {/* Messages Area */}
             <div className="flex-1 overflow-hidden relative min-h-0 flex flex-col bg-slate-50 dark:bg-slate-950 transition-colors duration-500">
               {/* Premium Background Elements */}
+
               <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none">
-                <div className="absolute -top-[10%] -left-[10%] w-[40%] h-[40%] bg-primary/10 blur-[120px] rounded-full animate-pulse" />
-                <div className="absolute top-[20%] -right-[5%] w-[30%] h-[30%] bg-indigo-400/10 blur-[100px] rounded-full animate-bounce [animation-duration:10s]" />
-                <div className="absolute -bottom-[10%] left-[20%] w-[50%] h-[50%] bg-rose-400/5 blur-[120px] rounded-full animate-pulse [animation-duration:8s]" />
-                <div className="absolute inset-0 bg-gradient-to-br from-white/40 via-transparent to-white/40 dark:from-transparent dark:to-transparent" />
+                <div className="absolute -top-[20%] -left-[10%] w-[50%] h-[50%] bg-indigo-500/10 blur-[150px] rounded-full animate-pulse" />
+                <div className="absolute top-[30%] -right-[10%] w-[40%] h-[40%] bg-violet-500/10 blur-[150px] rounded-full animate-bounce [animation-duration:15s]" />
+                <div className="absolute -bottom-[10%] left-[20%] w-[60%] h-[60%] bg-fuchsia-400/5 blur-[150px] rounded-full animate-pulse [animation-duration:10s]" />
+                <div className="absolute inset-0 bg-white/60 dark:bg-slate-950/80 backdrop-blur-[1px]" />
               </div>
               {/* Human Assistance Alert Banner */}
               {selectedChat.assigned_agent_id && (
@@ -1244,9 +1247,9 @@ const LiveChatView: React.FC<LiveChatViewProps> = ({ isBlocked = false }) => {
                             </div>
                           )}
                           <div className={`flex ${msg.sender === 'me' ? 'justify-end' : 'justify-start'} animate-in slide-in-from-bottom-2 duration-300 group`}>
-                            <div className={`max-w-[85%] md:max-w-[75%] rounded-2xl px-4 py-3 shadow-md relative transition-all ${msg.sender === 'me'
-                              ? 'bg-primary text-white rounded-tr-none shadow-primary/10'
-                              : 'bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm text-slate-800 dark:text-slate-200 rounded-tl-none border border-white dark:border-slate-700/50 shadow-slate-200/50 dark:shadow-none'
+                            <div className={`max-w-[85%] md:max-w-[70%] rounded-3xl px-5 py-3.5 shadow-sm relative transition-all duration-300 hover:shadow-md ${msg.sender === 'me'
+                              ? 'bg-gradient-to-br from-indigo-600 to-violet-600 text-white rounded-tr-sm shadow-indigo-500/20'
+                              : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 rounded-tl-sm border border-slate-100 dark:border-slate-700 shadow-slate-200/50 dark:shadow-none'
                               }`}>
 
                               {/* Individual Actions */}
@@ -1454,7 +1457,7 @@ const LiveChatView: React.FC<LiveChatViewProps> = ({ isBlocked = false }) => {
                           onChange={(e) => setNewMessage(e.target.value)}
                           placeholder="Sua mensagem..."
                           disabled={sending}
-                          className="w-full pl-12 pr-12 py-3 md:py-4 bg-slate-50/50 dark:bg-slate-900 border border-slate-100 dark:border-slate-700 rounded-[1.5rem] focus:ring-2 focus:ring-primary-light text-sm dark:text-white transition-all outline-none disabled:opacity-50"
+                          className="w-full pl-12 pr-12 py-4 bg-white dark:bg-slate-900 shadow-xl shadow-slate-200/50 dark:shadow-none border-0 rounded-[2rem] focus:ring-2 focus:ring-primary/50 text-sm font-medium dark:text-white transition-all outline-none disabled:opacity-50 placeholder:text-slate-400"
                         />
                         <input
                           type="file"
@@ -1537,56 +1540,58 @@ const LiveChatView: React.FC<LiveChatViewProps> = ({ isBlocked = false }) => {
           </div>
 
           <div className="mt-8 flex-1 overflow-y-auto custom-scrollbar -mr-4 pr-4 space-y-8">
-            {/* TAGS SECTION */}
-            <div className="space-y-4">
-              <div className="flex items-center gap-2 text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                <Tag size={12} className="text-primary" />
-                Tags
+            {/* TAGS SECTION - CARD */}
+            <div className="bg-slate-50 dark:bg-slate-900/50 p-5 rounded-2xl border border-dashed border-slate-200 dark:border-slate-700/50 space-y-4">
+              <div className="flex items-center gap-2 text-[11px] font-black text-slate-400 uppercase tracking-widest">
+                <Tag size={14} className="text-primary" />
+                Etiquetas / Tags
               </div>
               <div className="flex flex-wrap gap-2">
                 {loadingDetails ? (
-                  <Loader2 className="w-4 h-4 animate-spin text-slate-300" />
+                  <Loader2 className="w-5 h-5 animate-spin text-primary mx-auto" />
                 ) : (
                   <>
                     {contactDetails?.tags.map(tag => (
-                      <span key={tag} className="flex items-center gap-1 px-3 py-1.5 bg-primary/10 text-primary text-[10px] font-black rounded-full uppercase group">
+                      <span key={tag} className="flex items-center gap-1.5 pl-3 pr-2 py-1.5 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 shadow-sm text-[11px] font-bold rounded-lg uppercase group transition-all hover:border-rose-200 hover:bg-rose-50 dark:hover:bg-rose-900/20">
                         {tag}
-                        <button onClick={() => handleRemoveTag(tag)} className="hover:text-rose-500 transition-colors">
-                          <X size={10} />
+                        <button onClick={() => handleRemoveTag(tag)} className="text-slate-400 hover:text-rose-500 transition-colors p-0.5 rounded-full hover:bg-rose-100 dark:hover:bg-rose-800/50">
+                          <X size={12} />
                         </button>
                       </span>
                     ))}
                     {contactDetails?.tags.length === 0 && (
-                      <p className="text-[10px] text-slate-400 italic font-medium">Nenhuma tag...</p>
+                      <div className="w-full text-center py-4 border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-xl">
+                        <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wide">Sem etiquetas</p>
+                      </div>
                     )}
                   </>
                 )}
               </div>
-              <form onSubmit={handleAddTag} className="relative">
+              <form onSubmit={handleAddTag} className="relative mt-2">
                 <input
                   type="text"
                   value={newTag}
                   onChange={(e) => setNewTag(e.target.value)}
-                  placeholder="Nova tag..."
+                  placeholder="Adicionar nova tag..."
                   disabled={isSavingDetails || loadingDetails}
-                  className="w-full pl-4 pr-10 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-700 rounded-xl text-xs font-medium dark:text-white focus:ring-2 focus:ring-primary/20 outline-none transition-all disabled:opacity-50"
+                  className="w-full pl-4 pr-10 py-3 bg-white dark:bg-slate-800 border-0 shadow-sm rounded-xl text-xs font-semibold dark:text-white focus:ring-2 focus:ring-primary/50 outline-none transition-all disabled:opacity-50"
                 />
                 <button
                   type="submit"
                   disabled={!newTag.trim() || isSavingDetails}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 text-slate-400 hover:text-primary transition-colors disabled:opacity-50"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 bg-primary text-white rounded-lg shadow-md hover:bg-primary-dark transition-all disabled:opacity-50 active:scale-95"
                 >
-                  {isSavingDetails ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus size={16} />}
+                  {isSavingDetails ? <Loader2 className="w-3 h-3 animate-spin" /> : <Plus size={14} />}
                 </button>
               </form>
             </div>
 
-            {/* NOTES SECTION */}
-            <div className="space-y-4 pb-8">
+            {/* NOTES SECTION - CARD */}
+            <div className="bg-slate-50 dark:bg-slate-900/50 p-5 rounded-2xl border border-dashed border-slate-200 dark:border-slate-700/50 space-y-3 pb-8">
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2 text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                  <StickyNote size={12} className="text-primary" />
-                  Notas
+                <div className="flex items-center gap-2 text-[11px] font-black text-slate-400 uppercase tracking-widest">
+                  <StickyNote size={14} className="text-primary" />
+                  Anotações
                 </div>
                 {isSavingDetails && <Loader2 className="w-3 h-3 animate-spin text-primary" />}
               </div>
@@ -1596,9 +1601,9 @@ const LiveChatView: React.FC<LiveChatViewProps> = ({ isBlocked = false }) => {
                   value={contactDetails?.notes || ''}
                   onChange={(e) => setContactDetails(prev => prev ? { ...prev, notes: e.target.value } : null)}
                   onBlur={(e) => handleUpdateNotes(e.target.value)}
-                  placeholder="Adicione observações sobre o contato..."
+                  placeholder="Escreva observações importantes sobre este cliente..."
                   disabled={loadingDetails}
-                  className="w-full min-h-[150px] p-4 bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-700 rounded-2xl text-xs font-medium dark:text-white focus:ring-2 focus:ring-primary/20 outline-none transition-all resize-none custom-scrollbar disabled:opacity-50"
+                  className="w-full h-32 p-4 bg-white dark:bg-slate-800 border-0 shadow-sm rounded-xl text-sm leading-relaxed text-slate-600 dark:text-slate-300 focus:ring-2 focus:ring-primary/50 outline-none resize-none custom-scrollbar transition-all"
                 />
                 <div className="absolute bottom-3 right-3 opacity-0 group-focus-within:opacity-100 transition-opacity pointer-events-none">
                   <p className="text-[9px] font-bold text-slate-400 uppercase bg-white dark:bg-slate-800 px-2 py-1 rounded-lg border border-slate-100 dark:border-slate-700 shadow-sm flex items-center gap-1">
