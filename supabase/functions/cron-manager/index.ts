@@ -4,6 +4,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
 const corsHeaders = {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+    'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
 }
 
 serve(async (req) => {
@@ -17,171 +18,153 @@ serve(async (req) => {
             Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
         )
 
-        const { action, apiKey } = await req.json()
+        const rawBody = await req.text();
+        let body: any = {};
+        try {
+            if (rawBody) body = JSON.parse(rawBody);
+        } catch (e) {
+            body = {};
+        }
+
+        const { action, apiKey, jobId } = body
+
+        if (action === 'LIST') {
+            const { data: jobs, error } = await supabaseClient.from('cron_jobs').select('*').order('created_at', { ascending: true });
+            if (error) throw error;
+            return new Response(JSON.stringify(jobs), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+        }
 
         if (action === 'SETUP') {
             if (!apiKey) throw new Error("API Key is required");
 
-            // 1. Save API Key
-            const { error: saveError } = await supabaseClient
-                .from('system_settings')
-                .update({ cron_api_key: apiKey })
-                .neq('id', '00000000-0000-0000-0000-000000000000'); // Updates all rows (usually just one) or use a specific ID if known. 
-            // Better to assume single row or update based on a known condition. 
-            // Ideally system_settings has a single row or we select one.
-            // Let's assume user updates the single existing row or we insert if not exists (but here we update)
-            // To be safe, let's fetch the ID first or update 'true'
+            // 1. Save Api Key to system_settings
+            await supabaseClient.from('system_settings').update({ cron_api_key: apiKey }).neq('id', '00000000-0000-0000-0000-000000000000');
 
-            // Let's update the single row if we can find it, or just update all (usually system_settings is single row)
-            // Check if there is a row
-            const { data: existing } = await supabaseClient.from('system_settings').select('id, cron_job_id').single();
-
-            if (existing) {
-                await supabaseClient.from('system_settings').update({ cron_api_key: apiKey }).eq('id', existing.id);
-            } else {
-                // Create if not exists (should exist based on previous logic)
-                await supabaseClient.from('system_settings').insert({ cron_api_key: apiKey });
-            }
-
-
-            // 2. Create Job on cron-job.org
             const projectUrl = Deno.env.get('SUPABASE_URL');
-            const functionUrl = `${projectUrl}/functions/v1/evolution-cron`;
-            // Service Role Key for the Cron Job to authenticate with our Edge Function
             const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
 
-            const jobData = {
-                job: {
-                    url: functionUrl,
-                    enabled: true,
-                    saveResponses: true,
-                    schedule: {
-                        timezone: "America/Sao_Paulo",
-                        expiresAt: 0,
-                        hours: [-1], // Every hour
-                    },
-                    title: "Evolution API Broadcast Worker",
-                    requestMethod: 1, // POST
-                    headers: [
-                        { key: "Authorization", value: `Bearer ${serviceRoleKey}` },
-                        { key: "Content-Type", value: "application/json" }
-                    ]
-                }
-            };
-
-            const billingJobData = {
-                job: {
+            const cronJobConfigs = [
+                {
+                    name: "Broadcast: Processador de Filas",
+                    job_type: "broadcast",
+                    url: `${projectUrl}/functions/v1/evolution-cron`,
+                    schedule: { hours: [-1], minutes: [0] }, // Every hour at minute 0
+                    action: "AUTO"
+                },
+                {
+                    name: "Faturamento: Marcar Vencidos",
+                    job_type: "billing_mark_expired",
                     url: `${projectUrl}/functions/v1/billing-cron`,
-                    enabled: true,
-                    saveResponses: true,
-                    schedule: {
-                        timezone: "America/Sao_Paulo",
-                        expiresAt: 0,
-                        hours: [-1], // Every hour to catch 24h blockage
-                        minutes: [0], // At minute 0
-                        mdays: [-1],
-                        months: [-1],
-                        wdays: [-1]
-                    },
-                    title: "Ublo Chat Billing Worker",
-                    requestMethod: 1, // POST
-                    headers: [
-                        { key: "Authorization", value: `Bearer ${serviceRoleKey}` },
-                        { key: "Content-Type", value: "application/json" }
-                    ]
+                    schedule: { mdays: [-1], months: [-1], wdays: [-1], hours: [0], minutes: [0] }, // 00:00
+                    action: "MARK_EXPIRED"
+                },
+                {
+                    name: "Faturamento: Enviar E-mail de Expiração",
+                    job_type: "billing_send_expiry",
+                    url: `${projectUrl}/functions/v1/billing-cron`,
+                    schedule: { mdays: [-1], months: [-1], wdays: [-1], hours: [9], minutes: [0] }, // 09:00
+                    action: "SEND_EXPIRY_EMAIL"
+                },
+                {
+                    name: "Faturamento: Lembretes de Renovação",
+                    job_type: "billing_reminders",
+                    url: `${projectUrl}/functions/v1/billing-cron`,
+                    schedule: { mdays: [-1], months: [-1], wdays: [-1], hours: [14], minutes: [0] }, // 14:00
+                    action: "SEND_REMINDERS"
+                },
+                {
+                    name: "Faturamento: Verificação de Bloqueio 24h",
+                    job_type: "billing_check_blockage",
+                    url: `${projectUrl}/functions/v1/billing-cron`,
+                    schedule: { hours: [-1], minutes: [30] }, // Every hour at minute 30
+                    action: "CHECK_BLOCKAGE"
                 }
-            };
+            ];
 
-            // If exists, delete first? Or Update?
-            // Simpler: Delete old if exists in DB, then Create New.
-            if (existing?.cron_job_id) {
-                try {
-                    await fetch(`https://api.cron-job.org/jobs/${existing.cron_job_id}`, {
+            // Clean existing jobs from table first
+            const { data: existingJobs } = await supabaseClient.from('cron_jobs').select('cron_job_id');
+            for (const ej of existingJobs || []) {
+                if (ej.cron_job_id) {
+                    await fetch(`https://api.cron-job.org/jobs/${ej.cron_job_id}`, {
                         method: 'DELETE',
-                        headers: {
-                            'Authorization': `Bearer ${apiKey}`
-                        }
+                        headers: { 'Authorization': `Bearer ${apiKey}` }
+                    }).catch(() => { });
+                }
+            }
+            await supabaseClient.from('cron_jobs').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+
+            const results = [];
+            for (const config of cronJobConfigs) {
+                const jobData = {
+                    job: {
+                        url: config.url,
+                        enabled: true,
+                        saveResponses: true,
+                        schedule: {
+                            timezone: "America/Sao_Paulo",
+                            expiresAt: 0,
+                            ...config.schedule
+                        },
+                        title: config.name,
+                        requestMethod: 1, // POST
+                        headers: [
+                            { key: "Authorization", value: `Bearer ${serviceRoleKey}` },
+                            { key: "Content-Type", value: "application/json" }
+                        ],
+                        body: JSON.stringify({ trigger_action: config.action })
+                    }
+                };
+
+                const res = await fetch('https://api.cron-job.org/jobs', {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+                    body: JSON.stringify(jobData)
+                });
+
+                if (res.ok) {
+                    const json = await res.json();
+                    await supabaseClient.from('cron_jobs').insert({
+                        name: config.name,
+                        job_type: config.job_type,
+                        cron_job_id: json.jobId,
+                        schedule: JSON.stringify(config.schedule),
+                        enabled: true
                     });
-                } catch (e) { console.log("Error deleting old job:", e) }
+                    results.push({ name: config.name, status: 'success', jobId: json.jobId });
+                } else {
+                    results.push({ name: config.name, status: 'error', details: await res.text() });
+                }
             }
 
-            const createRes = await fetch('https://api.cron-job.org/jobs', {
-                method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${apiKey}`
-                },
-                body: JSON.stringify(jobData)
-            });
-
-            if (!createRes.ok) {
-                const errText = await createRes.text();
-                throw new Error(`Failed to create cron job: ${errText}`);
-            }
-
-            const createJson = await createRes.json();
-            const jobId = createJson.jobId;
-
-            // Create Billing Job
-            const billingRes = await fetch('https://api.cron-job.org/jobs', {
-                method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${apiKey}`
-                },
-                body: JSON.stringify(billingJobData)
-            });
-
-            const billingJson = await billingRes.json();
-
-            // 3. Save Job ID (Combined or just the main one? Let's save both in a JSON if needed, but for now we just need them active)
-            if (existing) {
-                await supabaseClient.from('system_settings').update({
-                    cron_job_id: jobId,
-                    test_phone: JSON.stringify({ broadcast_job_id: jobId, billing_job_id: billingJson.jobId }) // Storing both in a hidden way
-                }).eq('id', existing.id);
-            }
-
-            return new Response(JSON.stringify({
-                success: true,
-                broadcast_job_id: jobId,
-                billing_job_id: billingJson.jobId
-            }), {
-                headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-            })
+            return new Response(JSON.stringify({ success: true, results }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
         }
 
-        if (action === 'DELETE') {
-            const { data: settings } = await supabaseClient.from('system_settings').select('id, cron_job_id, cron_api_key, test_phone').single();
-            if (settings?.cron_api_key) {
-                // Delete main job
-                if (settings.cron_job_id) {
-                    await fetch(`https://api.cron-job.org/jobs/${settings.cron_job_id}`, {
-                        method: 'DELETE',
-                        headers: { 'Authorization': `Bearer ${settings.cron_api_key}` }
-                    });
-                }
+        if (action === 'TOGGLE' || action === 'DELETE') {
+            const { data: settings } = await supabaseClient.from('system_settings').select('cron_api_key').single();
+            if (!settings?.cron_api_key) throw new Error("Cron API Key not found");
 
-                // Delete extra jobs from test_phone
-                if (settings.test_phone) {
-                    try {
-                        const extra = JSON.parse(settings.test_phone);
-                        if (extra.billing_job_id) {
-                            await fetch(`https://api.cron-job.org/jobs/${extra.billing_job_id}`, {
-                                method: 'DELETE',
-                                headers: { 'Authorization': `Bearer ${settings.cron_api_key}` }
-                            });
-                        }
-                    } catch (e) { console.error("Error parsing extra job IDs:", e) }
-                }
+            const { data: job } = await supabaseClient.from('cron_jobs').select('*').eq('cron_job_id', jobId).single();
+            if (!job) throw new Error("Job not found in database");
 
-                await supabaseClient.from('system_settings').update({
-                    cron_job_id: null,
-                    cron_api_key: null,
-                    test_phone: null
-                }).eq('id', settings.id);
+            if (action === 'DELETE') {
+                await fetch(`https://api.cron-job.org/jobs/${jobId}`, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': `Bearer ${settings.cron_api_key}` }
+                });
+                await supabaseClient.from('cron_jobs').delete().eq('cron_job_id', jobId);
+            } else {
+                const newEnabled = !job.enabled;
+                const updateRes = await fetch(`https://api.cron-job.org/jobs/${jobId}`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${settings.cron_api_key}` },
+                    body: JSON.stringify({ job: { enabled: newEnabled } })
+                });
+
+                if (!updateRes.ok) throw new Error("Failed to toggle job externally");
+                await supabaseClient.from('cron_jobs').update({ enabled: newEnabled }).eq('cron_job_id', jobId);
             }
-            return new Response(JSON.stringify({ success: true }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
+
+            return new Response(JSON.stringify({ success: true }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
         }
 
         throw new Error("Invalid Action");

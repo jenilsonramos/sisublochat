@@ -26,6 +26,8 @@ import {
     ChevronRight,
     BarChart3,
     Lock,
+    Pause,
+    Play,
     Calendar,
     ArrowUpRight,
     ArrowDownRight,
@@ -2487,214 +2489,234 @@ function BillingSettings() {
 }
 function CronTasks() {
     const [apiKey, setApiKey] = useState('');
-    const [status, setStatus] = useState<string>('loading');
-    const [loading, setLoading] = useState(false);
+    const [loading, setLoading] = useState(true);
     const [jobs, setJobs] = useState<any[]>([]);
     const { showToast } = useToast();
 
     useEffect(() => {
-        fetchStatus();
+        fetchData();
     }, []);
 
-    const fetchStatus = async () => {
+    const fetchData = async () => {
+        setLoading(true);
         try {
-            const { data } = await supabase.from('system_settings').select('cron_api_key, cron_job_id, test_phone').single();
-            if (data?.cron_api_key) {
-                setApiKey(data.cron_api_key);
-                // In a real scenario, we would call the Edge Function to get real statuses from cron-job.org
-                // For now, let's parse the stored IDs
-                const extraIds = data.test_phone ? JSON.parse(data.test_phone) : {};
+            // 1. Get API Key
+            const { data: settings } = await supabase.from('system_settings').select('cron_api_key').single();
+            if (settings?.cron_api_key) setApiKey(settings.cron_api_key);
 
-                const loadedJobs = [
-                    {
-                        id: 'broadcast',
-                        title: 'Transmissão de Mensagens',
-                        description: 'Processa disparos em massa e agendamentos.',
-                        jobId: data.cron_job_id,
-                        frequency: '1 minuto',
-                        status: data.cron_job_id ? 'active' : 'inactive'
-                    },
-                    {
-                        id: 'billing',
-                        title: 'Faturamento & Cobrança',
-                        description: 'Lembretes, expirações e bloqueios automáticos.',
-                        jobId: extraIds.billing_job_id,
-                        frequency: '1 hora',
-                        status: extraIds.billing_job_id ? 'active' : 'inactive'
-                    }
-                ];
-                setJobs(loadedJobs);
-                setStatus(data.cron_job_id ? 'active' : 'inactive');
-            } else {
-                setStatus('inactive');
-            }
+            // 2. Get Jobs from our new table
+            const { data, error } = await supabase.functions.invoke('cron-manager', {
+                body: { action: 'LIST' }
+            });
+
+            if (error) throw error;
+            setJobs(data || []);
         } catch (err) {
-            console.error(err);
+            console.error('Error fetching cron data:', err);
         } finally {
             setLoading(false);
         }
     };
 
-    const handleActivateAll = async () => {
+    const handleSetup = async () => {
         if (!apiKey) return showToast('Insira a API Key do cron-job.org', 'error');
         setLoading(true);
         try {
-            const { error } = await supabase.functions.invoke('cron-manager', {
+            const { data, error } = await supabase.functions.invoke('cron-manager', {
                 body: { action: 'SETUP', apiKey }
             });
             if (error) throw error;
-            showToast('Processos ativados com sucesso!', 'success');
-            fetchStatus();
+            showToast('Estrutura de CRON inicializada com sucesso!', 'success');
+            fetchData();
         } catch (err: any) {
-            showToast('Erro ao ativar: ' + err.message, 'error');
+            showToast('Erro no Setup: ' + err.message, 'error');
         } finally {
             setLoading(false);
         }
     };
 
-    const handleDeactivateAll = async () => {
-        if (!confirm('Desativar todos os processos automáticos?')) return;
-        setLoading(true);
+    const handleToggle = async (jobId: number) => {
         try {
             const { error } = await supabase.functions.invoke('cron-manager', {
-                body: { action: 'DELETE' }
+                body: { action: 'TOGGLE', jobId }
             });
             if (error) throw error;
-            showToast('Processos desativados.', 'success');
-            fetchStatus();
+            showToast('Status do job atualizado.', 'success');
+            fetchData();
         } catch (err: any) {
-            showToast('Erro ao desativar: ' + err.message, 'error');
-        } finally {
-            setLoading(false);
+            showToast('Erro ao alternar status: ' + err.message, 'error');
         }
     };
 
+    const handleDelete = async (jobId: number) => {
+        if (!confirm('Tem certeza que deseja remover este job permanentemente?')) return;
+        try {
+            const { error } = await supabase.functions.invoke('cron-manager', {
+                body: { action: 'DELETE', jobId }
+            });
+            if (error) throw error;
+            showToast('Job removido.', 'success');
+            fetchData();
+        } catch (err: any) {
+            showToast('Erro ao remover: ' + err.message, 'error');
+        }
+    };
+
+    const handleRunNow = async (type: string) => {
+        try {
+            showToast('Disparando execução manual...', 'info');
+            const functionName = type.startsWith('billing') ? 'billing-cron' : 'evolution-cron';
+            const action = type.replace('billing_', '').toUpperCase();
+
+            const { error } = await supabase.functions.invoke(functionName, {
+                body: { trigger_action: action }
+            });
+
+            if (error) throw error;
+            showToast('Execução manual concluída com sucesso!', 'success');
+            fetchData();
+        } catch (err: any) {
+            showToast('Erro na execução manual: ' + err.message, 'error');
+        }
+    };
+
+    const formatSchedule = (scheduleStr: string) => {
+        try {
+            const s = JSON.parse(scheduleStr);
+            if (s.hours?.length === 1 && s.hours[0] !== -1) {
+                return `${s.hours[0].toString().padStart(2, '0')}:${s.minutes[0].toString().padStart(2, '0')}`;
+            }
+            if (s.hours?.includes(-1)) {
+                return `A cada hora (min ${s.minutes[0]})`;
+            }
+            return 'Customizado';
+        } catch { return '---'; }
+    }
+
     return (
-        <div className="space-y-8">
+        <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
             <div className="flex justify-between items-center">
                 <div>
-                    <h2 className="text-2xl font-black dark:text-white">Central de Automação (CRON)</h2>
-                    <p className="text-sm text-slate-500">Gerencie a estabilidade dos fluxos automáticos do sistema</p>
+                    <h2 className="text-2xl font-black dark:text-white">Central de Automação (Granular)</h2>
+                    <p className="text-sm text-slate-500">Controle individual de cada tarefa agendada</p>
                 </div>
-                {status === 'active' ? (
-                    <button
-                        onClick={handleDeactivateAll}
-                        disabled={loading}
-                        className="bg-rose-500 hover:bg-rose-600 text-white px-6 py-3 rounded-2xl font-black shadow-lg shadow-rose-500/20 transition-all flex items-center gap-2"
-                    >
-                        {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <X className="w-5 h-5" />}
-                        Desativar Tudo
-                    </button>
-                ) : (
-                    <button
-                        onClick={handleActivateAll}
-                        disabled={loading || !apiKey}
-                        className="bg-primary hover:bg-primary-light text-white px-6 py-3 rounded-2xl font-black shadow-lg shadow-primary/20 transition-all flex items-center gap-2 disabled:opacity-50"
-                    >
-                        {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Zap className="w-5 h-5" />}
-                        Ativar Automação
-                    </button>
-                )}
+                <button
+                    onClick={handleSetup}
+                    disabled={loading || !apiKey}
+                    className="bg-primary hover:bg-primary-light text-white px-6 py-3 rounded-2xl font-black shadow-lg shadow-primary/20 transition-all flex items-center gap-2 disabled:opacity-50"
+                >
+                    {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Zap className="w-5 h-5" />}
+                    Re-inicializar Tudo
+                </button>
             </div>
 
             {/* API Config Section */}
-            <div className="bg-slate-50 dark:bg-slate-900/50 p-8 rounded-[2.5rem] border border-slate-100 dark:border-slate-700/50">
-                <div className="flex flex-col md:flex-row gap-8 items-center">
-                    <div className="w-20 h-20 bg-white dark:bg-slate-800 rounded-3xl flex items-center justify-center shadow-sm shrink-0 border border-slate-100 dark:border-slate-700">
-                        <Globe className="w-10 h-10 text-primary" />
+            <div className="bg-slate-50 dark:bg-slate-900/50 p-6 rounded-[2.5rem] border border-slate-100 dark:border-slate-700/50">
+                <div className="flex flex-col md:flex-row gap-6 items-center">
+                    <div className="w-12 h-12 bg-white dark:bg-slate-800 rounded-2xl flex items-center justify-center shadow-sm shrink-0 border border-slate-100 dark:border-slate-700">
+                        <Globe className="w-6 h-6 text-primary" />
                     </div>
-                    <div className="flex-1 space-y-2 text-center md:text-left">
-                        <h3 className="text-lg font-black dark:text-white">Integração Cron-Job.org</h3>
-                        <p className="text-sm text-slate-500 leading-relaxed max-w-2xl">
-                            Utilizamos o <strong>Cron-Job.org</strong> para gatilhar os processos internos.
-                            Configure sua API Key para permitir que o sistema crie e gerencie os jobs automaticamente.
-                        </p>
-                        <div className="flex gap-4 mt-4">
+                    <div className="flex-1 space-y-1">
+                        <h3 className="text-sm font-black dark:text-white uppercase tracking-wider">Configuração de API</h3>
+                        <div className="flex gap-4">
                             <input
                                 value={apiKey}
                                 onChange={e => setApiKey(e.target.value)}
                                 type="password"
-                                placeholder="Insira sua Cron-Job.org API Key aqui..."
-                                className="flex-1 max-w-md p-4 bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 outline-none focus:border-primary/50 transition-all font-mono text-xs dark:text-white"
+                                placeholder="Cron-Job.org API Key"
+                                className="flex-1 max-w-sm p-3 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 outline-none focus:border-primary/50 transition-all font-mono text-xs dark:text-white"
                             />
-                            {status === 'active' && (
-                                <div className="px-4 py-1 bg-emerald-500/10 text-emerald-500 rounded-xl flex items-center gap-2 text-[10px] font-black uppercase tracking-widest border border-emerald-500/20">
-                                    <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse" />
-                                    Conectado
-                                </div>
+                            <button
+                                onClick={handleSetup}
+                                className="px-4 py-2 bg-slate-200 dark:bg-slate-700 rounded-xl text-[10px] font-black uppercase hover:bg-slate-300 transition-colors"
+                            >
+                                Salvar & Testar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {/* Jobs Table */}
+            <div className="bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-[2.5rem] overflow-hidden shadow-sm">
+                <div className="overflow-x-auto">
+                    <table className="w-full text-left border-collapse">
+                        <thead>
+                            <tr className="bg-slate-50/50 dark:bg-slate-900/50">
+                                <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Processo</th>
+                                <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Horário / Freq</th>
+                                <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Status</th>
+                                <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-50 dark:divide-slate-700/50">
+                            {jobs.length === 0 && !loading && (
+                                <tr>
+                                    <td colSpan={4} className="px-8 py-12 text-center text-slate-400 italic">
+                                        Nenhum processo configurado. Clique em "Re-inicializar Tudo" para começar.
+                                    </td>
+                                </tr>
                             )}
-                        </div>
-                    </div>
+                            {jobs.map(job => (
+                                <tr key={job.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-900/30 transition-colors">
+                                    <td className="px-8 py-6">
+                                        <div className="flex items-center gap-4">
+                                            <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${job.job_type.includes('billing') ? 'bg-amber-500/10 text-amber-500' : 'bg-primary/10 text-primary'}`}>
+                                                {job.job_type === 'broadcast' ? <RefreshCw className="w-5 h-5" /> : <Calendar className="w-5 h-5" />}
+                                            </div>
+                                            <div>
+                                                <p className="font-black text-sm dark:text-white">{job.name}</p>
+                                                <p className="text-[10px] text-slate-400 font-mono tracking-tighter">ID: {job.cron_job_id}</p>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td className="px-8 py-6 text-sm font-bold dark:text-slate-300">
+                                        {formatSchedule(job.schedule)}
+                                    </td>
+                                    <td className="px-8 py-6">
+                                        <div className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${job.enabled ? 'bg-emerald-500/10 text-emerald-500' : 'bg-rose-500/10 text-rose-500'}`}>
+                                            <div className={`w-1.5 h-1.5 rounded-full ${job.enabled ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'}`} />
+                                            {job.enabled ? 'Rodando' : 'Pausado'}
+                                        </div>
+                                    </td>
+                                    <td className="px-8 py-6 text-right">
+                                        <div className="flex items-center justify-end gap-2">
+                                            <button
+                                                onClick={() => handleRunNow(job.job_type)}
+                                                className="p-2.5 bg-slate-50 dark:bg-slate-900 text-slate-400 hover:text-primary rounded-xl transition-all"
+                                                title="Executar Agora"
+                                            >
+                                                <Zap className="w-4 h-4" />
+                                            </button>
+                                            <button
+                                                onClick={() => handleToggle(job.cron_job_id)}
+                                                className={`p-2.5 rounded-xl transition-all ${job.enabled ? 'bg-amber-500/10 text-amber-500 hover:bg-amber-500/20' : 'bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20'}`}
+                                                title={job.enabled ? 'Pausar' : 'Ativar'}
+                                            >
+                                                {job.enabled ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
+                                            </button>
+                                            <button
+                                                onClick={() => handleDelete(job.cron_job_id)}
+                                                className="p-2.5 bg-rose-500/10 text-rose-500 hover:bg-rose-500/20 rounded-xl transition-all"
+                                                title="Remover"
+                                            >
+                                                <X className="w-4 h-4" />
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
                 </div>
             </div>
 
-            {/* Jobs Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {jobs.map(job => (
-                    <div key={job.id} className="bg-white dark:bg-slate-800 rounded-[2.5rem] p-8 border border-slate-100 dark:border-slate-700 shadow-sm hover:shadow-xl transition-all group relative overflow-hidden">
-                        <div className={`absolute top-0 right-0 w-32 h-32 opacity-[0.03] group-hover:scale-110 transition-transform ${job.status === 'active' ? 'text-emerald-500' : 'text-slate-300'}`}>
-                            {job.id === 'broadcast' ? <RefreshCw className="w-full h-full" /> : <DollarSign className="w-full h-full" />}
-                        </div>
-
-                        <div className="flex justify-between items-start mb-6">
-                            <div className={`p-4 rounded-2xl ${job.status === 'active' ? 'bg-emerald-50 text-emerald-500 dark:bg-emerald-900/20' : 'bg-slate-100 text-slate-400 dark:bg-slate-700/50'}`}>
-                                {job.id === 'broadcast' ? <Zap className="w-6 h-6" /> : <Bell className="w-6 h-6" />}
-                            </div>
-                            <div className={`text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-full ${job.status === 'active' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-slate-100 text-slate-400 dark:bg-slate-700'}`}>
-                                {job.status === 'active' ? 'Ativo' : 'Offline'}
-                            </div>
-                        </div>
-
-                        <div className="space-y-4">
-                            <div>
-                                <h4 className="text-xl font-black dark:text-white mb-1">{job.title}</h4>
-                                <p className="text-xs text-slate-500 font-medium">{job.description}</p>
-                            </div>
-
-                            <div className="grid grid-cols-2 gap-4 py-4 border-y border-slate-50 dark:border-slate-700/50">
-                                <div>
-                                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">Frequência</span>
-                                    <span className="text-sm font-black dark:text-white">{job.frequency}</span>
-                                </div>
-                                <div>
-                                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">Job ID</span>
-                                    <span className="text-sm font-bold font-mono dark:text-slate-300">{job.jobId || '---'}</span>
-                                </div>
-                            </div>
-
-                            <div className="flex gap-2">
-                                <button
-                                    onClick={() => handleActivateAll()} // Re-sync
-                                    className="flex-1 py-3 bg-slate-50 dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-700 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all flex items-center justify-center gap-2"
-                                >
-                                    <Edit2 className="w-3.5 h-3.5" />
-                                    Editar / Sinc
-                                </button>
-                                <button
-                                    className="p-3 bg-slate-50 dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-400 rounded-xl transition-all"
-                                    title="Ver Logs"
-                                >
-                                    <Terminal className="w-4 h-4" />
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                ))}
-            </div>
-
-            {/* Help/Support Section */}
-            <div className="flex gap-6 p-8 bg-blue-50/50 dark:bg-blue-900/10 rounded-3xl border border-blue-100/50 dark:border-blue-800/20">
-                <div className="w-12 h-12 bg-blue-100 text-blue-600 rounded-2xl flex items-center justify-center shrink-0">
-                    <AlertCircle className="w-6 h-6" />
-                </div>
-                <div className="space-y-1">
-                    <h4 className="font-black text-blue-900 dark:text-blue-300">Como funciona?</h4>
-                    <p className="text-xs text-blue-700/70 dark:text-blue-400/60 leading-relaxed">
-                        Ao clicar em "Ativar Automação", o sistema cria automaticamente dois cronjobs na sua conta.
-                        O de <strong>Transmissão</strong> funciona em tempo real (1 min) e o de <strong>Faturamento</strong>
-                        roda de hora em hora para garantir que ninguém perca o acesso injustamente.
-                    </p>
-                </div>
+            {/* Tooltip Info */}
+            <div className="p-6 bg-slate-50 dark:bg-slate-900/50 rounded-3xl border border-dashed border-slate-200 dark:border-slate-700">
+                <p className="text-[11px] text-slate-500 leading-relaxed italic">
+                    * Nota: A execução manual (Zap) ignora o agendamento e processa os dados imediatamente utilizando as mesmas configurações.
+                    O status "Pausado" impede que o Cron-Job.org dispare a tarefa automaticamente.
+                </p>
             </div>
         </div>
     );

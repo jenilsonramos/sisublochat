@@ -28,9 +28,11 @@ serve(async (req) => {
             body = {};
         }
 
-        const { action, settings: testSettings, to: testTo } = body;
+        const { action, trigger_action, settings: testSettings, to: testTo } = body;
+        const currentAction = action || trigger_action || 'AUTO';
+        console.log(`Action requested: ${currentAction}`);
 
-        if (action === 'TEST_SMTP') {
+        if (currentAction === 'TEST_SMTP') {
             try {
                 await sendEmail(testSettings, testTo, "Teste de Conexão SMTP - Ublo Chat", "Se você recebeu este e-mail, sua configuração de SMTP está correta!", { profiles: { full_name: 'Administrador' }, current_period_end: new Date().toISOString() });
                 return new Response(JSON.stringify({ success: true }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
@@ -52,11 +54,10 @@ serve(async (req) => {
         const now = new Date()
         const hour = now.getHours()
         const todayStr = now.toISOString().split('T')[0]
-
         const results = []
 
         // --- TASK 1: Midnight (00:00) - Mark as EXPIRED ---
-        if (hour === 0) {
+        if (currentAction === 'MARK_EXPIRED' || (currentAction === 'AUTO' && hour === 0)) {
             const { data: expiringToday } = await supabase
                 .from('subscriptions')
                 .select('id, user_id')
@@ -70,7 +71,7 @@ serve(async (req) => {
         }
 
         // --- TASK 2: Morning (09:00) - Expired Email ---
-        if (hour === 9) {
+        if (currentAction === 'SEND_EXPIRY_EMAIL' || (currentAction === 'AUTO' && hour === 9)) {
             const { data: expiredToday } = await supabase
                 .from('subscriptions')
                 .select('*, profiles(full_name, email)')
@@ -80,7 +81,6 @@ serve(async (req) => {
             for (const sub of expiredToday || []) {
                 if (!sub.profiles?.email) continue
 
-                // Check if already sent today
                 const { data: log } = await supabase.from('billing_notifications_log')
                     .select('id').eq('subscription_id', sub.id).eq('notification_type', 'expiry').gte('sent_at', todayStr).single()
 
@@ -93,7 +93,7 @@ serve(async (req) => {
         }
 
         // --- TASK 3: Afternoon (14:00) - Reminders (3d, 2d, Today 0h) ---
-        if (hour === 14) {
+        if (currentAction === 'SEND_REMINDERS' || (currentAction === 'AUTO' && hour === 14)) {
             const days = [3, 2, 0]
             for (const d of days) {
                 const targetDate = d === 0 ? todayStr : new Date(now.getTime() + d * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
@@ -123,24 +123,25 @@ serve(async (req) => {
         }
 
         // --- TASK 4: 24h Blockage Check ---
-        // Run every hour to catch subs that have been EXPIRED for > 24h
-        const { data: blockingSubs } = await supabase
-            .from('subscriptions')
-            .select('*, profiles(full_name, email)')
-            .eq('status', 'EXPIRED')
-            .lte('updated_at', new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString())
+        if (currentAction === 'CHECK_BLOCKAGE' || currentAction === 'AUTO') {
+            const { data: blockingSubs } = await supabase
+                .from('subscriptions')
+                .select('*, profiles(full_name, email)')
+                .eq('status', 'EXPIRED')
+                .lte('updated_at', new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString())
 
-        for (const sub of blockingSubs || []) {
-            await supabase.from('subscriptions').update({ status: 'BLOCKED' }).eq('id', sub.id)
+            for (const sub of blockingSubs || []) {
+                await supabase.from('subscriptions').update({ status: 'BLOCKED' }).eq('id', sub.id)
 
-            const { data: log } = await supabase.from('billing_notifications_log')
-                .select('id').eq('subscription_id', sub.id).eq('notification_type', 'blockage').single()
+                const { data: log } = await supabase.from('billing_notifications_log')
+                    .select('id').eq('subscription_id', sub.id).eq('notification_type', 'blockage').single()
 
-            if (!log && sub.profiles?.email) {
-                await sendEmail(settings, sub.profiles.email, settings.blockage_subject, settings.blockage_body, sub)
-                await supabase.from('billing_notifications_log').insert({ subscription_id: sub.id, notification_type: 'blockage' })
+                if (!log && sub.profiles?.email) {
+                    await sendEmail(settings, sub.profiles.email, settings.blockage_subject, settings.blockage_body, sub)
+                    await supabase.from('billing_notifications_log').insert({ subscription_id: sub.id, notification_type: 'blockage' })
+                }
+                results.push({ subId: sub.id, action: 'Blocked plan' })
             }
-            results.push({ subId: sub.id, action: 'Blocked plan' })
         }
 
         return new Response(JSON.stringify({ success: true, results }), {
