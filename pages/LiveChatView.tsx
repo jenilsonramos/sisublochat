@@ -782,6 +782,14 @@ const LiveChatView: React.FC<LiveChatViewProps> = ({ isBlocked = false }) => {
       if (savedMsg) {
         setMessages(prev => prev.map(m => m.id === tempMsg.id ? savedMsg : m));
         setReplyingTo(null);
+
+        // Ensure status is updated in DB if it was resolved
+        if (selectedChat.status === 'resolved') {
+          await supabase
+            .from('conversations')
+            .update({ status: 'pending' })
+            .eq('id', selectedChat.id);
+        }
       }
 
     } catch (error: any) {
@@ -938,6 +946,14 @@ const LiveChatView: React.FC<LiveChatViewProps> = ({ isBlocked = false }) => {
       if (savedMsg) {
         setMessages(prev => prev.map(m => m.id === tempId ? savedMsg : m));
         setReplyingTo(null);
+
+        // Ensure status is updated in DB if it was resolved
+        if (selectedChat.status === 'resolved') {
+          await supabase
+            .from('conversations')
+            .update({ status: 'pending' })
+            .eq('id', selectedChat.id);
+        }
       }
 
     } catch (error: any) {
