@@ -364,7 +364,7 @@ const FlowBuilderView: React.FC<FlowBuilderViewProps> = ({ isBlocked = false }) 
             {/* Main Content */}
             <div className="bg-white dark:bg-slate-800 rounded-[2.5rem] shadow-sm border border-slate-100 dark:border-slate-700/50 overflow-hidden">
                 {/* Header */}
-                <div className="p-8 border-b border-slate-50 dark:border-slate-700/50 flex flex-wrap items-center justify-between gap-4">
+                <div className="p-6 md:p-8 border-b border-slate-50 dark:border-slate-700/50 flex flex-col md:flex-row md:items-center justify-between gap-4">
                     <div>
                         <h2 className="text-2xl font-black dark:text-white tracking-tight">Seus Fluxos</h2>
                         <p className="text-sm font-medium text-slate-500 dark:text-slate-400">
@@ -380,7 +380,7 @@ const FlowBuilderView: React.FC<FlowBuilderViewProps> = ({ isBlocked = false }) 
                             setShowCreateModal(true);
                         }}
                         disabled={isBlocked}
-                        className={`px-6 py-3 bg-primary hover:bg-primary-light text-white font-black rounded-2xl flex items-center gap-2 transition-all shadow-xl shadow-primary/20 active:scale-95 text-xs uppercase ${isBlocked ? 'opacity-50 cursor-not-allowed' : ''}`}
+                        className={`w-full md:w-auto px-6 py-4 bg-primary hover:bg-primary-light text-white font-black rounded-2xl flex items-center justify-center gap-2 transition-all shadow-xl shadow-primary/20 active:scale-95 text-xs uppercase ${isBlocked ? 'opacity-50 cursor-not-allowed' : ''}`}
                     >
                         <Plus className="w-5 h-5" />
                         Novo Fluxo
@@ -388,7 +388,7 @@ const FlowBuilderView: React.FC<FlowBuilderViewProps> = ({ isBlocked = false }) 
                 </div>
 
                 {/* Flow List */}
-                <div className="p-8">
+                <div className="p-6 md:p-8">
                     {flows.length === 0 ? (
                         <div className="text-center py-20">
                             <div className="w-24 h-24 bg-slate-50 dark:bg-slate-900/50 rounded-[2rem] flex items-center justify-center mx-auto mb-6">
@@ -400,105 +400,170 @@ const FlowBuilderView: React.FC<FlowBuilderViewProps> = ({ isBlocked = false }) 
                             </p>
                             <button
                                 onClick={() => setShowCreateModal(true)}
-                                className="px-6 py-3 bg-primary hover:bg-primary-light text-white font-black rounded-2xl inline-flex items-center gap-2 transition-all shadow-xl shadow-primary/20"
+                                className="px-6 py-4 bg-primary hover:bg-primary-light text-white font-black rounded-2xl inline-flex items-center gap-2 transition-all shadow-xl shadow-primary/20"
                             >
                                 <Plus className="w-5 h-5" />
                                 Criar Primeiro Fluxo
                             </button>
                         </div>
                     ) : (
-                        <div className="overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-700/50">
-                            {/* Table Header */}
-                            <div className="bg-slate-50 dark:bg-slate-900/50 px-6 py-4 grid grid-cols-12 gap-4 text-[10px] font-black uppercase tracking-widest text-slate-400">
-                                <div className="col-span-4">Nome</div>
-                                <div className="col-span-2">Status</div>
-                                <div className="col-span-2">Instância</div>
-                                <div className="col-span-2">Atualizado</div>
-                                <div className="col-span-2 text-right">Ações</div>
+                        <>
+                            {/* Desktop Table View */}
+                            <div className="hidden lg:block overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-700/50">
+                                {/* Table Header */}
+                                <div className="bg-slate-50 dark:bg-slate-900/50 px-6 py-4 grid grid-cols-12 gap-4 text-[10px] font-black uppercase tracking-widest text-slate-400">
+                                    <div className="col-span-4">Nome</div>
+                                    <div className="col-span-2">Status</div>
+                                    <div className="col-span-2">Instância</div>
+                                    <div className="col-span-2">Atualizado</div>
+                                    <div className="col-span-2 text-right">Ações</div>
+                                </div>
+
+                                {/* Table Rows */}
+                                <div className="divide-y divide-slate-100 dark:divide-slate-700/50">
+                                    {flows.map((flow) => (
+                                        <div
+                                            key={flow.id}
+                                            className="px-6 py-4 grid grid-cols-12 gap-4 items-center hover:bg-slate-50 dark:hover:bg-slate-900/30 transition-colors cursor-pointer group"
+                                            onClick={() => handleEditFlow(flow)}
+                                        >
+                                            {/* Name & Description */}
+                                            <div className="col-span-4 flex items-center gap-4">
+                                                <div className="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center shrink-0">
+                                                    <Workflow className="w-5 h-5 text-primary" />
+                                                </div>
+                                                <div className="min-w-0">
+                                                    <h3 className="text-sm font-bold dark:text-white truncate">{flow.name}</h3>
+                                                    <p className="text-xs text-slate-400 truncate">{flow.description || 'Sem descrição'}</p>
+                                                </div>
+                                            </div>
+
+                                            {/* Status */}
+                                            <div className="col-span-2">
+                                                <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider ${getStatusColor(flow.status)}`}>
+                                                    {getStatusLabel(flow.status)}
+                                                </span>
+                                            </div>
+
+                                            {/* Instance */}
+                                            <div className="col-span-2">
+                                                {flow.instance_id ? (
+                                                    <div className="flex items-center gap-2 text-xs text-slate-600 dark:text-slate-300">
+                                                        <Smartphone className="w-3.5 h-3.5 text-primary" />
+                                                        <span className="truncate">{getInstanceName(flow.instance_id) || 'Vinculado'}</span>
+                                                    </div>
+                                                ) : (
+                                                    <span className="text-xs text-slate-400">-</span>
+                                                )}
+                                            </div>
+
+                                            {/* Updated Date */}
+                                            <div className="col-span-2 flex items-center gap-2 text-xs text-slate-400">
+                                                <Clock className="w-3.5 h-3.5" />
+                                                {new Date(flow.updated_at).toLocaleDateString()}
+                                            </div>
+
+                                            {/* Actions */}
+                                            <div className="col-span-2 flex items-center justify-end gap-1">
+                                                {flow.status === 'ACTIVE' ? (
+                                                    <button
+                                                        onClick={(e) => { e.stopPropagation(); handleDeactivateFlow(flow.id); }}
+                                                        className="p-2 text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-500/10 rounded-xl transition-all"
+                                                        title="Pausar"
+                                                    >
+                                                        <Pause className="w-4 h-4" />
+                                                    </button>
+                                                ) : (
+                                                    <button
+                                                        onClick={(e) => { e.stopPropagation(); openActivateModal(flow); }}
+                                                        className="p-2 text-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-500/10 rounded-xl transition-all"
+                                                        title="Ativar"
+                                                    >
+                                                        <Power className="w-4 h-4" />
+                                                    </button>
+                                                )}
+                                                <button
+                                                    onClick={(e) => { e.stopPropagation(); handleEditFlow(flow); }}
+                                                    className="p-2 text-slate-400 hover:text-primary hover:bg-primary/10 rounded-xl transition-all"
+                                                    title="Editar"
+                                                >
+                                                    <Edit3 className="w-4 h-4" />
+                                                </button>
+                                                <button
+                                                    onClick={(e) => { e.stopPropagation(); handleDeleteFlow(flow.id); }}
+                                                    className="p-2 text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-500/10 rounded-xl transition-all"
+                                                    title="Excluir"
+                                                >
+                                                    <Trash2 className="w-4 h-4" />
+                                                </button>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
                             </div>
 
-                            {/* Table Rows */}
-                            <div className="divide-y divide-slate-100 dark:divide-slate-700/50">
+                            {/* Mobile Card View */}
+                            <div className="lg:hidden grid grid-cols-1 gap-4">
                                 {flows.map((flow) => (
                                     <div
                                         key={flow.id}
-                                        className="px-6 py-4 grid grid-cols-12 gap-4 items-center hover:bg-slate-50 dark:hover:bg-slate-900/30 transition-colors cursor-pointer group"
+                                        className="bg-slate-50/50 dark:bg-slate-900/30 p-5 rounded-3xl border border-slate-100 dark:border-slate-700/50 space-y-4"
                                         onClick={() => handleEditFlow(flow)}
                                     >
-                                        {/* Name & Description */}
-                                        <div className="col-span-4 flex items-center gap-4">
-                                            <div className="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center shrink-0">
-                                                <Workflow className="w-5 h-5 text-primary" />
+                                        <div className="flex items-start justify-between gap-4">
+                                            <div className="flex items-center gap-3 min-w-0">
+                                                <div className="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center shrink-0">
+                                                    <Workflow className="w-5 h-5 text-primary" />
+                                                </div>
+                                                <div className="min-w-0">
+                                                    <h3 className="text-sm font-bold dark:text-white truncate">{flow.name}</h3>
+                                                    <p className="text-[10px] text-slate-400 truncate">{flow.description || 'Sem descrição'}</p>
+                                                </div>
                                             </div>
-                                            <div className="min-w-0">
-                                                <h3 className="text-sm font-bold dark:text-white truncate">{flow.name}</h3>
-                                                <p className="text-xs text-slate-400 truncate">{flow.description || 'Sem descrição'}</p>
-                                            </div>
-                                        </div>
-
-                                        {/* Status */}
-                                        <div className="col-span-2">
-                                            <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider ${getStatusColor(flow.status)}`}>
+                                            <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider shrink-0 ${getStatusColor(flow.status)}`}>
                                                 {getStatusLabel(flow.status)}
                                             </span>
                                         </div>
 
-                                        {/* Instance */}
-                                        <div className="col-span-2">
-                                            {flow.instance_id ? (
-                                                <div className="flex items-center gap-2 text-xs text-slate-600 dark:text-slate-300">
-                                                    <Smartphone className="w-3.5 h-3.5 text-primary" />
-                                                    <span className="truncate">{getInstanceName(flow.instance_id) || 'Vinculado'}</span>
+                                        <div className="flex items-center justify-between text-[10px] font-black uppercase tracking-widest text-slate-400 border-t border-slate-100 dark:border-slate-700/50 pt-3">
+                                            <div className="flex flex-col gap-1">
+                                                <div className="flex items-center gap-1">
+                                                    <Smartphone className="w-3 h-3" />
+                                                    <span className="truncate max-w-[80px]">{getInstanceName(flow.instance_id) || '-'}</span>
                                                 </div>
-                                            ) : (
-                                                <span className="text-xs text-slate-400">-</span>
-                                            )}
-                                        </div>
-
-                                        {/* Updated Date */}
-                                        <div className="col-span-2 flex items-center gap-2 text-xs text-slate-400">
-                                            <Clock className="w-3.5 h-3.5" />
-                                            {new Date(flow.updated_at).toLocaleDateString()}
-                                        </div>
-
-                                        {/* Actions */}
-                                        <div className="col-span-2 flex items-center justify-end gap-1">
-                                            {flow.status === 'ACTIVE' ? (
+                                                <div className="flex items-center gap-1">
+                                                    <Clock className="w-3 h-3" />
+                                                    <span>{new Date(flow.updated_at).toLocaleDateString()}</span>
+                                                </div>
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                                {flow.status === 'ACTIVE' ? (
+                                                    <button
+                                                        onClick={(e) => { e.stopPropagation(); handleDeactivateFlow(flow.id); }}
+                                                        className="px-3 py-2 bg-amber-50 dark:bg-amber-500/10 text-amber-500 rounded-xl font-bold"
+                                                    >
+                                                        Pausar
+                                                    </button>
+                                                ) : (
+                                                    <button
+                                                        onClick={(e) => { e.stopPropagation(); openActivateModal(flow); }}
+                                                        className="px-3 py-2 bg-emerald-50 dark:bg-emerald-500/10 text-emerald-500 rounded-xl font-bold"
+                                                    >
+                                                        Ativar
+                                                    </button>
+                                                )}
                                                 <button
-                                                    onClick={(e) => { e.stopPropagation(); handleDeactivateFlow(flow.id); }}
-                                                    className="p-2 text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-500/10 rounded-xl transition-all"
-                                                    title="Pausar"
+                                                    onClick={(e) => { e.stopPropagation(); handleDeleteFlow(flow.id); }}
+                                                    className="p-2 text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-500/10 rounded-xl transition-all"
                                                 >
-                                                    <Pause className="w-4 h-4" />
+                                                    <Trash2 className="w-4 h-4" />
                                                 </button>
-                                            ) : (
-                                                <button
-                                                    onClick={(e) => { e.stopPropagation(); openActivateModal(flow); }}
-                                                    className="p-2 text-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-500/10 rounded-xl transition-all"
-                                                    title="Ativar"
-                                                >
-                                                    <Power className="w-4 h-4" />
-                                                </button>
-                                            )}
-                                            <button
-                                                onClick={(e) => { e.stopPropagation(); handleEditFlow(flow); }}
-                                                className="p-2 text-slate-400 hover:text-primary hover:bg-primary/10 rounded-xl transition-all"
-                                                title="Editar"
-                                            >
-                                                <Edit3 className="w-4 h-4" />
-                                            </button>
-                                            <button
-                                                onClick={(e) => { e.stopPropagation(); handleDeleteFlow(flow.id); }}
-                                                className="p-2 text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-500/10 rounded-xl transition-all"
-                                                title="Excluir"
-                                            >
-                                                <Trash2 className="w-4 h-4" />
-                                            </button>
+                                            </div>
                                         </div>
                                     </div>
                                 ))}
                             </div>
-                        </div>
+                        </>
                     )}
                 </div>
             </div>

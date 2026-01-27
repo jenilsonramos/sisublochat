@@ -8,6 +8,7 @@ interface HeaderProps {
   onMenuClick: () => void;
   darkMode: boolean;
   toggleDarkMode: () => void;
+  activeTab: string;
 }
 
 const Header: React.FC<HeaderProps> = ({
@@ -16,7 +17,8 @@ const Header: React.FC<HeaderProps> = ({
   showAddButton = false,
   onMenuClick,
   darkMode,
-  toggleDarkMode
+  toggleDarkMode,
+  activeTab
 }) => {
   return (
     <header className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 lg:gap-6 mb-8 px-2 lg:px-0">
@@ -78,19 +80,23 @@ const Header: React.FC<HeaderProps> = ({
               </button>
             )}
 
-            <button className="p-2.5 bg-white dark:bg-slate-800 rounded-xl shadow-sm text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors relative">
-              <span className="material-icons-round text-xl">notifications_none</span>
-              <span className="absolute top-2.5 right-2.5 w-2 h-2 bg-red-500 border-2 border-white dark:border-slate-800 rounded-full"></span>
-            </button>
+            {activeTab === 'dashboard' && (
+              <button className="p-2.5 bg-white dark:bg-slate-800 rounded-xl shadow-sm text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors relative">
+                <span className="material-icons-round text-xl">notifications_none</span>
+                <span className="absolute top-2.5 right-2.5 w-2 h-2 bg-red-500 border-2 border-white dark:border-slate-800 rounded-full"></span>
+              </button>
+            )}
           </div>
 
-          <div className="w-10 h-10 rounded-xl overflow-hidden border-2 border-white dark:border-slate-700 shadow-md ring-2 ring-transparent hover:ring-primary-light transition-all cursor-pointer shrink-0">
-            <img
-              alt="Avatar do usuário"
-              className="w-full h-full object-cover"
-              src="https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=100&h=100&q=80"
-            />
-          </div>
+          {activeTab === 'dashboard' && (
+            <div className="w-10 h-10 rounded-xl overflow-hidden border-2 border-white dark:border-slate-700 shadow-md ring-2 ring-transparent hover:ring-primary-light transition-all cursor-pointer shrink-0">
+              <img
+                alt="Avatar do usuário"
+                className="w-full h-full object-cover"
+                src="https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=100&h=100&q=80"
+              />
+            </div>
+          )}
         </div>
       </div>
     </header>

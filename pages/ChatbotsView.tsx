@@ -645,43 +645,43 @@ const ChatbotsView: React.FC<ChatbotsViewProps> = ({ isBlocked = false }) => {
       </section>
 
       <div className="bg-white dark:bg-slate-800 rounded-[2.5rem] shadow-sm border border-slate-100 dark:border-slate-700/50 overflow-hidden mb-10">
-        <div className="p-8 border-b border-slate-50 dark:border-slate-700/50 flex flex-wrap items-center gap-4">
-          <div className="flex flex-wrap items-center gap-3">
+        <div className="p-6 md:p-8 border-b border-slate-50 dark:border-slate-700/50 flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
             <button
               onClick={handleOpenBusinessHours}
-              className="px-6 py-3 bg-blue-500 hover:bg-blue-600 text-white font-black rounded-2xl flex items-center gap-2 transition-all shadow-xl shadow-blue-500/20 active:scale-95 text-xs uppercase"
+              className="px-6 py-3 bg-blue-500 hover:bg-blue-600 text-white font-black rounded-2xl flex items-center justify-center gap-2 transition-all shadow-xl shadow-blue-500/20 active:scale-95 text-xs uppercase"
             >
               <Clock className="w-5 h-5" />
               Horários
             </button>
             <button
               onClick={() => handleOpenGreetingModal()}
-              className="px-6 py-3 bg-amber-500 hover:bg-amber-600 text-white font-black rounded-2xl flex items-center gap-2 transition-all shadow-xl shadow-amber-500/20 active:scale-95 text-xs uppercase"
+              className="px-6 py-3 bg-amber-500 hover:bg-amber-600 text-white font-black rounded-2xl flex items-center justify-center gap-2 transition-all shadow-xl shadow-amber-500/20 active:scale-95 text-xs uppercase"
             >
               <Hand className="w-5 h-5" />
               Saudação
             </button>
           </div>
 
-          <div className="flex-1 min-w-[20px]" />
-
-          <div className="flex flex-wrap items-center gap-3">
-            <button
-              onClick={() => handleBulkStatus('PAUSED')}
-              className="px-6 py-3 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-600 dark:text-slate-200 font-black rounded-2xl flex items-center gap-2 transition-all active:scale-95 text-xs uppercase"
-              title="Pausar todos os chatbots"
-            >
-              <div className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
-              Pausar Todos
-            </button>
-            <button
-              onClick={() => handleBulkStatus('ACTIVE')}
-              className="px-6 py-3 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-600 dark:text-slate-200 font-black rounded-2xl flex items-center gap-2 transition-all active:scale-95 text-xs uppercase"
-              title="Ativar todos os chatbots"
-            >
-              <div className="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.4)]" />
-              Ativar Todos
-            </button>
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+            <div className="grid grid-cols-2 gap-3 sm:flex sm:items-center">
+              <button
+                onClick={() => handleBulkStatus('PAUSED')}
+                className="px-4 py-3 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-600 dark:text-slate-200 font-black rounded-2xl flex items-center justify-center gap-2 transition-all active:scale-95 text-[10px] uppercase"
+                title="Pausar todos os chatbots"
+              >
+                <div className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
+                Pausar Tudo
+              </button>
+              <button
+                onClick={() => handleBulkStatus('ACTIVE')}
+                className="px-4 py-3 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-600 dark:text-slate-200 font-black rounded-2xl flex items-center justify-center gap-2 transition-all active:scale-95 text-[10px] uppercase"
+                title="Ativar todos os chatbots"
+              >
+                <div className="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.4)]" />
+                Ativar Tudo
+              </button>
+            </div>
             <button
               onClick={() => {
                 if (isBlocked) {
@@ -691,7 +691,7 @@ const ChatbotsView: React.FC<ChatbotsViewProps> = ({ isBlocked = false }) => {
                 resetForm(); setShowModal(true);
               }}
               disabled={isBlocked}
-              className={`px-6 py-3 bg-primary hover:bg-primary-light text-white font-black rounded-2xl flex items-center gap-2 transition-all shadow-xl shadow-primary/20 active:scale-95 text-xs uppercase ${isBlocked ? 'opacity-50 cursor-not-allowed' : ''}`}
+              className={`px-6 py-4 bg-primary hover:bg-primary-light text-white font-black rounded-2xl flex items-center justify-center gap-2 transition-all shadow-xl shadow-primary/20 active:scale-95 text-xs uppercase ${isBlocked ? 'opacity-50 cursor-not-allowed' : ''}`}
             >
               <Plus className="w-5 h-5" />
               Novo Chatbot
@@ -699,74 +699,135 @@ const ChatbotsView: React.FC<ChatbotsViewProps> = ({ isBlocked = false }) => {
           </div>
         </div>
 
-        <div className="divide-y divide-slate-50 dark:divide-slate-700/30">
+        <div className="p-4 md:p-8">
           {loading ? (
-            <div className="p-20 flex flex-col items-center justify-center gap-4">
+            <div className="py-20 flex flex-col items-center justify-center gap-4">
               <Loader2 className="w-10 h-10 text-primary animate-spin" />
               <p className="text-sm font-bold text-slate-400 animate-pulse">Carregando seus bots...</p>
             </div>
           ) : chatbots.length === 0 ? (
-            <div className="p-20 text-center">
+            <div className="py-20 text-center">
               <p className="text-slate-400 font-medium">Você ainda não possui chatbots criados.</p>
             </div>
           ) : (
-            chatbots.map((bot) => (
-              <div key={bot.id} className="p-8 flex flex-col lg:flex-row lg:items-center justify-between gap-6 hover:bg-slate-50/50 dark:hover:bg-slate-900/30 transition-colors">
-                <div className="flex items-center gap-5">
-                  <div className={`w-14 h-14 rounded-2xl flex items-center justify-center ${bot.type === 'AI' ? 'bg-purple-100 text-purple-600 dark:bg-purple-500/20 dark:text-purple-400' :
-                    bot.type === 'FLOW' ? 'bg-indigo-100 text-indigo-600 dark:bg-indigo-500/20 dark:text-indigo-400' :
-                      'bg-emerald-100 text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-400'
-                    }`}>
-                    {bot.type === 'AI' ? <Brain className="w-7 h-7" /> : bot.type === 'FLOW' ? <Network className="w-7 h-7" /> : <MessageCircle className="w-7 h-7" />}
-                  </div>
-                  <div>
-                    <h3 className="text-lg font-bold dark:text-white">{bot.name}</h3>
-                    <div className="flex items-center gap-3 mt-1 text-[10px] font-black uppercase tracking-widest text-slate-400">
-                      <span className="flex items-center gap-1">
-                        <span className="material-icons-round text-xs">key</span>
-                        {bot.trigger}
-                      </span>
-                      <span className="w-1 h-1 rounded-full bg-slate-300"></span>
-                      <span>{bot.type}</span>
+            <>
+              {/* Desktop Table View */}
+              <div className="hidden lg:block divide-y divide-slate-50 dark:divide-slate-700/30">
+                {chatbots.map((bot) => (
+                  <div key={bot.id} className="py-6 flex items-center justify-between gap-6 hover:bg-slate-50/50 dark:hover:bg-slate-900/30 transition-colors">
+                    <div className="flex items-center gap-5">
+                      <div className={`w-14 h-14 rounded-2xl flex items-center justify-center ${bot.type === 'AI' ? 'bg-purple-100 text-purple-600 dark:bg-purple-500/20 dark:text-purple-400' :
+                        bot.type === 'FLOW' ? 'bg-indigo-100 text-indigo-600 dark:bg-indigo-500/20 dark:text-indigo-400' :
+                          'bg-emerald-100 text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-400'
+                        }`}>
+                        {bot.type === 'AI' ? <Brain className="w-7 h-7" /> : bot.type === 'FLOW' ? <Network className="w-7 h-7" /> : <MessageCircle className="w-7 h-7" />}
+                      </div>
+                      <div>
+                        <h3 className="text-lg font-bold dark:text-white">{bot.name}</h3>
+                        <div className="flex items-center gap-3 mt-1 text-[10px] font-black uppercase tracking-widest text-slate-400">
+                          <span className="flex items-center gap-1">
+                            <span className="material-icons-round text-xs">key</span>
+                            {bot.trigger}
+                          </span>
+                          <span className="w-1 h-1 rounded-full bg-slate-300"></span>
+                          <span>{bot.type}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-6 sm:gap-10">
+                      <div>
+                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Última Execução</p>
+                        <p className="text-sm font-bold dark:text-white">{bot.last_run || 'Nunca'}</p>
+                      </div>
+
+                      <div className="flex items-center gap-4">
+                        <div className="flex flex-col items-end mr-2">
+                          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Status</p>
+                          <button
+                            onClick={() => toggleStatus(bot.id, bot.status === 'ACTIVE')}
+                            className={`relative w-12 h-6 rounded-full transition-all ${bot.status === 'ACTIVE' ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-slate-600'}`}
+                          >
+                            <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-transform ${bot.status === 'ACTIVE' ? 'translate-x-7' : 'translate-x-1'}`}></div>
+                          </button>
+                        </div>
+
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => handleEditBot(bot)}
+                            className="p-3 bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-300 rounded-xl hover:bg-primary hover:text-white transition-all shadow-sm active:scale-95"
+                          >
+                            <Edit className="w-5 h-5" />
+                          </button>
+                          <button
+                            onClick={() => handleDeleteBot(bot.id, bot.name)}
+                            className="p-3 bg-slate-100 dark:bg-slate-700 text-rose-500 rounded-xl hover:bg-rose-500 hover:text-white transition-all shadow-sm active:scale-95"
+                          >
+                            <Trash2 className="w-5 h-5" />
+                          </button>
+                        </div>
+                      </div>
                     </div>
                   </div>
-                </div>
+                ))}
+              </div>
 
-                <div className="flex items-center gap-6 sm:gap-10 flex-wrap lg:flex-nowrap">
-                  <div className="hidden sm:block">
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Última Execução</p>
-                    <p className="text-sm font-bold dark:text-white">{bot.last_run || 'Nunca'}</p>
-                  </div>
-
-                  <div className="flex items-center gap-4">
-                    <div className="flex flex-col items-end mr-2">
-                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Status</p>
+              {/* Mobile Card View */}
+              <div className="lg:hidden grid grid-cols-1 gap-4">
+                {chatbots.map((bot) => (
+                  <div key={bot.id} className="bg-slate-50/50 dark:bg-slate-900/30 p-5 rounded-3xl border border-slate-100 dark:border-slate-700/50 space-y-5">
+                    <div className="flex items-center justify-between gap-4">
+                      <div className="flex items-center gap-3">
+                        <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${bot.type === 'AI' ? 'bg-purple-100 text-purple-600 dark:bg-purple-500/20 dark:text-purple-400' :
+                          bot.type === 'FLOW' ? 'bg-indigo-100 text-indigo-600 dark:bg-indigo-500/20 dark:text-indigo-400' :
+                            'bg-emerald-100 text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-400'
+                          }`}>
+                          {bot.type === 'AI' ? <Brain className="w-6 h-6" /> : bot.type === 'FLOW' ? <Network className="w-6 h-6" /> : <MessageCircle className="w-6 h-6" />}
+                        </div>
+                        <div>
+                          <h3 className="text-base font-bold dark:text-white leading-tight">{bot.name}</h3>
+                          <div className="flex items-center gap-2 mt-1 text-[9px] font-black uppercase tracking-widest text-slate-400">
+                            <span className="flex items-center gap-1">
+                              <span className="material-icons-round text-[10px]">key</span>
+                              {bot.trigger}
+                            </span>
+                            <span className="w-1 h-1 rounded-full bg-slate-300"></span>
+                            <span>{bot.type}</span>
+                          </div>
+                        </div>
+                      </div>
                       <button
                         onClick={() => toggleStatus(bot.id, bot.status === 'ACTIVE')}
-                        className={`relative w-12 h-6 rounded-full transition-colors ${bot.status === 'ACTIVE' ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-slate-600'}`}
+                        className={`relative w-10 h-5 rounded-full transition-all shrink-0 ${bot.status === 'ACTIVE' ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-slate-600'}`}
                       >
-                        <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-transform ${bot.status === 'ACTIVE' ? 'translate-x-7' : 'translate-x-1'}`}></div>
+                        <div className={`absolute top-0.5 w-4 h-4 bg-white rounded-full transition-transform ${bot.status === 'ACTIVE' ? 'translate-x-5.5' : 'translate-x-0.5'}`}></div>
                       </button>
                     </div>
 
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => handleEditBot(bot)}
-                        className="p-3 bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-300 rounded-xl hover:bg-primary hover:text-white transition-all shadow-sm active:scale-95"
-                      >
-                        <Edit className="w-5 h-5" />
-                      </button>
-                      <button
-                        onClick={() => handleDeleteBot(bot.id, bot.name)}
-                        className="p-3 bg-slate-100 dark:bg-slate-700 text-rose-500 rounded-xl hover:bg-rose-500 hover:text-white transition-all shadow-sm active:scale-95"
-                      >
-                        <Trash2 className="w-5 h-5" />
-                      </button>
+                    <div className="flex items-center justify-between text-[10px] font-black uppercase tracking-widest text-slate-400 border-t border-slate-100 dark:border-slate-700/50 pt-4">
+                      <div>
+                        <p className="mb-0.5">Execução</p>
+                        <p className="text-slate-600 dark:text-slate-300">{bot.last_run || 'Nunca'}</p>
+                      </div>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => handleEditBot(bot)}
+                          className="px-4 py-2 bg-white dark:bg-slate-800 text-primary border border-slate-100 dark:border-slate-700 rounded-xl shadow-sm active:scale-95"
+                        >
+                          Editar
+                        </button>
+                        <button
+                          onClick={() => handleDeleteBot(bot.id, bot.name)}
+                          className="px-4 py-2 bg-rose-50 dark:bg-rose-500/10 text-rose-500 rounded-xl active:scale-95"
+                        >
+                          Excluir
+                        </button>
+                      </div>
                     </div>
                   </div>
-                </div>
+                ))}
               </div>
-            ))
+            </>
           )}
         </div>
       </div>
@@ -1013,10 +1074,10 @@ const ChatbotsView: React.FC<ChatbotsViewProps> = ({ isBlocked = false }) => {
               </div>
             </div>
 
-            <div className="p-8 border-t border-slate-50 dark:border-slate-700/50 bg-slate-50/50 dark:bg-slate-900/20 flex gap-4">
+            <div className="p-6 md:p-8 border-t border-slate-50 dark:border-slate-700/50 bg-slate-50/50 dark:bg-slate-900/20 flex flex-col-reverse sm:flex-row gap-3 md:gap-4">
               <button
                 onClick={() => setShowModal(false)}
-                className="px-8 py-4 bg-white dark:bg-slate-700 text-slate-500 hover:text-slate-700 dark:text-slate-300 font-black rounded-2xl hover:bg-slate-100 dark:hover:bg-slate-600 transition-all shadow-sm"
+                className="w-full sm:w-auto px-8 py-4 bg-white dark:bg-slate-700 text-slate-500 hover:text-slate-700 dark:text-slate-300 font-black rounded-2xl hover:bg-slate-100 dark:hover:bg-slate-600 transition-all shadow-sm"
               >
                 Cancelar
               </button>
