@@ -2531,9 +2531,14 @@ function CronTasks() {
             if (data?.success) {
                 showToast('Estrutura de CRON inicializada com sucesso!', 'success');
             } else {
-                const errorDetails = data?.results?.filter((r: any) => r.status === 'error').map((r: any) => `${r.name}: ${r.details}`).join('\n') || 'Erro desconhecido';
-                console.error('Setup Errors:', data?.results);
-                showToast('Alguns jobs falharam: ' + errorDetails, 'error');
+                const failures = data?.results?.filter((r: any) => r.status === 'error') || [];
+                if (failures.length > 0) {
+                    const errorMsg = failures.map((f: any) => `${f.name}`).join(', ');
+                    showToast(`Falha ao criar: ${errorMsg}. Tente novamente.`, 'error');
+                    console.error("Setup Errors:", failures);
+                } else {
+                    showToast('Erro desconhecido ao configurar CRON.', 'error');
+                }
             }
 
             fetchData();
