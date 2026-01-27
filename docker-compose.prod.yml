@@ -14,7 +14,7 @@ services:
       - DB_TYPE=postgres
       - DB_HOST=ublochat_db
       - DB_PORT=5432
-      - DB_USER=postgres
+      - DB_USER=supabase_admin
       - DB_PASS=967d7e6b537be56e6677b96a606c7d8b
       - DB_NAME=postgres
     networks:
