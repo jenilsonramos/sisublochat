@@ -50,6 +50,8 @@ serve(async (req) => {
         if (action === 'SETUP') {
             if (!apiKey) throw new Error("API Key is required");
 
+            console.log(`Starting SETUP. API Key: ${apiKey.substring(0, 4)}... (length: ${apiKey.length})`);
+
             await supabaseClient.from('system_settings').update({ cron_api_key: apiKey }).neq('id', '00000000-0000-0000-0000-000000000000');
 
             const projectUrl = Deno.env.get('SUPABASE_URL');
@@ -93,20 +95,22 @@ serve(async (req) => {
                 }
             ];
 
-            // 1. Clean up EXTERNAL jobs
+            // Clean up EXTERNAL jobs
             const listRes = await fetch('https://api.cron-job.org/jobs', {
                 headers: { 'Authorization': `Bearer ${apiKey}` }
             });
+            console.log(`External List response status: ${listRes.status}`);
             if (listRes.ok) {
                 const listData = await listRes.json();
                 const ourJobNames = cronJobConfigs.map(c => c.name);
                 for (const job of listData.jobs || []) {
                     if (ourJobNames.includes(job.title)) {
+                        console.log(`Deleting orphan: ${job.title}`);
                         await fetch(`https://api.cron-job.org/jobs/${job.jobId}`, {
                             method: 'DELETE',
                             headers: { 'Authorization': `Bearer ${apiKey}` }
-                        }).catch(() => { });
-                        await sleep(300); // delay between deletes
+                        }).catch(e => console.error("Error deleting orphan:", e));
+                        await sleep(200);
                     }
                 }
             }
@@ -136,38 +140,38 @@ serve(async (req) => {
                     }
                 };
 
-                await sleep(500); // 500ms delay between creations to avoid rate limits
-
+                console.log(`Creating job: ${config.name} at ${config.url}`);
                 const res = await fetch('https://api.cron-job.org/jobs', {
                     method: 'PUT',
-                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${apiKey}`
+                    },
                     body: JSON.stringify(jobPayload)
                 });
 
+                console.log(`Response for ${config.name}: ${res.status}`);
+
                 if (res.ok) {
                     const json = await res.json();
-                    await supabaseClient.from('cron_jobs').insert({
+                    const { error: dbError } = await supabaseClient.from('cron_jobs').insert({
                         name: config.name,
                         job_type: config.job_type,
                         cron_job_id: json.jobId,
                         schedule: JSON.stringify(config.schedule),
                         enabled: true
                     });
+                    if (dbError) console.error(`DB Error saving ${config.name}:`, dbError);
                     results.push({ name: config.name, status: 'success', jobId: json.jobId });
                 } else {
-                    let errDetail = "";
-                    try {
-                        const errJson = await res.json();
-                        errDetail = errJson.error?.message || JSON.stringify(errJson);
-                    } catch {
-                        errDetail = await res.text() || `Status ${res.status}`;
-                    }
-                    results.push({ name: config.name, status: 'error', details: errDetail });
+                    const text = await res.text();
+                    console.error(`API Error for ${config.name}:`, text);
+                    results.push({ name: config.name, status: 'error', details: text || `Status ${res.status}` });
                 }
+                await sleep(300);
             }
 
-            const hasError = results.some(r => r.status === 'error');
-            return new Response(JSON.stringify({ success: !hasError, results }), {
+            return new Response(JSON.stringify({ success: !results.some(r => r.status === 'error'), results }), {
                 headers: { ...corsHeaders, 'Content-Type': 'application/json' }
             });
         }
@@ -203,6 +207,7 @@ serve(async (req) => {
         throw new Error("Invalid Action");
 
     } catch (error) {
+        console.error("Critical Function Error:", error);
         return new Response(JSON.stringify({ error: error.message }), {
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
             status: 400,
