@@ -19,7 +19,15 @@ serve(async (req) => {
             Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
         )
 
-        const body = await req.json().catch(() => ({}));
+        // Robust body parsing
+        const rawBody = await req.text();
+        let body;
+        try {
+            body = JSON.parse(rawBody);
+        } catch (e) {
+            body = {};
+        }
+
         const { action, settings: testSettings, to: testTo } = body;
 
         if (action === 'TEST_SMTP') {
@@ -30,7 +38,7 @@ serve(async (req) => {
                 console.error('SMTP Test Error:', smtpErr);
                 return new Response(JSON.stringify({ error: smtpErr.message }), {
                     headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-                    status: 400
+                    status: 200
                 });
             }
         }
@@ -150,12 +158,14 @@ serve(async (req) => {
 })
 
 async function sendEmail(settings: any, to: string, subject: string, body: string, sub: any) {
-    console.log(`Connecting to SMTP: ${settings.smtp_host}:${settings.smtp_port} (User: ${settings.smtp_user})`);
+    if (!settings?.smtp_host) throw new Error("SMTP settings are incomplete");
+
+    console.log(`Connecting to SMTP: ${settings.smtp_host}:${settings.smtp_port}`);
     const client = new SMTPClient({
         connection: {
             hostname: settings.smtp_host,
             port: settings.smtp_port,
-            tls: settings.smtp_port === 465, // Force TLS only for 465 (Implicit), others use STARTTLS
+            tls: parseInt(settings.smtp_port) === 465,
             auth: {
                 username: settings.smtp_user,
                 password: settings.smtp_pass,
@@ -163,17 +173,26 @@ async function sendEmail(settings: any, to: string, subject: string, body: strin
         },
     })
 
-    const finalBody = body
-        .replace(/\{\{user_name\}\}/g, sub.profiles.full_name || 'Usuário')
-        .replace(/\{\{plan_name\}\}/g, 'Seu Plano')
-        .replace(/\{\{expiry_date\}\}/g, new Date(sub.current_period_end).toLocaleDateString('pt-BR'))
+    try {
+        const userName = sub?.profiles?.full_name || 'Usuário';
+        const expiryDate = sub?.current_period_end ? new Date(sub.current_period_end).toLocaleDateString('pt-BR') : '---';
 
-    await client.send({
-        from: `"${settings.from_name}" <${settings.from_email}>`,
-        to,
-        subject,
-        content: finalBody,
-    })
+        const finalBody = body
+            .replace(/\{\{user_name\}\}/g, userName)
+            .replace(/\{\{plan_name\}\}/g, 'Seu Plano')
+            .replace(/\{\{expiry_date\}\}/g, expiryDate);
 
-    await client.close()
+        await client.send({
+            from: `"${settings.from_name}" <${settings.from_email}>`,
+            to,
+            subject,
+            content: finalBody,
+        });
+    } finally {
+        try {
+            await client.close();
+        } catch (e) {
+            console.error('Error closing SMTP:', e);
+        }
+    }
 }
