@@ -19,6 +19,25 @@ serve(async (req) => {
             Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
         )
 
+        // Manual Auth Check (since verify_jwt: false)
+        const authHeader = req.headers.get('Authorization');
+        if (!authHeader) {
+            throw new Error("Missing Authorization header");
+        }
+
+        const token = authHeader.replace('Bearer ', '');
+
+        // Check if it's the Service Role Key (Cron jobs use this)
+        const isServiceRole = token === Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+
+        if (!isServiceRole) {
+            // It might be a User JWT from the Admin panel
+            const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+            if (authError || !user) {
+                throw new Error("Unauthorized: Invalid Token or Service Role Key");
+            }
+        }
+
         // Robust body parsing
         const rawBody = await req.text();
         let body;
