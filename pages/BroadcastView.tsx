@@ -167,13 +167,20 @@ const BroadcastView: React.FC<BroadcastViewProps> = ({ isBlocked }) => {
     };
 
     const fetchInstances = async () => {
-        const { data, error } = await supabase
-            .from('instances')
-            .select('*')
-            .eq('status', 'CONNECTED');
+        try {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user) return;
 
-        if (data) setInstances(data);
-        if (error) console.error('Error fetching instances:', error);
+            const { data, error } = await supabase
+                .from('instances')
+                .select('*')
+                .eq('user_id', user.id)
+                .ilike('status', 'open%');
+            if (error) throw error;
+            setInstances(data || []);
+        } catch (error) {
+            console.error('Error fetching instances:', error);
+        }
     };
 
     const handleCreateCampaign = async (e: React.FormEvent) => {

@@ -98,7 +98,7 @@ const FlowBuilderView: React.FC<FlowBuilderViewProps> = ({ isBlocked = false }) 
                 .from('instances')
                 .select('id, name, status')
                 .eq('user_id', user.id)
-                .eq('status', 'open');
+                .ilike('status', 'open%');
 
             if (error) throw error;
             setInstances(data || []);

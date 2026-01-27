@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useRef, useMemo, useEffect } from 'react';
-import { supabase } from '@/lib/supabase';
-import { usePlanLimits } from '@/hooks/usePlanLimits';
+import { supabase } from '../../lib/supabase';
+import { usePlanLimits } from '../../hooks/usePlanLimits';
 import {
     ReactFlow,
     addEdge,
@@ -53,7 +53,16 @@ import {
     HelpCircle,
     UserCog,
     Lock,
-    Globe
+    Globe,
+    Split,
+    Bot,
+    Tag,
+    Bell,
+    CalendarClock,
+    QrCode,
+    Mic,
+    FileSpreadsheet,
+    Dices
 } from 'lucide-react';
 
 // Import custom nodes
@@ -78,7 +87,6 @@ import MercadoPagoNode from './nodes/MercadoPagoNode';
 import AudioNode from './nodes/AudioNode';
 import SheetsNode from './nodes/SheetsNode';
 import RandomNode from './nodes/RandomNode';
-import { Split, Bot, Tag, Bell, CalendarClock, QrCode, Mic, FileSpreadsheet, Dices } from 'lucide-react';
 // Import custom edges
 import CustomEdge from './edges/CustomEdge';
 
@@ -197,7 +205,7 @@ const FlowEditorInner: React.FC<FlowEditorProps> = ({ flow, onSave, onClose }) =
     const [isDirty, setIsDirty] = useState(false);
     const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
     const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
-    const [isDarkMode, setIsDarkMode] = useState(false);
+    const [isDarkMode, setIsDarkMode] = useState(() => document.documentElement.classList.contains('dark'));
     const [dbUnlocked, setDbUnlocked] = useState(false);
     const [dbPassword, setDbPassword] = useState('');
     const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'warning'; visible: boolean }>({ message: '', type: 'warning', visible: false });
@@ -1593,7 +1601,7 @@ return { status: 'ok' };`}
                                         className={`relative group ${isSidebarCollapsed ? 'p-3' : 'p-4'} ${isDarkMode ? 'bg-slate-900/50 hover:bg-slate-700 border-slate-700/50' : 'bg-slate-50 hover:bg-slate-100 border-slate-200'} rounded-2xl cursor-grab active:cursor-grabbing transition-all border hover:border-${node.color}-500/50 flex items-center ${isSidebarCollapsed ? 'justify-center' : 'gap-3'} select-none`}
                                     >
                                         <div className={`${isSidebarCollapsed ? 'w-9 h-9' : 'w-10 h-10'} bg-${node.color}-500/20 text-${node.color}-500 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform`}>
-                                            <Icon className="w-5 h-5" />
+                                            {Icon && <Icon className="w-5 h-5" />}
                                         </div>
                                         {!isSidebarCollapsed && (
                                             <>

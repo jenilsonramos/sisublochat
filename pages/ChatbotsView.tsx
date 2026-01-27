@@ -118,10 +118,14 @@ const ChatbotsView: React.FC<ChatbotsViewProps> = ({ isBlocked = false }) => {
 
   const fetchInstances = async () => {
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
       const { data, error } = await supabase
         .from('instances')
         .select('*')
-        .eq('status', 'open');
+        .eq('user_id', user.id)
+        .ilike('status', 'open%');
       if (error) throw error;
       setInstances(data || []);
     } catch (error) {

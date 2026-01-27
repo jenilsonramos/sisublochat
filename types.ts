@@ -7,7 +7,7 @@ export type TabType = 'dashboard' | 'instances' | 'analytics' | 'chatbots' | 'li
 export interface Instance {
   id: string;
   name: string;
-  status: 'CONNECTED' | 'DISCONNECTED' | 'STARTING';
+  status: 'open' | 'open.scanning' | 'open.pairing' | 'close' | 'connecting' | 'CONNECTED' | 'DISCONNECTED';
   battery: number | null;
   identifier: string;
   type: string;
