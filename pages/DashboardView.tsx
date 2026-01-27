@@ -152,23 +152,23 @@ const DashboardView: React.FC = () => {
   }
 
   return (
-    <div className="space-y-8 pb-10 animate-in fade-in duration-700">
+    <div className="space-y-6 md:space-y-8 pb-10 animate-in fade-in duration-700">
       {/* Stat Grid */}
-      <section className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-6">
+      <section className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 md:gap-6">
         {statCards.map((stat, idx) => (
           <StatCard key={idx} {...stat} />
         ))}
       </section>
 
       {/* Charts Row 1 */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        <div className="bg-white dark:bg-slate-800 p-8 rounded-[2.5rem] shadow-sm border border-slate-100 dark:border-slate-700/50">
-          <div className="flex justify-between items-center mb-8">
-            <h2 className="text-xl font-bold dark:text-white">Status das Mensagens</h2>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 md:gap-8">
+        <div className="bg-white dark:bg-slate-800 p-6 md:p-8 rounded-[2.5rem] shadow-sm border border-slate-100 dark:border-slate-700/50">
+          <div className="flex justify-between items-center mb-6 md:mb-8">
+            <h2 className="text-lg md:text-xl font-bold dark:text-white leading-tight">Status das Mensagens</h2>
             <button className="p-2 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-full transition-colors"><MoreHorizontal className="w-5 h-5" /></button>
           </div>
-          <div className="flex flex-col md:flex-row items-center gap-12">
-            <div className="space-y-6 flex-1 w-full">
+          <div className="flex flex-col md:flex-row items-center gap-8 md:gap-12">
+            <div className="space-y-4 md:space-y-6 flex-1 w-full order-2 md:order-1">
               {[
                 { label: 'Recebidas', value: `${stats.totalMessages > 0 ? Math.round((stats.statusStats.received / stats.totalMessages) * 100) : 0}%`, color: 'bg-secondary', raw: stats.statusStats.received },
                 { label: 'Enviadas', value: `${stats.totalMessages > 0 ? Math.round((stats.statusStats.sent / stats.totalMessages) * 100) : 0}%`, color: 'bg-indigo-600', raw: stats.statusStats.sent },
@@ -176,20 +176,20 @@ const DashboardView: React.FC = () => {
                 { label: 'Falhas', value: `${stats.totalMessages > 0 ? Math.round((stats.statusStats.failed / stats.totalMessages) * 100) : 0}%`, color: 'bg-slate-200 dark:bg-slate-600', raw: stats.statusStats.failed }
               ].map((item, idx) => (
                 <div key={idx} className="flex items-center justify-between group cursor-default">
-                  <div className="flex items-center gap-4">
-                    <span className={`w-4 h-4 rounded-full ${item.color} shadow-sm transition-transform group-hover:scale-125`}></span>
-                    <span className="text-sm font-bold dark:text-white">{item.label}</span>
+                  <div className="flex items-center gap-3 md:gap-4">
+                    <span className={`w-3 h-3 md:w-4 md:h-4 rounded-full ${item.color} shadow-sm transition-transform group-hover:scale-125`}></span>
+                    <span className="text-xs md:text-sm font-bold dark:text-white leading-tight">{item.label}</span>
                   </div>
                   <div className="text-right">
-                    <span className="text-sm font-black dark:text-white block">{item.raw}</span>
-                    <span className="text-[10px] font-bold text-slate-400 uppercase">{item.value}</span>
+                    <span className="text-xs md:text-sm font-black dark:text-white block">{item.raw}</span>
+                    <span className="text-[9px] md:text-[10px] font-bold text-slate-400 uppercase tracking-tighter">{item.value}</span>
                   </div>
                 </div>
               ))}
             </div>
-            <div className="relative w-56 h-56 flex items-center justify-center">
+            <div className="relative w-48 h-48 md:w-56 md:h-56 flex items-center justify-center order-1 md:order-2">
               <svg className="w-full h-full transform -rotate-90">
-                <circle className="text-slate-100 dark:text-slate-700" cx="50%" cy="50%" fill="transparent" r="40%" stroke="currentColor" strokeWidth="16"></circle>
+                <circle className="text-slate-100 dark:text-slate-700" cx="50%" cy="50%" fill="transparent" r="40%" stroke="currentColor" strokeWidth="12 md:strokeWidth-16"></circle>
                 {stats.totalMessages > 0 && (
                   <circle
                     className="text-primary transition-all duration-1000"
@@ -198,7 +198,7 @@ const DashboardView: React.FC = () => {
                     fill="transparent"
                     r="40%"
                     stroke="currentColor"
-                    strokeWidth="16"
+                    strokeWidth="12 md:strokeWidth-16"
                     strokeDasharray={`${2 * Math.PI * 70}`}
                     strokeDashoffset={`${2 * Math.PI * 70 * (1 - (stats.statusStats.sent + stats.statusStats.received) / stats.totalMessages)}`}
                     strokeLinecap="round"
@@ -206,22 +206,22 @@ const DashboardView: React.FC = () => {
                 )}
               </svg>
               <div className="absolute inset-0 flex flex-col items-center justify-center">
-                <span className="text-slate-400 text-[10px] font-bold uppercase tracking-tighter">Total</span>
-                <span className="text-2xl font-black dark:text-white">{stats.totalMessages}</span>
+                <span className="text-slate-400 text-[9px] md:text-[10px] font-bold uppercase tracking-tighter">Total</span>
+                <span className="text-xl md:text-2xl font-black dark:text-white leading-none">{stats.totalMessages}</span>
               </div>
             </div>
           </div>
         </div>
 
-        <div className="bg-white dark:bg-slate-800 p-8 rounded-[2.5rem] shadow-sm border border-slate-100 dark:border-slate-700/50">
-          <div className="flex justify-between items-center mb-8">
-            <h2 className="text-xl font-bold dark:text-white">Volume Semanal</h2>
-            <div className="flex items-center space-x-2 text-[10px] font-black uppercase tracking-widest px-4 py-2 bg-slate-100 dark:bg-slate-700 rounded-xl cursor-pointer hover:bg-slate-200 transition-colors dark:text-white">
+        <div className="bg-white dark:bg-slate-800 p-6 md:p-8 rounded-[2.5rem] shadow-sm border border-slate-100 dark:border-slate-700/50">
+          <div className="flex justify-between items-center mb-6 md:mb-8">
+            <h2 className="text-lg md:text-xl font-bold dark:text-white leading-tight">Volume Semanal</h2>
+            <div className="flex items-center space-x-2 text-[9px] md:text-[10px] font-black uppercase tracking-widest px-3 py-1.5 md:px-4 md:py-2 bg-slate-100 dark:bg-slate-700 rounded-xl cursor-pointer hover:bg-slate-200 transition-colors dark:text-white">
               <span>Semanal</span>
               <ChevronDown className="w-3 h-3" />
             </div>
           </div>
-          <div className="h-64 w-full min-h-[256px] min-w-0">
+          <div className="h-60 md:h-64 w-full min-h-[240px] md:min-h-[256px] min-w-0">
             <ResponsiveContainer width="100%" height="100%" debounce={100}>
               <BarChart data={stats.weeklyData}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
@@ -229,13 +229,13 @@ const DashboardView: React.FC = () => {
                   dataKey="day"
                   axisLine={false}
                   tickLine={false}
-                  tick={{ fill: '#94A3B8', fontSize: 10, fontWeight: 700 }}
+                  tick={{ fill: '#94A3B8', fontSize: 9, fontWeight: 700 }}
                   dy={10}
                 />
                 <YAxis
                   axisLine={false}
                   tickLine={false}
-                  tick={{ fill: '#94A3B8', fontSize: 10, fontWeight: 700 }}
+                  tick={{ fill: '#94A3B8', fontSize: 9, fontWeight: 700 }}
                 />
                 <Tooltip
                   cursor={{ fill: 'transparent' }}
@@ -244,8 +244,8 @@ const DashboardView: React.FC = () => {
                 <Bar
                   dataKey="count"
                   fill="#00A884"
-                  radius={[6, 6, 6, 6]}
-                  barSize={32}
+                  radius={[4, 4, 4, 4]}
+                  barSize={24}
                 >
                   {stats.weeklyData.map((entry, index) => (
                     <Cell

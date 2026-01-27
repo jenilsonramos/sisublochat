@@ -135,12 +135,12 @@ const Sidebar: React.FC<SidebarProps> = ({
 
       <aside className={`fixed lg:relative inset-y-0 left-0 z-50 bg-primary lg:bg-primary lg:rounded-[2.5rem] flex flex-col items-center py-8 gap-6 shrink-0 shadow-2xl transition-all duration-500 lg:m-6 ${isMobileOpen ? 'translate-x-0 w-24' : '-translate-x-full lg:translate-x-0'} ${isExpanded ? 'lg:w-64 px-6' : 'lg:w-24 px-0'} overflow-visible`}>
         <div className={`w-full flex items-center mb-4 transition-all duration-300 ${isExpanded ? 'px-2 gap-4' : 'justify-center'}`}>
-          <div className="w-14 h-14 bg-white/10 rounded-2xl flex items-center justify-center shrink-0 transition-transform hover:scale-105">
-            <span className="material-icons-round text-white text-3xl">hub</span>
+          <div className="w-12 h-12 md:w-14 md:h-14 bg-white/10 rounded-2xl flex items-center justify-center shrink-0 transition-transform hover:scale-105">
+            <span className="material-icons-round text-white text-2xl md:text-3xl">hub</span>
           </div>
           {isExpanded && (
             <div className="flex flex-col animate-in fade-in slide-in-from-left-2 duration-500">
-              <span className="text-white font-black text-xl tracking-tighter leading-none">EVOLUTION</span>
+              <span className="text-white font-black text-lg md:text-xl tracking-tighter leading-none">EVOLUTION</span>
               <span className="text-white/40 text-[10px] font-black uppercase tracking-widest mt-1">v1.2.0</span>
             </div>
           )}

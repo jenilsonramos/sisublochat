@@ -761,10 +761,10 @@ const LiveChatView: React.FC<LiveChatViewProps> = ({ isBlocked = false }) => {
   };
 
   return (
-    <div className="flex h-full w-full bg-white dark:bg-slate-800 rounded-3xl md:rounded-[2.5rem] shadow-xl border border-slate-100 dark:border-slate-700/50 overflow-hidden min-h-0 relative">
+    <div className="flex h-full w-full bg-white dark:bg-slate-800 rounded-2xl md:rounded-[2.5rem] shadow-xl border border-slate-100 dark:border-slate-700/50 overflow-hidden min-h-0 relative">
 
       {/* Sidebar - Contacts List using Supabase Data */}
-      <div className={`border-r border-slate-50 dark:border-slate-700/50 flex flex-col min-h-0 shrink-0 transition-all duration-300 relative ${sidebarCollapsed ? 'w-20 lg:w-24' : 'w-full md:w-80 lg:w-96'} ${selectedChat ? 'hidden md:flex' : 'flex'}`}>
+      <div className={`border-r border-slate-50 dark:border-slate-700/50 flex flex-col min-h-0 shrink-0 transition-all duration-300 relative ${sidebarCollapsed ? 'w-20 md:w-24' : 'w-full md:w-80 lg:w-96'} ${selectedChat ? 'hidden md:flex' : 'flex'}`}>
 
         {/* Toggle Button */}
         <button
