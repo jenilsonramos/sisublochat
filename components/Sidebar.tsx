@@ -10,6 +10,7 @@ interface SidebarProps {
   setIsMobileOpen: (open: boolean) => void;
   isExpanded: boolean;
   setIsExpanded: (expanded: boolean) => void;
+  systemSettings?: any;
 }
 
 interface NavItem {
@@ -83,7 +84,8 @@ const Sidebar: React.FC<SidebarProps> = ({
   isMobileOpen,
   setIsMobileOpen,
   isExpanded,
-  setIsExpanded
+  setIsExpanded,
+  systemSettings
 }) => {
   const { showToast } = useToast();
   const [isLogoutDialogOpen, setIsLogoutDialogOpen] = useState(false);
@@ -241,6 +243,14 @@ const Sidebar: React.FC<SidebarProps> = ({
               </div>
             )}
           </div>
+
+          {systemSettings?.footer_text && isExpanded && (
+            <div className="mt-4 px-4 text-center">
+              <p className="text-[9px] text-white/30 font-bold uppercase tracking-widest leading-tight">
+                {systemSettings.footer_text}
+              </p>
+            </div>
+          )}
         </div>
       </aside>
 

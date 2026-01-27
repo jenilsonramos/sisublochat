@@ -33,7 +33,7 @@ import {
 } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, Cell } from 'recharts';
 
-type AdminTab = 'plans' | 'users' | 'payments' | 'evolution' | 'reports' | 'security' | 'whatsapp' | 'cron';
+type AdminTab = 'plans' | 'users' | 'payments' | 'evolution' | 'reports' | 'security' | 'whatsapp' | 'cron' | 'seo';
 
 const AdminView: React.FC = () => {
     const [activeTab, setActiveTab] = useState<AdminTab>('plans');
@@ -97,6 +97,7 @@ const AdminView: React.FC = () => {
             case 'security': return <SecuritySettings />;
             case 'whatsapp' as any: return <WhatsAppManagement />;
             case 'cron': return <CronTasks />;
+            case 'seo': return <SEOSettings />;
             default: return <PlansManagement />;
         }
     };
@@ -104,7 +105,7 @@ const AdminView: React.FC = () => {
     return (
         <div className="flex flex-col h-full gap-8 animate-in fade-in duration-500">
             <div className="flex items-center gap-2 p-1 bg-slate-100 dark:bg-slate-900/50 rounded-2xl w-fit overflow-x-auto no-scrollbar max-w-full">
-                {(['plans', 'users', 'payments', 'evolution', 'reports', 'security', 'whatsapp', 'cron'] as any[]).map((tab) => (
+                {(['plans', 'users', 'payments', 'evolution', 'reports', 'security', 'whatsapp', 'cron', 'seo'] as any[]).map((tab) => (
                     <button
                         key={tab}
                         onClick={() => setActiveTab(tab)}
@@ -121,6 +122,7 @@ const AdminView: React.FC = () => {
                         {tab === 'security' && 'Segurança'}
                         {tab === 'whatsapp' && 'WhatsApp Admin'}
                         {tab === 'cron' && 'Tarefas CRON'}
+                        {tab === 'seo' && 'SEO & Branding'}
                     </button>
                 ))}
             </div>
@@ -1914,7 +1916,200 @@ function WhatsAppManagement() {
 };
 
 
+function SEOSettings() {
+    const [loading, setLoading] = useState(false);
+    const [fetching, setFetching] = useState(true);
+    const { showToast } = useToast();
+    const [formData, setFormData] = useState({
+        seo_title: '',
+        seo_description: '',
+        seo_keywords: '',
+        favicon_url: '',
+        og_image_url: '',
+        robots_txt: 'User-agent: *\nAllow: /',
+        footer_text: ''
+    });
 
+    useEffect(() => {
+        fetchSettings();
+    }, []);
+
+    const fetchSettings = async () => {
+        try {
+            const { data, error } = await supabase.from('system_settings').select('*').single();
+            if (error && error.code !== 'PGRST116') throw error;
+            if (data) {
+                setFormData({
+                    seo_title: data.seo_title || '',
+                    seo_description: data.seo_description || '',
+                    seo_keywords: data.seo_keywords || '',
+                    favicon_url: data.favicon_url || '',
+                    og_image_url: data.og_image_url || '',
+                    robots_txt: data.robots_txt || 'User-agent: *\nAllow: /',
+                    footer_text: data.footer_text || ''
+                });
+            }
+        } catch (err: any) {
+            showToast('Erro ao carregar SEO: ' + err.message, 'error');
+        } finally {
+            setFetching(false);
+        }
+    };
+
+    const handleSave = async () => {
+        setLoading(true);
+        try {
+            const { data: existing } = await supabase.from('system_settings').select('id').single();
+
+            let error;
+            if (existing) {
+                const { error: err } = await supabase
+                    .from('system_settings')
+                    .update(formData)
+                    .eq('id', existing.id);
+                error = err;
+            } else {
+                const { error: err } = await supabase
+                    .from('system_settings')
+                    .insert(formData);
+                error = err;
+            }
+
+            if (error) throw error;
+            showToast('Configurações de SEO salvas!', 'success');
+        } catch (err: any) {
+            showToast('Erro ao salvar SEO: ' + err.message, 'error');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    if (fetching) return <div className="flex justify-center p-12"><Loader2 className="w-10 h-10 animate-spin text-primary" /></div>;
+
+    return (
+        <div className="space-y-6">
+            <div className="flex justify-between items-center">
+                <div>
+                    <h2 className="text-xl font-black dark:text-white">SEO & Branding</h2>
+                    <p className="text-sm text-slate-500">Otimize sua presença nos motores de busca</p>
+                </div>
+                <button
+                    onClick={handleSave}
+                    disabled={loading}
+                    className="bg-primary hover:bg-primary-light text-white px-8 py-3 rounded-2xl font-black shadow-lg shadow-primary/20 transition-all hover:scale-105 active:scale-95 flex items-center gap-2"
+                >
+                    {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}
+                    Salvar Alterações
+                </button>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div className="space-y-6">
+                    <div className="bg-slate-50 dark:bg-slate-900/50 p-8 rounded-[2.5rem] border border-slate-100 dark:border-slate-700/50 space-y-6">
+                        <h3 className="font-black text-sm uppercase tracking-widest text-primary flex items-center gap-2">
+                            <Globe className="w-4 h-4" />
+                            Meta Tags Principais
+                        </h3>
+
+                        <div>
+                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Título da Página (SEO Title)</label>
+                            <input
+                                value={formData.seo_title}
+                                onChange={e => setFormData({ ...formData, seo_title: e.target.value })}
+                                placeholder="Ex: Evolution API - O melhor Dashboard"
+                                className="w-full mt-2 p-4 bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 outline-none focus:border-primary/50 transition-all dark:text-white font-bold"
+                            />
+                        </div>
+
+                        <div>
+                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Descrição (Meta Description)</label>
+                            <textarea
+                                value={formData.seo_description}
+                                onChange={e => setFormData({ ...formData, seo_description: e.target.value })}
+                                placeholder="Breve descrição para o Google..."
+                                rows={3}
+                                className="w-full mt-2 p-4 bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 outline-none focus:border-primary/50 transition-all dark:text-white font-medium resize-none"
+                            />
+                        </div>
+
+                        <div>
+                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Palavras-chave (Keywords)</label>
+                            <input
+                                value={formData.seo_keywords}
+                                onChange={e => setFormData({ ...formData, seo_keywords: e.target.value })}
+                                placeholder="whatsapp, api, automation, etc..."
+                                className="w-full mt-2 p-4 bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 outline-none focus:border-primary/50 transition-all dark:text-white font-medium"
+                            />
+                        </div>
+                    </div>
+
+                    <div className="bg-slate-50 dark:bg-slate-900/50 p-8 rounded-[2.5rem] border border-slate-100 dark:border-slate-700/50 space-y-6">
+                        <h3 className="font-black text-sm uppercase tracking-widest text-primary flex items-center gap-2">
+                            <RefreshCw className="w-4 h-4" />
+                            Robots & Crawlers
+                        </h3>
+
+                        <div>
+                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Robots.txt</label>
+                            <textarea
+                                value={formData.robots_txt}
+                                onChange={e => setFormData({ ...formData, robots_txt: e.target.value })}
+                                rows={4}
+                                className="w-full mt-2 p-4 bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 outline-none focus:border-primary/50 transition-all dark:text-white font-mono text-xs resize-none"
+                            />
+                        </div>
+                    </div>
+                </div>
+
+                <div className="space-y-6">
+                    <div className="bg-slate-50 dark:bg-slate-900/50 p-8 rounded-[2.5rem] border border-slate-100 dark:border-slate-700/50 space-y-6">
+                        <h3 className="font-black text-sm uppercase tracking-widest text-primary flex items-center gap-2">
+                            <Plus className="w-4 h-4" />
+                            Identidade Visual (URLs)
+                        </h3>
+
+                        <div>
+                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Favicon URL (.ico ou .png)</label>
+                            <input
+                                value={formData.favicon_url}
+                                onChange={e => setFormData({ ...formData, favicon_url: e.target.value })}
+                                placeholder="https://exemplo.com/favicon.png"
+                                className="w-full mt-2 p-4 bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 outline-none focus:border-primary/50 transition-all dark:text-white font-medium"
+                            />
+                        </div>
+
+                        <div>
+                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">OG Image URL (Social Share)</label>
+                            <input
+                                value={formData.og_image_url}
+                                onChange={e => setFormData({ ...formData, og_image_url: e.target.value })}
+                                placeholder="https://exemplo.com/og-image.jpg"
+                                className="w-full mt-2 p-4 bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 outline-none focus:border-primary/50 transition-all dark:text-white font-medium"
+                            />
+                        </div>
+                    </div>
+
+                    <div className="bg-slate-50 dark:bg-slate-900/50 p-8 rounded-[2.5rem] border border-slate-100 dark:border-slate-700/50 space-y-6">
+                        <h3 className="font-black text-sm uppercase tracking-widest text-primary flex items-center gap-2">
+                            <Terminal className="w-4 h-4" />
+                            Rodapé (Branding)
+                        </h3>
+
+                        <div>
+                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Texto do Rodapé / Copyright</label>
+                            <input
+                                value={formData.footer_text}
+                                onChange={e => setFormData({ ...formData, footer_text: e.target.value })}
+                                placeholder="© 2024 Minha Empresa - Todos os direitos reservados"
+                                className="w-full mt-2 p-4 bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 outline-none focus:border-primary/50 transition-all dark:text-white font-medium"
+                            />
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+}
 
 export default AdminView;
 

@@ -27,6 +27,7 @@ const AppContent: React.FC = () => {
   const { showToast } = useToast();
   const [user, setUser] = useState<any>(null);
   const [userProfile, setUserProfile] = useState<any>(null);
+  const [systemSettings, setSystemSettings] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [authView, setAuthView] = useState<'login' | 'register' | 'forgot-password'>('login');
   const [activeTab, setActiveTab] = useState<TabType>(() => {
@@ -78,6 +79,75 @@ const AppContent: React.FC = () => {
       setLoading(false);
     }
   };
+
+  const fetchSystemSettings = async () => {
+    try {
+      const { data } = await supabase
+        .from('system_settings')
+        .select('*')
+        .single();
+      if (data) {
+        setSystemSettings(data);
+        applySEO(data);
+      }
+    } catch (err) {
+      console.error('Error fetching system settings:', err);
+    }
+  };
+
+  const applySEO = (settings: any) => {
+    if (settings.seo_title) document.title = settings.seo_title;
+
+    let metaDesc = document.querySelector('meta[name="description"]');
+    if (!metaDesc) {
+      metaDesc = document.createElement('meta');
+      metaDesc.setAttribute('name', 'description');
+      document.head.appendChild(metaDesc);
+    }
+    metaDesc.setAttribute('content', settings.seo_description || '');
+
+    let metaKeywords = document.querySelector('meta[name="keywords"]');
+    if (!metaKeywords) {
+      metaKeywords = document.createElement('meta');
+      metaKeywords.setAttribute('name', 'keywords');
+      document.head.appendChild(metaKeywords);
+    }
+    metaKeywords.setAttribute('content', settings.seo_keywords || '');
+
+    // Favicon
+    if (settings.favicon_url) {
+      let linkFav = document.querySelector("link[rel*='icon']");
+      if (!linkFav) {
+        linkFav = document.createElement('link');
+        linkFav.setAttribute('rel', 'shortcut icon');
+        document.head.appendChild(linkFav);
+      }
+      linkFav.setAttribute('href', settings.favicon_url);
+    }
+
+    // OG Tags
+    const ogTags = [
+      { property: 'og:title', content: settings.seo_title },
+      { property: 'og:description', content: settings.seo_description },
+      { property: 'og:image', content: settings.og_image_url },
+      { property: 'og:type', content: 'website' }
+    ];
+
+    ogTags.forEach(tag => {
+      if (!tag.content) return;
+      let meta = document.querySelector(`meta[property="${tag.property}"]`);
+      if (!meta) {
+        meta = document.createElement('meta');
+        meta.setAttribute('property', tag.property);
+        document.head.appendChild(meta);
+      }
+      meta.setAttribute('content', tag.content);
+    });
+  };
+
+  useEffect(() => {
+    fetchSystemSettings();
+  }, []);
 
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
@@ -273,6 +343,7 @@ const AppContent: React.FC = () => {
         setIsMobileOpen={setIsMobileOpen}
         isExpanded={isSidebarExpanded}
         setIsExpanded={setIsSidebarExpanded}
+        systemSettings={systemSettings}
       />
 
       <div className="flex-1 flex flex-col min-w-0 h-full relative overflow-hidden">
