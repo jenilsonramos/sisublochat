@@ -1007,10 +1007,9 @@ const LiveChatView: React.FC<LiveChatViewProps> = ({ isBlocked = false }) => {
               {/* Status Filters */}
               <div className="flex flex-wrap gap-2 animate-in fade-in slide-in-from-top-2 duration-500">
                 {[
-                  { id: 'all', label: 'Todos', color: 'bg-slate-500' },
+                  { id: 'all', label: 'Abertos', color: 'bg-primary' },
                   { id: 'pending', label: 'Pendentes', color: 'bg-slate-400' },
-                  { id: 'analyzing', label: 'Em Análise', color: 'bg-amber-500' },
-                  { id: 'resolved', label: 'Resolvidos', color: 'bg-emerald-500' }
+                  { id: 'analyzing', label: 'Em Análise', color: 'bg-amber-500' }
                 ].map((f) => (
                   <button
                     key={f.id}
@@ -1045,7 +1044,7 @@ const LiveChatView: React.FC<LiveChatViewProps> = ({ isBlocked = false }) => {
               .filter(conv => {
                 const matchesSearch = conv.contact_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                   conv.remote_jid.toLowerCase().includes(searchTerm.toLowerCase());
-                const matchesStatus = statusFilter === 'all' || conv.status === statusFilter;
+                const matchesStatus = statusFilter === 'all' ? conv.status !== 'resolved' : conv.status === statusFilter;
                 return matchesSearch && matchesStatus;
               })
               .map(conv => (
@@ -1149,12 +1148,6 @@ const LiveChatView: React.FC<LiveChatViewProps> = ({ isBlocked = false }) => {
                   >
                     Em Análise
                   </button>
-                  <button
-                    onClick={() => updateConversationStatus(selectedChat.id, 'resolved')}
-                    className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase transition-all ${selectedChat.status === 'resolved' ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20' : 'text-slate-400 hover:text-emerald-500'}`}
-                  >
-                    Resolvido
-                  </button>
                 </div>
 
                 {/* Mobile/Compact Status Selector */}
@@ -1165,11 +1158,10 @@ const LiveChatView: React.FC<LiveChatViewProps> = ({ isBlocked = false }) => {
                 >
                   <option value="pending">Pendente</option>
                   <option value="analyzing">Em Análise</option>
-                  <option value="resolved">Resolvido</option>
                 </select>
                 <button
                   onClick={() => setIsResolveModalOpen(true)}
-                  className="p-2 md:p-3 rounded-2xl text-slate-400 hover:text-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-500/10 transition-all flex items-center gap-2 group"
+                  className="p-2 md:p-3 rounded-2xl text-emerald-600 bg-emerald-500/10 border border-emerald-500/20 hover:bg-emerald-500/20 transition-all flex items-center gap-2 group shadow-sm active:scale-95"
                   title="Resolver atendimento"
                 >
                   <CheckCircle2 className="w-5 h-5" />
