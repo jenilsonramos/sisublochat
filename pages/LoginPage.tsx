@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { useToast } from '../components/ToastProvider';
-import { Mail, Lock, Loader2, ArrowRight, Zap, Shield, Sparkles } from 'lucide-react';
+import { Mail, Lock, Loader2, ArrowRight, Shield } from 'lucide-react';
 
 interface LoginPageProps {
     onLoginSuccess: (user: any) => void;
@@ -59,8 +59,6 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, onRegister, onFor
                 if (window.grecaptcha) {
                     // @ts-ignore
                     currentToken = await window.grecaptcha.execute(captchaSettings.captcha_site_key, { action: 'login' });
-                } else {
-                    console.warn('reCAPTCHA not loaded yet');
                 }
             } catch (err) {
                 console.error('reCAPTCHA execution failed:', err);
@@ -95,71 +93,36 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, onRegister, onFor
     };
 
     return (
-        <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col lg:flex-row overflow-hidden">
-            {/* Left Side: Branding & Visuals (Desktop) */}
-            <div className="hidden lg:flex lg:w-1/2 relative bg-primary items-center justify-center p-12 overflow-hidden">
-                <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_30%,rgba(255,255,255,0.1),transparent)] animate-pulse"></div>
-                <div className="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none">
-                    <div className="absolute top-20 left-20 w-64 h-64 bg-white rounded-full blur-3xl"></div>
-                    <div className="absolute bottom-20 right-20 w-96 h-96 bg-white rounded-full blur-3xl"></div>
-                </div>
-
-                <div className="relative z-10 max-w-lg text-white">
-                    <div className="w-24 h-24 bg-white/20 backdrop-blur-xl rounded-[2.5rem] flex items-center justify-center mb-10 shadow-2xl border border-white/30 animate-in slide-in-from-bottom duration-700">
-                        <Zap className="text-white w-12 h-12 fill-white" />
+        <div className="min-h-screen bg-white dark:bg-slate-950 flex flex-col lg:flex-row overflow-y-auto">
+            {/* Left Side: Minimalist Branding (Desktop) */}
+            <div className="hidden lg:flex lg:w-[40%] bg-slate-50 dark:bg-slate-900 items-center justify-center p-12 border-right border-slate-100 dark:border-slate-800">
+                <div className="max-w-md space-y-12">
+                    <div className="w-20 h-20 bg-primary/10 rounded-3xl flex items-center justify-center animate-in zoom-in duration-700">
+                        <Shield className="text-primary w-10 h-10" />
                     </div>
-                    <h2 className="text-5xl font-black mb-6 leading-tight animate-in slide-in-from-bottom duration-700 delay-100 italic tracking-tighter">
-                        Evolua sua <br /> comunicação.
-                    </h2>
-                    <p className="text-xl text-white/80 font-medium mb-12 animate-in slide-in-from-bottom duration-700 delay-200">
-                        A plataforma definitiva para automação de WhatsApp com inteligência e escala.
-                    </p>
-
-                    <div className="space-y-6 animate-in slide-in-from-bottom duration-700 delay-300">
-                        <div className="flex items-center gap-4 p-5 bg-white/10 backdrop-blur-md rounded-3xl border border-white/10 hover:bg-white/15 transition-all">
-                            <div className="w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center">
-                                <Shield className="w-6 h-6" />
-                            </div>
-                            <div>
-                                <h4 className="font-bold text-sm">Segurança Enterprise</h4>
-                                <p className="text-xs text-white/60">Seus dados protegidos com criptografia de ponta.</p>
-                            </div>
-                        </div>
-                        <div className="flex items-center gap-4 p-5 bg-white/10 backdrop-blur-md rounded-3xl border border-white/10 hover:bg-white/15 transition-all">
-                            <div className="w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center">
-                                <Sparkles className="w-6 h-6" />
-                            </div>
-                            <div>
-                                <h4 className="font-bold text-sm">IA Generativa</h4>
-                                <p className="text-xs text-white/60">Atendimento humano via inteligência artificial.</p>
-                            </div>
-                        </div>
+                    <div className="space-y-6">
+                        <h2 className="text-5xl font-black text-slate-900 dark:text-white leading-tight tracking-tighter italic">
+                            Acesse a sua conta Evolution.
+                        </h2>
+                        <p className="text-lg text-slate-500 dark:text-slate-400 font-medium leading-relaxed">
+                            A plataforma definitiva para automação de WhatsApp com inteligência e escala.
+                        </p>
                     </div>
                 </div>
             </div>
 
             {/* Right Side: Login Form */}
-            <div className="flex-1 flex items-center justify-center p-6 lg:p-12">
-                <div className="w-full max-w-[440px] animate-in fade-in zoom-in duration-500 lg:duration-700">
-                    <div className="bg-white dark:bg-slate-900 rounded-[3rem] shadow-2xl lg:shadow-none p-10 lg:p-12 border border-slate-100 dark:border-slate-800 lg:border-none">
-                        <div className="text-center lg:text-left mb-10">
-                            <div className="lg:hidden w-20 h-20 bg-primary/10 dark:bg-primary/20 rounded-3xl flex items-center justify-center mx-auto mb-6">
-                                <span className="material-icons-round text-primary text-5xl">rocket_launch</span>
-                            </div>
-                            <div className="flex flex-col items-center lg:items-start gap-4 mb-8">
-                                <div className="w-16 h-16 bg-primary rounded-3xl flex items-center justify-center shadow-2xl shadow-primary/20 animate-in zoom-in duration-700">
-                                    <Shield className="text-white w-8 h-8 fill-white" />
-                                </div>
-                                <div className="text-center lg:text-left">
-                                    <h1 className="text-4xl font-black text-slate-950 dark:text-white tracking-tight">Login</h1>
-                                    <p className="text-slate-500 dark:text-slate-400 font-medium text-sm">Acesse sua conta Evolution</p>
-                                </div>
-                            </div>
+            <div className="flex-1 flex items-center justify-center p-6 lg:p-20 bg-white dark:bg-slate-950">
+                <div className="w-full max-w-[440px]">
+                    <div className="space-y-12">
+                        <div className="space-y-4">
+                            <h1 className="text-4xl font-black text-slate-900 dark:text-white tracking-tight">Login</h1>
+                            <p className="text-slate-500 dark:text-slate-400 font-medium">Bem-vindo de volta! Insira suas credenciais.</p>
                         </div>
 
                         <form onSubmit={handleLogin} className="space-y-6">
                             <div className="space-y-2">
-                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">E-mail Corporativo</label>
+                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">E-mail Corporativo</label>
                                 <div className="relative group">
                                     <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-primary transition-colors w-5 h-5" />
                                     <input
@@ -168,18 +131,18 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, onRegister, onFor
                                         onChange={(e) => setEmail(e.target.value)}
                                         placeholder="seu@email.com"
                                         required
-                                        className="w-full pl-12 pr-4 py-5 bg-slate-50 dark:bg-slate-800/50 border-2 border-transparent focus:border-primary/20 focus:bg-white focus:ring-4 focus:ring-primary/5 rounded-[1.5rem] transition-all dark:text-white text-sm outline-none"
+                                        className="w-full pl-12 pr-4 py-4 bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-800 focus:border-primary/30 focus:bg-white focus:ring-4 focus:ring-primary/5 rounded-2xl transition-all dark:text-white text-sm outline-none"
                                     />
                                 </div>
                             </div>
 
                             <div className="space-y-2">
-                                <div className="flex justify-between items-center px-1">
-                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Senha de Acesso</label>
+                                <div className="flex justify-between items-center mb-1">
+                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">Senha de Acesso</label>
                                     <button
                                         type="button"
                                         onClick={onForgotPassword}
-                                        className="text-[10px] font-black text-primary hover:text-primary-light transition-colors uppercase tracking-widest"
+                                        className="text-[10px] font-black text-primary hover:brightness-110 transition-colors uppercase tracking-widest"
                                     >
                                         Esqueci a senha
                                     </button>
@@ -192,18 +155,17 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, onRegister, onFor
                                         onChange={(e) => setPassword(e.target.value)}
                                         placeholder="••••••••"
                                         required
-                                        className="w-full pl-12 pr-4 py-5 bg-slate-50 dark:bg-slate-800/50 border-2 border-transparent focus:border-primary/20 focus:bg-white focus:ring-4 focus:ring-primary/5 rounded-[1.5rem] transition-all dark:text-white text-sm outline-none"
+                                        className="w-full pl-12 pr-4 py-4 bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-800 focus:border-primary/30 focus:bg-white focus:ring-4 focus:ring-primary/5 rounded-2xl transition-all dark:text-white text-sm outline-none"
                                     />
                                 </div>
                             </div>
 
                             {captchaSettings?.captcha_provider === 'turnstile' && (
-                                <div className="flex justify-center py-2 animate-in fade-in duration-500">
+                                <div className="flex justify-center py-2">
                                     <div
                                         className="cf-turnstile"
                                         data-sitekey={captchaSettings.captcha_site_key}
                                         data-callback="onTurnstileSuccess"
-                                        style={{ height: '65px' }}
                                     ></div>
                                     <script dangerouslySetInnerHTML={{
                                         __html: `
@@ -218,7 +180,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, onRegister, onFor
                             <button
                                 type="submit"
                                 disabled={loading}
-                                className="w-full py-5 bg-primary text-white font-black rounded-2xl hover:bg-primary-light transition-all shadow-2xl shadow-primary/30 flex items-center justify-center gap-3 group disabled:opacity-50 active:scale-[0.98]"
+                                className="w-full py-5 bg-primary text-white font-black rounded-2xl hover:brightness-110 transition-all shadow-2xl shadow-primary/20 flex items-center justify-center gap-3 group disabled:opacity-50 active:scale-[0.98]"
                             >
                                 {loading ? (
                                     <Loader2 className="w-6 h-6 animate-spin" />
@@ -231,16 +193,16 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, onRegister, onFor
                             </button>
                         </form>
 
-                        <div className="mt-12 pt-8 border-t border-slate-50 dark:border-slate-800">
-                            <p className="text-center text-sm font-medium text-slate-500 dark:text-slate-400">
-                                Novo por aqui?{' '}
-                                <button
-                                    onClick={onRegister}
-                                    className="text-primary font-black hover:underline underline-offset-4"
-                                >
-                                    Crie sua conta agora
-                                </button>
+                        <div className="pt-8 border-t border-slate-50 dark:border-slate-900 flex flex-col sm:flex-row items-center justify-between gap-4">
+                            <p className="text-sm font-medium text-slate-500 dark:text-slate-400">
+                                Novo por aqui?
                             </p>
+                            <button
+                                onClick={onRegister}
+                                className="text-primary font-black hover:underline underline-offset-4 text-sm"
+                            >
+                                Crie sua conta agora
+                            </button>
                         </div>
                     </div>
                 </div>
