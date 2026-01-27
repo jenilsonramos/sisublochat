@@ -38,10 +38,10 @@ Deno.serve(async (req) => {
         if (!messages.length) return new Response(JSON.stringify({ received: true }), { headers: { 'Content-Type': 'application/json' } })
 
         const { instance } = payload
-        const { data: instanceData } = await supabase.from('instances').select('id, user_id').eq('name', instance).single()
+        const { data: instanceData, error: instError } = await supabase.from('instances').select('id, user_id').eq('name', instance).maybeSingle()
 
         if (!instanceData) {
-            await logDb(`Webhook Skip: Instance mapping not found for ${instance}`)
+            await logDb(`Webhook Skip: Instance mapping not found for ${instance}. Error: ${instError?.message}`)
             return new Response(JSON.stringify({ received: true }), { headers: { 'Content-Type': 'application/json' } })
         }
 
@@ -49,11 +49,11 @@ Deno.serve(async (req) => {
         const instanceId = instanceData.id
 
         // Get system settings for API calls
-        const { data: settings } = await supabase.from('system_settings').select('api_url, api_key').single()
+        const { data: settings } = await supabase.from('system_settings').select('api_url, api_key').maybeSingle()
 
         // Get configurations
-        const { data: bizHours } = await supabase.from('business_hours').select('*').eq('user_id', userId).single()
-        const { data: aiSettings } = await supabase.from('ai_settings').select('*').eq('user_id', userId).single();
+        const { data: bizHours } = await supabase.from('business_hours').select('*').eq('user_id', userId).maybeSingle()
+        const { data: aiSettings } = await supabase.from('ai_settings').select('*').eq('user_id', userId).maybeSingle();
 
         for (const msg of messages) {
             if (!msg.key || !msg.message) continue
@@ -92,7 +92,7 @@ Deno.serve(async (req) => {
                             .select('*')
                             .eq('user_id', userId)
                             .eq('remote_jid', cleanJid)
-                            .single()
+                            .maybeSingle()
 
                         const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000)
                         if (!alreadySent || new Date(alreadySent.sent_at) < oneDayAgo) {
@@ -146,7 +146,7 @@ Deno.serve(async (req) => {
                 .select('*')
                 .eq('remote_jid', cleanJid)
                 .eq('instance_id', instanceId)
-                .single()
+                .maybeSingle()
 
             let convId
 
@@ -169,7 +169,7 @@ Deno.serve(async (req) => {
                     last_message: text || (mediaType ? `[${mediaType}]` : 'Msg'),
                     last_message_time: timestamp,
                     unread_count: fromMe ? 0 : 1
-                }).select().single()
+                }).select().maybeSingle()
                 if (!newConv) continue
                 convId = newConv.id
             }
@@ -668,7 +668,7 @@ Deno.serve(async (req) => {
 
                         // 5.1 Check wait (Question Node)
                         if (existingConv?.current_node_id && existingConv?.current_flow_id) {
-                            const { data: currentFlow } = await supabase.from('flows').select('*').eq('id', existingConv.current_flow_id).single()
+                            const { data: currentFlow } = await supabase.from('flows').select('*').eq('id', existingConv.current_flow_id).maybeSingle()
                             if (currentFlow) {
                                 const nodes = currentFlow.nodes || []; const edges = currentFlow.edges || [];
                                 const waitingNode = nodes.find((n: any) => n.id === existingConv.current_node_id)
@@ -693,11 +693,15 @@ Deno.serve(async (req) => {
                             let shouldExec = startNode.data?.triggerType === 'keyword' ? keywords.some((k: string) => text.toLowerCase().includes(k)) : true;
 
                             if (shouldExec) {
-                                await logDb(`Flow Matched: ${flow.name} (ID: ${flow.id}) for ${cleanJid}`);
                                 if (startNode.data?.triggerType !== 'keyword') {
-                                    const cooldown = startNode.data?.cooldown ?? 360;
-                                    if (cooldown > 0 && existingConv?.last_flow_at && (new Date().getTime() - new Date(existingConv.last_flow_at).getTime()) / 60000 < cooldown) continue;
+                                    const cooldown = startNode.data?.cooldown ?? 0;
+                                    const lastFlowAt = existingConv?.last_flow_at;
+                                    if (cooldown > 0 && lastFlowAt && (new Date().getTime() - new Date(lastFlowAt).getTime()) / 60000 < cooldown) {
+                                        await logDb(`Flow Cooldown: Skipping flow ${flow.name} for ${cleanJid} (Cooldown: ${cooldown}min)`);
+                                        continue;
+                                    }
                                 }
+                                await logDb(`Flow Match Confirmed: Executing ${flow.name} for ${cleanJid}`);
                                 await supabase.from('conversations').update({ last_flow_at: new Date().toISOString(), variables: {}, current_flow_id: flow.id }).eq('id', convId);
                                 const firstEdge = flow.edges?.find((e: any) => e.source === startNode.id);
                                 if (firstEdge) await executeNodeLogic(flow, firstEdge.target, new Set([startNode.id]), {});
