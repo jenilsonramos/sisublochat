@@ -18,6 +18,7 @@ import MyPlanView from './pages/MyPlanView';
 import AIConfigView from './pages/AIConfigView';
 import AdminView from './pages/AdminView';
 import FlowBuilderView from './pages/FlowBuilderView';
+import BroadcastView from './pages/BroadcastView';
 import { TabType } from './types';
 import { ToastProvider, useToast } from './components/ToastProvider';
 import { AlertCircle } from 'lucide-react';
@@ -205,6 +206,7 @@ const AppContent: React.FC = () => {
       case 'aisettings': return <AIConfigView onTabChange={handleTabChange} />;
       case 'admin': return <AdminView />;
       case 'flowbuilder': return <FlowBuilderView isBlocked={isBlocked} />;
+      case 'broadcast': return <BroadcastView isBlocked={isBlocked} />;
       default: return <DashboardView />;
     }
   };
@@ -225,6 +227,7 @@ const AppContent: React.FC = () => {
       case 'aisettings': return 'Inteligência Artificial';
       case 'admin': return 'Painel Administrativo';
       case 'flowbuilder': return 'Flow Builder';
+      case 'broadcast': return 'Mensagens em Massa';
       default: return 'Evolution API';
     }
   }
@@ -254,6 +257,7 @@ const AppContent: React.FC = () => {
       case 'aisettings': return 'Configure seu assistente Gemini AI';
       case 'admin': return 'Gerenciamento global do sistema';
       case 'flowbuilder': return 'Crie fluxos de conversação avançados';
+      case 'broadcast': return 'Gerencie suas campanhas de transmissão';
       default: return '';
     }
   }

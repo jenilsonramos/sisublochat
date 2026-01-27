@@ -1,5 +1,8 @@
 
-export type TabType = 'dashboard' | 'instances' | 'analytics' | 'chatbots' | 'livechat' | 'users' | 'settings' | 'contacts' | 'apidocs' | 'subscription' | 'aisettings' | 'admin' | 'flowbuilder';
+export type TabType = 'dashboard' | 'instances' | 'analytics' | 'chatbots' | 'livechat' | 'users' | 'settings' | 'contacts' | 'apidocs' | 'subscription' | 'aisettings'
+  | 'admin'
+  | 'flowbuilder'
+  | 'broadcast';
 
 export interface Instance {
   id: string;
