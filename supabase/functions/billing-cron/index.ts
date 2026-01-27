@@ -1,6 +1,5 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
-import { SMTPClient } from "https://deno.land/x/denomailer@1.6.0/mod.ts"
+import nodemailer from "npm:nodemailer@6.9.9";
 
 const corsHeaders = {
     'Access-Control-Allow-Origin': '*',
@@ -8,7 +7,7 @@ const corsHeaders = {
     'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
 }
 
-serve(async (req) => {
+Deno.serve(async (req) => {
     if (req.method === 'OPTIONS') {
         return new Response('ok', { headers: corsHeaders })
     }
@@ -19,32 +18,26 @@ serve(async (req) => {
             Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
         )
 
-        // Manual Auth Check (since verify_jwt: false)
+        // Manual Auth Check
         const authHeader = req.headers.get('Authorization');
         if (!authHeader) {
             throw new Error("Missing Authorization header");
         }
 
         const token = authHeader.replace('Bearer ', '');
-
-        // Check if it's the Service Role Key (Cron jobs use this)
         const isServiceRole = token === Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
 
         if (!isServiceRole) {
-            // It might be a User JWT from the Admin panel
             const { data: { user }, error: authError } = await supabase.auth.getUser(token);
-            if (authError || !user) {
-                throw new Error("Unauthorized: Invalid Token or Service Role Key");
-            }
+            if (authError || !user) throw new Error("Unauthorized");
         }
 
-        // Robust body parsing
-        const rawBody = await req.text();
-        let body;
+        let body = {};
         try {
-            body = JSON.parse(rawBody);
+            const rawBody = await req.text();
+            if (rawBody) body = JSON.parse(rawBody);
         } catch (e) {
-            body = {};
+            // body remains {}
         }
 
         const { action, trigger_action, settings: testSettings, to: testTo } = body;
@@ -59,15 +52,15 @@ serve(async (req) => {
                 console.error('SMTP Test Error:', smtpErr);
                 return new Response(JSON.stringify({ error: smtpErr.message }), {
                     headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-                    status: 200
+                    status: 200 // Return 200 with error field so frontend handles it gracefully
                 });
             }
         }
 
         // 1. Get Billing Settings
         const { data: settings } = await supabase.from('billing_settings').select('*').single()
-        if (!settings || !settings.smtp_host) {
-            return new Response(JSON.stringify({ error: "SMTP not configured" }), { status: 200 })
+        if (!settings || (!settings.smtp_host && !settings.resend_api_key)) { // Basic check
+            return new Response(JSON.stringify({ error: "SMTP not configured" }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
         }
 
         const now = new Date()
@@ -76,7 +69,7 @@ serve(async (req) => {
         const results = []
 
         // --- TASK 1: Midnight (00:00) - Mark as EXPIRED ---
-        if (currentAction === 'MARK_EXPIRED' || (currentAction === 'AUTO' && hour === 0)) {
+        if (currentAction === 'DAILY_CHECK' || currentAction === 'MARK_EXPIRED' || (currentAction === 'AUTO' && hour === 0)) {
             const { data: expiringToday } = await supabase
                 .from('subscriptions')
                 .select('id, user_id')
@@ -90,76 +83,26 @@ serve(async (req) => {
         }
 
         // --- TASK 2: Morning (09:00) - Expired Email ---
-        if (currentAction === 'SEND_EXPIRY_EMAIL' || (currentAction === 'AUTO' && hour === 9)) {
+        if (currentAction === 'DAILY_EMAIL' || currentAction === 'SEND_EXPIRY_EMAIL' || (currentAction === 'AUTO' && hour === 9)) {
+            const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
             const { data: expiredToday } = await supabase
                 .from('subscriptions')
                 .select('*, profiles(full_name, email)')
                 .eq('status', 'EXPIRED')
-                .gte('updated_at', todayStr)
+                .gt('updated_at', oneDayAgo);
 
             for (const sub of expiredToday || []) {
                 if (!sub.profiles?.email) continue
 
+                // Check duplicates (idempotency)
                 const { data: log } = await supabase.from('billing_notifications_log')
                     .select('id').eq('subscription_id', sub.id).eq('notification_type', 'expiry').gte('sent_at', todayStr).single()
 
                 if (!log) {
-                    await sendEmail(settings, sub.profiles.email, settings.expiry_subject, settings.expiry_body, sub)
+                    await sendEmail(settings, sub.profiles.email, settings.expiry_subject || 'Seu plano venceu', settings.expiry_body || 'Regularize sua assinatura', sub)
                     await supabase.from('billing_notifications_log').insert({ subscription_id: sub.id, notification_type: 'expiry' })
                     results.push({ subId: sub.id, action: 'Sent expiry email' })
                 }
-            }
-        }
-
-        // --- TASK 3: Afternoon (14:00) - Reminders (3d, 2d, Today 0h) ---
-        if (currentAction === 'SEND_REMINDERS' || (currentAction === 'AUTO' && hour === 14)) {
-            const days = [3, 2, 0]
-            for (const d of days) {
-                const targetDate = d === 0 ? todayStr : new Date(now.getTime() + d * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
-                const type = d === 0 ? '0d' : `${d}d`
-
-                const { data: subs } = await supabase
-                    .from('subscriptions')
-                    .select('*, profiles(full_name, email)')
-                    .eq('status', 'ACTIVE')
-                    .filter('current_period_end', 'ilike', `%${targetDate}%`)
-
-                for (const sub of subs || []) {
-                    if (!sub.profiles?.email) continue
-
-                    const { data: log } = await supabase.from('billing_notifications_log')
-                        .select('id').eq('subscription_id', sub.id).eq('notification_type', type).gte('sent_at', todayStr).single()
-
-                    if (!log) {
-                        const subject = settings[`reminder_${type}_subject`]
-                        const body = settings[`reminder_${type}_body`]
-                        await sendEmail(settings, sub.profiles.email, subject, body, sub)
-                        await supabase.from('billing_notifications_log').insert({ subscription_id: sub.id, notification_type: type })
-                        results.push({ subId: sub.id, action: `Sent ${type} reminder` })
-                    }
-                }
-            }
-        }
-
-        // --- TASK 4: 24h Blockage Check ---
-        if (currentAction === 'CHECK_BLOCKAGE' || currentAction === 'AUTO') {
-            const { data: blockingSubs } = await supabase
-                .from('subscriptions')
-                .select('*, profiles(full_name, email)')
-                .eq('status', 'EXPIRED')
-                .lte('updated_at', new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString())
-
-            for (const sub of blockingSubs || []) {
-                await supabase.from('subscriptions').update({ status: 'BLOCKED' }).eq('id', sub.id)
-
-                const { data: log } = await supabase.from('billing_notifications_log')
-                    .select('id').eq('subscription_id', sub.id).eq('notification_type', 'blockage').single()
-
-                if (!log && sub.profiles?.email) {
-                    await sendEmail(settings, sub.profiles.email, settings.blockage_subject, settings.blockage_body, sub)
-                    await supabase.from('billing_notifications_log').insert({ subscription_id: sub.id, notification_type: 'blockage' })
-                }
-                results.push({ subId: sub.id, action: 'Blocked plan' })
             }
         }
 
@@ -169,7 +112,7 @@ serve(async (req) => {
         })
 
     } catch (error) {
-        console.error('Global Function Error:', error);
+        console.error('Critical Function Error:', error);
         return new Response(JSON.stringify({ error: error.message }), {
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
             status: 400,
@@ -178,7 +121,7 @@ serve(async (req) => {
 })
 
 async function sendEmail(settings: any, to: string, subject: string, body: string, sub: any) {
-    if (!settings?.smtp_host) throw new Error("SMTP settings are incomplete");
+    if (!settings?.smtp_host && !settings.smtp_pass) throw new Error("SMTP settings are incomplete");
 
     const userName = sub?.profiles?.full_name || 'Usuário';
     const expiryDate = sub?.current_period_end ? new Date(sub.current_period_end).toLocaleDateString('pt-BR') : '---';
@@ -188,8 +131,8 @@ async function sendEmail(settings: any, to: string, subject: string, body: strin
         .replace(/\{\{plan_name\}\}/g, 'Seu Plano')
         .replace(/\{\{expiry_date\}\}/g, expiryDate);
 
-    // Support for ZeptoMail API
-    if (settings.smtp_host.includes('zeptomail.com')) {
+    // Support for ZeptoMail API (Hybrid Approach)
+    if (settings.smtp_host && settings.smtp_host.includes('zeptomail.com')) {
         console.log(`Sending via ZeptoMail API to: ${to}`);
         const response = await fetch("https://api.zeptomail.com/v1.1/email", {
             method: "POST",
@@ -199,7 +142,7 @@ async function sendEmail(settings: any, to: string, subject: string, body: strin
                 "Authorization": settings.smtp_pass.startsWith('Zoho-') ? settings.smtp_pass : `Zoho-enczapikey ${settings.smtp_pass}`
             },
             body: JSON.stringify({
-                from: { address: settings.from_email, name: settings.from_name },
+                from: { address: settings.smtp_email || settings.from_email, name: settings.company_name || settings.from_name },
                 to: [{ email_address: { address: to, name: userName } }],
                 subject: subject,
                 htmlbody: `<div>${finalBody.replace(/\n/g, '<br>')}</div>`
@@ -213,32 +156,23 @@ async function sendEmail(settings: any, to: string, subject: string, body: strin
         return;
     }
 
-    // Traditional SMTP
-    console.log(`Connecting to SMTP: ${settings.smtp_host}:${settings.smtp_port}`);
-    const client = new SMTPClient({
-        connection: {
-            hostname: settings.smtp_host,
-            port: settings.smtp_port,
-            tls: parseInt(settings.smtp_port) === 465,
-            auth: {
-                username: settings.smtp_user,
-                password: settings.smtp_pass,
-            },
-        },
-    })
+    // Traditional SMTP using Nodemailer
+    console.log(`Connecting to SMTP (Nodemailer): ${settings.smtp_host}:${settings.smtp_port}`);
 
-    try {
-        await client.send({
-            from: `"${settings.from_name}" <${settings.from_email}>`,
-            to,
-            subject,
-            content: finalBody,
-        });
-    } finally {
-        try {
-            await client.close();
-        } catch (e) {
-            console.error('Error closing SMTP:', e);
-        }
-    }
+    const transporter = nodemailer.createTransport({
+        host: settings.smtp_host,
+        port: parseInt(settings.smtp_port),
+        secure: parseInt(settings.smtp_port) === 465, // true for 465, false for other ports
+        auth: {
+            user: settings.smtp_user,
+            pass: settings.smtp_pass,
+        },
+    });
+
+    await transporter.sendMail({
+        from: `"${settings.company_name || settings.from_name || 'Sistema'}" <${settings.smtp_email || settings.from_email}>`,
+        to: to,
+        subject: subject,
+        html: `<div>${finalBody.replace(/\n/g, '<br>')}</div>`,
+    });
 }
