@@ -719,11 +719,20 @@ const LiveChatView: React.FC<LiveChatViewProps> = ({ isBlocked = false }) => {
       setConversations(prev => {
         const updated = prev.map(c =>
           c.id === selectedChat.id
-            ? { ...c, last_message: `[${mediaType === 'image' ? 'Imagem' : (mediaType === 'audio' ? 'Áudio' : (mediaType === 'video' ? 'Vídeo' : 'Arquivo'))}]`, last_message_time: tempMsg.timestamp }
+            ? {
+              ...c,
+              last_message: `[${mediaType === 'image' ? 'Imagem' : (mediaType === 'audio' ? 'Áudio' : (mediaType === 'video' ? 'Vídeo' : 'Arquivo'))}]`,
+              last_message_time: tempMsg.timestamp,
+              status: c.status === 'resolved' ? 'pending' : c.status
+            }
             : c
         );
         return updated.sort((a, b) => new Date(b.last_message_time).getTime() - new Date(a.last_message_time).getTime());
       });
+
+      if (selectedChat.status === 'resolved') {
+        setSelectedChat(prev => prev ? { ...prev, status: 'pending' } : null);
+      }
 
       const quoted = replyingTo && replyingTo.wamid ? {
         key: {
@@ -878,11 +887,20 @@ const LiveChatView: React.FC<LiveChatViewProps> = ({ isBlocked = false }) => {
       setConversations(prev => {
         const updated = prev.map(c =>
           c.id === selectedChat.id
-            ? { ...c, last_message: optimisticMsg.text, last_message_time: optimisticMsg.timestamp }
+            ? {
+              ...c,
+              last_message: optimisticMsg.text,
+              last_message_time: optimisticMsg.timestamp,
+              status: c.status === 'resolved' ? 'pending' : c.status
+            }
             : c
         );
         return updated.sort((a, b) => new Date(b.last_message_time).getTime() - new Date(a.last_message_time).getTime());
       });
+
+      if (selectedChat.status === 'resolved') {
+        setSelectedChat(prev => prev ? { ...prev, status: 'pending' } : null);
+      }
 
       const quoted = replyingTo && replyingTo.wamid ? {
         key: {

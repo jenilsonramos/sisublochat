@@ -161,7 +161,7 @@ Deno.serve(async (req) => {
                     contact_name: (!existingConv.contact_name || existingConv.contact_name === remoteJid.split('@')[0]) ? pushName : existingConv.contact_name
                 }
 
-                if (!fromMe && existingConv.status === 'resolved') {
+                if (existingConv.status === 'resolved') {
                     updateData.status = 'pending'
                 }
 
