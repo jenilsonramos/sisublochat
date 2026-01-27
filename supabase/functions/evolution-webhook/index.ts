@@ -58,6 +58,7 @@ Deno.serve(async (req) => {
         for (const msg of messages) {
             if (!msg.key || !msg.message) continue
             const remoteJid = msg.key.remoteJid
+            const cleanJid = remoteJid.split(':')[0].split('@')[0] + '@' + remoteJid.split('@')[1];
             const fromMe = msg.key.fromMe
             const pushName = msg.pushName || (fromMe ? 'Me' : remoteJid.split('@')[0])
 
@@ -90,7 +91,7 @@ Deno.serve(async (req) => {
                             .from('away_messages_sent')
                             .select('*')
                             .eq('user_id', userId)
-                            .eq('remote_jid', remoteJid)
+                            .eq('remote_jid', cleanJid)
                             .single()
 
                         const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000)
@@ -99,10 +100,10 @@ Deno.serve(async (req) => {
                                 await fetch(`${settings.api_url}/message/sendText/${instance}`, {
                                     method: 'POST',
                                     headers: { 'Content-Type': 'application/json', 'apikey': settings.api_key },
-                                    body: JSON.stringify({ number: remoteJid, text: bizHours.away_message, delay: 1000 })
+                                    body: JSON.stringify({ number: cleanJid, text: bizHours.away_message, delay: 1000 })
                                 })
                                 await supabase.from('away_messages_sent').upsert({
-                                    user_id: userId, remote_jid: remoteJid, sent_at: new Date().toISOString()
+                                    user_id: userId, remote_jid: cleanJid, sent_at: new Date().toISOString()
                                 }, { onConflict: 'user_id,remote_jid' })
                             }
                         }
@@ -129,17 +130,21 @@ Deno.serve(async (req) => {
             const timestamp = new Date((msg.messageTimestamp || Date.now() / 1000) * 1000).toISOString()
 
             // 3. Upsert Contact & Conversation
-            if (remoteJid && !remoteJid.includes('@g.us')) {
-                await supabase.from('contacts').upsert({
+            if (cleanJid && !cleanJid.includes('@g.us')) {
+                const { error: contactError } = await supabase.from('contacts').upsert({
                     user_id: userId,
-                    name: pushName || remoteJid.split('@')[0],
-                    remote_jid: remoteJid
-                }, { onConflict: 'remote_jid' })
+                    name: pushName || cleanJid.split('@')[0],
+                    remote_jid: cleanJid
+                }, { onConflict: 'remote_jid' });
+
+                if (contactError) {
+                    await logDb(`ContactUpsertError: ${contactError.message} for ${cleanJid}`);
+                }
             }
 
             let { data: existingConv } = await supabase.from('conversations')
                 .select('*')
-                .eq('remote_jid', remoteJid)
+                .eq('remote_jid', cleanJid)
                 .eq('instance_id', instanceId)
                 .single()
 
@@ -159,7 +164,7 @@ Deno.serve(async (req) => {
                 const { data: newConv } = await supabase.from('conversations').insert({
                     user_id: userId,
                     instance_id: instanceId,
-                    remote_jid: remoteJid,
+                    remote_jid: cleanJid,
                     contact_name: pushName,
                     last_message: text || (mediaType ? `[${mediaType}]` : 'Msg'),
                     last_message_time: timestamp,
@@ -186,9 +191,9 @@ Deno.serve(async (req) => {
             const isAssigned = existingConv?.assigned_agent_id &&
                 (!existingConv.assigned_at || existingConv.assigned_at > sixHoursAgo);
 
-            if (!fromMe && remoteJid && !remoteJid.includes('@g.us') && text && settings?.api_url && settings?.api_key) {
+            if (!fromMe && cleanJid && !cleanJid.includes('@g.us') && text && settings?.api_url && settings?.api_key) {
                 if (isAssigned) {
-                    await logDb(`Bot Inhibit: Human assistance active for ${remoteJid}`);
+                    await logDb(`Bot Inhibit: Human assistance active for ${cleanJid}`);
                 } else {
                     // Auto-clear if expired
                     if (existingConv?.assigned_agent_id && existingConv.assigned_at && existingConv.assigned_at <= sixHoursAgo) {
@@ -196,12 +201,12 @@ Deno.serve(async (req) => {
                             assigned_agent_id: null,
                             assigned_at: null
                         }).eq('id', convId);
-                        await logDb(`Bot Auto-Release: Human assistance expired for ${remoteJid}`);
+                        await logDb(`Bot Auto-Release: Human assistance expired for ${cleanJid}`);
                     }
 
                     try {
                         const vars = existingConv?.variables || {}
-                        const contactData = { name: pushName, phone: remoteJid.split('@')[0] }
+                        const contactData = { name: pushName, phone: cleanJid.split('@')[0] }
 
                         // Helper to save bot messages to DB for visibility in Live Chat
                         async function saveBotMessage(botText: string) {
@@ -229,11 +234,11 @@ Deno.serve(async (req) => {
 
                                 if (node.type === 'message' && node.data?.content) {
                                     const interpolatedText = localInterpolate(node.data.content);
-                                    await fetch(`${settings.api_url}/message/sendText/${instance}`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'apikey': settings.api_key }, body: JSON.stringify({ number: remoteJid, text: interpolatedText, delay: 1000 }) });
+                                    await fetch(`${settings.api_url}/message/sendText/${instance}`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'apikey': settings.api_key }, body: JSON.stringify({ number: cleanJid, text: interpolatedText, delay: 1000 }) });
                                     await saveBotMessage(interpolatedText);
                                 } else if (node.type === 'question' && node.data?.content) {
                                     const interpolatedText = localInterpolate(node.data.content);
-                                    await fetch(`${settings.api_url}/message/sendText/${instance}`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'apikey': settings.api_key }, body: JSON.stringify({ number: remoteJid, text: interpolatedText, delay: 1000 }) });
+                                    await fetch(`${settings.api_url}/message/sendText/${instance}`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'apikey': settings.api_key }, body: JSON.stringify({ number: cleanJid, text: interpolatedText, delay: 1000 }) });
                                     await saveBotMessage(interpolatedText);
                                     await supabase.from('conversations').update({ current_flow_id: flow.id, current_node_id: node.id }).eq('id', convId);
                                     return;
@@ -502,7 +507,7 @@ Deno.serve(async (req) => {
                                     // TAG NODE LOGIC
                                     const tag = localInterpolate(node.data.tag).trim();
                                     const action = node.data.action || 'add';
-                                    const { data: contact } = await supabase.from('contacts').select('tags').eq('remote_jid', remoteJid).single();
+                                    const { data: contact } = await supabase.from('contacts').select('tags').eq('remote_jid', cleanJid).maybeSingle();
 
                                     let tags: string[] = contact?.tags || [];
                                     if (action === 'remove') {
@@ -510,7 +515,7 @@ Deno.serve(async (req) => {
                                     } else {
                                         if (!tags.includes(tag)) tags.push(tag);
                                     }
-                                    await supabase.from('contacts').update({ tags }).eq('remote_jid', remoteJid);
+                                    await supabase.from('contacts').update({ tags }).eq('remote_jid', cleanJid);
 
                                 } else if (node.type === 'notification' && node.data?.phone && node.data?.message) {
                                     // NOTIFICATION NODE LOGIC
@@ -636,7 +641,7 @@ Deno.serve(async (req) => {
                                                 if (settings?.api_url && settings?.api_key) {
                                                     await fetch(`${settings.api_url}/message/sendText/${instance}`, {
                                                         method: 'POST', headers: { 'Content-Type': 'application/json', 'apikey': settings.api_key },
-                                                        body: JSON.stringify({ number: remoteJid, text: `💰 Copia e Cola do PIX:\n\n${copyPaste}` })
+                                                        body: JSON.stringify({ number: cleanJid, text: `💰 Copia e Cola do PIX:\n\n${copyPaste}` })
                                                     });
                                                 }
 
@@ -688,7 +693,7 @@ Deno.serve(async (req) => {
                             let shouldExec = startNode.data?.triggerType === 'keyword' ? keywords.some((k: string) => text.toLowerCase().includes(k)) : true;
 
                             if (shouldExec) {
-                                await logDb(`Flow Matched: ${flow.name} (ID: ${flow.id}) for ${remoteJid}`);
+                                await logDb(`Flow Matched: ${flow.name} (ID: ${flow.id}) for ${cleanJid}`);
                                 if (startNode.data?.triggerType !== 'keyword') {
                                     const cooldown = startNode.data?.cooldown ?? 360;
                                     if (cooldown > 0 && existingConv?.last_flow_at && (new Date().getTime() - new Date(existingConv.last_flow_at).getTime()) / 60000 < cooldown) continue;
@@ -704,9 +709,9 @@ Deno.serve(async (req) => {
             }
 
             // 6. Gemini AI
-            if (!fromMe && remoteJid && !remoteJid.includes('@g.us') && aiSettings?.enabled && aiSettings?.api_key && text) {
+            if (!fromMe && cleanJid && !cleanJid.includes('@g.us') && aiSettings?.enabled && aiSettings?.api_key && text) {
                 if (isAssigned) {
-                    await logDb(`AI Inhibit: Human assistance active for ${remoteJid}`);
+                    await logDb(`AI Inhibit: Human assistance active for ${cleanJid}`);
                 } else {
                     try {
                         const { data: history } = await supabase.from('messages').select('text, sender').eq('conversation_id', convId).order('timestamp', { ascending: false }).limit(aiSettings.history_limit || 5);
@@ -718,7 +723,7 @@ Deno.serve(async (req) => {
                         const aiData = await aiRes.json();
                         const aiText = aiData?.candidates?.[0]?.content?.parts?.[0]?.text;
                         if (aiText && settings?.api_url && settings?.api_key) {
-                            await fetch(`${settings.api_url}/message/sendText/${instance}`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'apikey': settings.api_key }, body: JSON.stringify({ number: remoteJid, text: aiText, delay: 2000 }) });
+                            await fetch(`${settings.api_url}/message/sendText/${instance}`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'apikey': settings.api_key }, body: JSON.stringify({ number: cleanJid, text: aiText, delay: 2000 }) });
                             const now = new Date().toISOString();
                             await supabase.from('messages').insert({ conversation_id: convId, text: aiText, sender: 'me', timestamp: now, status: 'sent' });
                             await supabase.from('conversations').update({ last_message: aiText, last_message_time: now }).eq('id', convId);
