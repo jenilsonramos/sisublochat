@@ -48,6 +48,7 @@ const BroadcastView: React.FC<BroadcastViewProps> = ({ isBlocked }) => {
     const { showToast } = useToast();
     const [campaigns, setCampaigns] = useState<Campaign[]>([]);
     const [instances, setInstances] = useState<Instance[]>([]);
+    const [lists, setLists] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [showCreateModal, setShowCreateModal] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
@@ -56,6 +57,8 @@ const BroadcastView: React.FC<BroadcastViewProps> = ({ isBlocked }) => {
     const [newCampaign, setNewCampaign] = useState({
         name: '',
         instance_id: '',
+        target_type: 'MANUAL', // 'MANUAL', 'ALL', 'LIST'
+        target_list_id: '',
         message_template: '',
         min_delay: 15,
         max_delay: 45,
@@ -78,8 +81,13 @@ const BroadcastView: React.FC<BroadcastViewProps> = ({ isBlocked }) => {
 
     const fetchData = async () => {
         setLoading(true);
-        await Promise.all([fetchCampaigns(), fetchInstances(), fetchSettings()]);
+        await Promise.all([fetchCampaigns(), fetchInstances(), fetchSettings(), fetchLists()]);
         setLoading(false);
+    };
+
+    const fetchLists = async () => {
+        const { data } = await supabase.from('contact_lists').select('*').order('name');
+        if (data) setLists(data);
     };
 
     const [settings, setSettings] = useState<any>(null);
@@ -175,20 +183,51 @@ const BroadcastView: React.FC<BroadcastViewProps> = ({ isBlocked }) => {
             return;
         }
 
-        const contacts = newCampaign.contacts_raw
-            .split('\n')
-            .map(line => line.trim())
-            .filter(line => line.length > 0);
-
-        if (contacts.length === 0) {
-            showToast('Adicione pelo menos um contato', 'error');
-            return;
-        }
+        let contactsToInsert: any[] = [];
 
         try {
             setLoading(true);
             const { data: { session } } = await supabase.auth.getSession();
             if (!session?.user) return;
+
+            if (newCampaign.target_type === 'MANUAL') {
+                const contacts = newCampaign.contacts_raw
+                    .split('\n')
+                    .map(line => line.trim())
+                    .filter(line => line.length > 0);
+
+                if (contacts.length === 0) {
+                    showToast('Adicione pelo menos um contato', 'error');
+                    setLoading(false);
+                    return;
+                }
+
+                contactsToInsert = contacts.map(contactLine => {
+                    const parts = contactLine.split(/[,;]/);
+                    const phone = parts[0].trim().replace(/\D/g, '');
+                    const name = parts[1]?.trim() || '';
+                    return {
+                        remote_jid: `${phone}@s.whatsapp.net`,
+                        variables: { nome: name }
+                    };
+                });
+            } else if (newCampaign.target_type === 'ALL') {
+                const { data: allContacts } = await supabase.from('contacts').select('remote_jid, name');
+                if (!allContacts || allContacts.length === 0) throw new Error("Nenhum contato encontrado no sistema.");
+                contactsToInsert = allContacts.map(c => ({ remote_jid: c.remote_jid, variables: { nome: c.name } }));
+            } else if (newCampaign.target_type === 'LIST') {
+                if (!newCampaign.target_list_id) throw new Error("Selecione uma lista de contatos.");
+                const { data: listContacts } = await supabase
+                    .from('contact_list_members')
+                    .select('contacts(remote_jid, name)')
+                    .eq('list_id', newCampaign.target_list_id);
+
+                if (!listContacts || listContacts.length === 0) throw new Error("Esta lista está vazia.");
+                contactsToInsert = listContacts.map((m: any) => ({
+                    remote_jid: m.contacts.remote_jid,
+                    variables: { nome: m.contacts.name }
+                }));
+            }
 
             // 1. Create Campaign
             const { data: campaign, error: cError } = await supabase
@@ -200,7 +239,7 @@ const BroadcastView: React.FC<BroadcastViewProps> = ({ isBlocked }) => {
                     message_template: newCampaign.message_template,
                     min_delay: newCampaign.min_delay,
                     max_delay: newCampaign.max_delay,
-                    total_messages: contacts.length,
+                    total_messages: contactsToInsert.length,
                     status: 'PENDING'
                 })
                 .select()
@@ -208,25 +247,15 @@ const BroadcastView: React.FC<BroadcastViewProps> = ({ isBlocked }) => {
 
             if (cError) throw cError;
 
-            // 2. Prepare Messages
-            const messagesToInsert = contacts.map(contactLine => {
-                // Basic CSV-like parsing for name and other vars
-                const parts = contactLine.split(/[,;]/);
-                const phone = parts[0].trim().replace(/\D/g, '');
-                const name = parts[1]?.trim() || '';
+            // 2. Insert Messages
+            const messagesWithCampaign = contactsToInsert.map(c => ({
+                campaign_id: campaign.id,
+                remote_jid: c.remote_jid,
+                variables: c.variables,
+                status: 'PENDING'
+            }));
 
-                return {
-                    campaign_id: campaign.id,
-                    remote_jid: `${phone}@s.whatsapp.net`,
-                    variables: { nome: name, raw: contactLine },
-                    status: 'PENDING'
-                };
-            });
-
-            const { error: mError } = await supabase
-                .from('campaign_messages')
-                .insert(messagesToInsert);
-
+            const { error: mError } = await supabase.from('campaign_messages').insert(messagesWithCampaign);
             if (mError) throw mError;
 
             showToast('Campanha criada com sucesso!', 'success');
@@ -234,6 +263,8 @@ const BroadcastView: React.FC<BroadcastViewProps> = ({ isBlocked }) => {
             setNewCampaign({
                 name: '',
                 instance_id: '',
+                target_type: 'MANUAL',
+                target_list_id: '',
                 message_template: '',
                 min_delay: 15,
                 max_delay: 45,
@@ -291,7 +322,7 @@ const BroadcastView: React.FC<BroadcastViewProps> = ({ isBlocked }) => {
                     <AlertCircle className="text-rose-500 w-10 h-10" />
                 </div>
                 <h2 className="text-2xl font-black text-slate-900 dark:text-white mb-2">Módulo Bloqueado</h2>
-                <p className="text-slate-500 dark:text-slate-400 max-w-sm">Este recurso está desabilitado para o seu perfil ou plano atual.</p>
+                <p className="text-slate-500 dark:text-400 max-w-sm">Este recurso está desabilitado para o seu perfil ou plano atual.</p>
             </div>
         );
     }
@@ -546,20 +577,54 @@ const BroadcastView: React.FC<BroadcastViewProps> = ({ isBlocked }) => {
                                     </div>
                                 </div>
 
-                                <div className="space-y-2">
-                                    <div className="flex justify-between items-center px-1">
-                                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Lista de Contatos</label>
-                                        <span className="text-[10px] font-bold text-slate-400">Formato: WhatsApp, Nome</span>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <div className="space-y-2">
+                                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Alvo da Campanha</label>
+                                        <select
+                                            required
+                                            value={newCampaign.target_type}
+                                            onChange={(e) => setNewCampaign({ ...newCampaign, target_type: e.target.value, target_list_id: '' })}
+                                            className="w-full px-4 py-4 bg-slate-50 dark:bg-slate-800 border-none rounded-2xl focus:ring-4 focus:ring-primary/5 dark:text-white outline-none font-medium appearance-none cursor-pointer"
+                                        >
+                                            <option value="MANUAL">Contatos Manuais</option>
+                                            <option value="ALL">Todos os Contatos</option>
+                                            <option value="LIST">Lista Específica</option>
+                                        </select>
                                     </div>
-                                    <textarea
-                                        required
-                                        rows={4}
-                                        value={newCampaign.contacts_raw}
-                                        onChange={(e) => setNewCampaign({ ...newCampaign, contacts_raw: e.target.value })}
-                                        placeholder="5511999999999, João&#10;5511888888888, Maria"
-                                        className="w-full px-4 py-4 bg-slate-50 dark:bg-slate-800 border-none rounded-3xl focus:ring-4 focus:ring-primary/5 dark:text-white outline-none font-medium resize-none placeholder:text-slate-400"
-                                    />
+                                    {newCampaign.target_type === 'LIST' && (
+                                        <div className="space-y-2">
+                                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Selecione a Lista</label>
+                                            <select
+                                                required
+                                                value={newCampaign.target_list_id}
+                                                onChange={(e) => setNewCampaign({ ...newCampaign, target_list_id: e.target.value })}
+                                                className="w-full px-4 py-4 bg-slate-50 dark:bg-slate-800 border-none rounded-2xl focus:ring-4 focus:ring-primary/5 dark:text-white outline-none font-medium appearance-none cursor-pointer"
+                                            >
+                                                <option value="">Selecione uma lista...</option>
+                                                {lists.map(l => (
+                                                    <option key={l.id} value={l.id}>{l.name}</option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                    )}
                                 </div>
+
+                                {newCampaign.target_type === 'MANUAL' && (
+                                    <div className="space-y-2">
+                                        <div className="flex justify-between items-center px-1">
+                                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Lista de Contatos</label>
+                                            <span className="text-[10px] font-bold text-slate-400">Formato: WhatsApp, Nome</span>
+                                        </div>
+                                        <textarea
+                                            required
+                                            rows={4}
+                                            value={newCampaign.contacts_raw}
+                                            onChange={(e) => setNewCampaign({ ...newCampaign, contacts_raw: e.target.value })}
+                                            placeholder="5511999999999, João&#10;5511888888888, Maria"
+                                            className="w-full px-4 py-4 bg-slate-50 dark:bg-slate-800 border-none rounded-3xl focus:ring-4 focus:ring-primary/5 dark:text-white outline-none font-medium resize-none placeholder:text-slate-400"
+                                        />
+                                    </div>
+                                )}
 
                                 <div className="space-y-2">
                                     <div className="flex justify-between items-center px-1">
