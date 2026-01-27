@@ -2191,13 +2191,19 @@ function BillingSettings() {
         if (!formData.smtp_host) return showToast('Configure o Host SMTP primeiro', 'error');
         setTestingEmail(true);
         try {
-            const { error } = await supabase.functions.invoke('billing-cron', {
+            console.log('Iniciando teste de diagnóstico...');
+            const { data, error } = await supabase.functions.invoke('billing-cron-diag', {
                 body: { action: 'TEST_SMTP', settings: formData, to: testTo }
             });
-            if (error) throw error;
-            showToast('E-mail de teste enviado para ' + testTo, 'success');
+            if (error) {
+                console.error('Invoke error:', error);
+                throw error;
+            }
+            console.log('Resposta do diagnóstico:', data);
+            showToast('Conexão básica OK: ' + (data?.message || 'Sucesso'), 'success');
         } catch (err: any) {
-            showToast('Falha no teste: ' + err.message, 'error');
+            console.error('Catch error:', err);
+            showToast('Falha no diagnóstico: ' + err.message, 'error');
         } finally {
             setTestingEmail(false);
         }
