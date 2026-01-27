@@ -32,7 +32,7 @@ if (DB_TYPE === 'mysql') {
         password: process.env.DB_PASS,
         database: process.env.DB_NAME,
         port: process.env.DB_PORT || 5432,
-        ssl: { rejectUnauthorized: false }
+        // ssl: { rejectUnauthorized: false } // Disabled for internal docker network
     });
 
     // Wrapper to mimic mysql2 interface for Postgres
