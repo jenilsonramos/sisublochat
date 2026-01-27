@@ -516,10 +516,87 @@ function UserManagement() {
 
     const toggleUserStatus = async (id: string, currentStatus: string) => {
         const newStatus = currentStatus === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE';
-        const { error } = await supabase.from('profiles').update({ status: newStatus }).eq('id', id);
-        if (!error) {
-            showToast(`Usuário ${newStatus === 'ACTIVE' ? 'reativado' : 'desativado'}`, 'info');
+        setLoading(true);
+
+        try {
+            if (newStatus === 'INACTIVE') {
+                // BLOCKING USER: Find active resources, save them, and pause them
+
+                // 1. Find active chatbots
+                const { data: activeBots } = await supabase
+                    .from('chatbots')
+                    .select('id')
+                    .eq('user_id', id)
+                    .eq('status', 'ACTIVE');
+
+                // 2. Find active flows
+                const { data: activeFlows } = await supabase
+                    .from('flows')
+                    .select('id')
+                    .eq('user_id', id)
+                    .eq('status', 'ACTIVE');
+
+                // 3. Insert into blocked_resources
+                const resourcesToBlock = [
+                    ...(activeBots || []).map(b => ({ user_id: id, resource_type: 'chatbot', resource_id: b.id })),
+                    ...(activeFlows || []).map(f => ({ user_id: id, resource_type: 'flow', resource_id: f.id }))
+                ];
+
+                if (resourcesToBlock.length > 0) {
+                    await supabase.from('blocked_resources').upsert(resourcesToBlock, { onConflict: 'user_id, resource_type, resource_id' });
+                }
+
+                // 4. Pause resources
+                if (activeBots?.length) {
+                    await supabase.from('chatbots').update({ status: 'PAUSED' }).in('id', activeBots.map(b => b.id));
+                }
+                if (activeFlows?.length) {
+                    await supabase.from('flows').update({ status: 'PAUSED' }).in('id', activeFlows.map(f => f.id));
+                }
+
+                showToast(`Usuário bloqueado e ${resourcesToBlock.length} recursos pausados automaticamente.`, 'warning');
+
+            } else {
+                // UNBLOCKING USER: Restore resources from blocked_resources
+
+                // 1. Find resources to restore
+                const { data: blockedResources } = await supabase
+                    .from('blocked_resources')
+                    .select('resource_type, resource_id')
+                    .eq('user_id', id);
+
+                if (blockedResources && blockedResources.length > 0) {
+                    const botsToRestore = blockedResources.filter(r => r.resource_type === 'chatbot').map(r => r.resource_id);
+                    const flowsToRestore = blockedResources.filter(r => r.resource_type === 'flow').map(r => r.resource_id);
+
+                    // 2. Restore resources
+                    if (botsToRestore.length > 0) {
+                        await supabase.from('chatbots').update({ status: 'ACTIVE' }).in('id', botsToRestore);
+                    }
+                    if (flowsToRestore.length > 0) {
+                        await supabase.from('flows').update({ status: 'ACTIVE' }).in('id', flowsToRestore);
+                    }
+
+                    // 3. Clear blocked_resources
+                    await supabase.from('blocked_resources').delete().eq('user_id', id);
+
+                    showToast(`Usuário desbloqueado e ${blockedResources.length} recursos reativados.`, 'success');
+                } else {
+                    showToast('Usuário desbloqueado. Sem recursos para restaurar.', 'info');
+                }
+            }
+
+            // Finally, update user status
+            const { error } = await supabase.from('profiles').update({ status: newStatus }).eq('id', id);
+            if (error) throw error;
+
             fetchUsers();
+
+        } catch (error: any) {
+            console.error('Error toggling user status:', error);
+            showToast('Erro ao alterar status do usuário: ' + error.message, 'error');
+        } finally {
+            setLoading(false);
         }
     };
 
