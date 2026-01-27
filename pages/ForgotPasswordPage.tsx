@@ -84,8 +84,8 @@ const ForgotPasswordPage: React.FC<ForgotPasswordPageProps> = ({ onBack, onRegis
     };
 
     return (
-        <div className="min-h-screen bg-white dark:bg-slate-950 flex items-center justify-center p-4 sm:p-6 lg:p-8 overflow-y-auto">
-            <div className="w-full max-w-[440px] space-y-10 py-8">
+        <div className="min-h-screen bg-white dark:bg-slate-950 flex flex-col items-center justify-start sm:justify-center p-4 sm:p-6 lg:p-8 overflow-y-auto overflow-x-hidden">
+            <div className="w-full max-w-[440px] space-y-8 py-10 sm:py-12">
                 {/* Header Back Button & Logo */}
                 <div className="flex flex-col items-center justify-center space-y-6 animate-in fade-in zoom-in duration-700 text-center">
                     <button
@@ -106,7 +106,7 @@ const ForgotPasswordPage: React.FC<ForgotPasswordPageProps> = ({ onBack, onRegis
                     </div>
                 </div>
 
-                <div className="bg-white dark:bg-slate-900/50 sm:border sm:border-slate-100 dark:sm:border-slate-800 sm:rounded-[2.5rem] sm:p-10 sm:shadow-2xl sm:shadow-primary/5 transition-all">
+                <div className="bg-white dark:bg-slate-900/50 sm:border sm:border-slate-100 dark:sm:border-slate-800 sm:rounded-[2.5rem] p-6 sm:p-10 sm:shadow-2xl sm:shadow-primary/5 transition-all">
                     {step === 'input_number' && (
                         <form onSubmit={handleSendCode} className="space-y-6 animate-in slide-in-from-bottom duration-500">
                             <div className="space-y-2">
@@ -210,6 +210,8 @@ const ForgotPasswordPage: React.FC<ForgotPasswordPageProps> = ({ onBack, onRegis
                         </div>
                     )}
                 </div>
+                {/* Spacer extra para mobile */}
+                <div className="h-8 sm:hidden"></div>
             </div>
         </div>
     );

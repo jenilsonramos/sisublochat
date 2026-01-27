@@ -93,8 +93,8 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, onRegister, onFor
     };
 
     return (
-        <div className="min-h-screen bg-white dark:bg-slate-950 flex items-center justify-center p-4 sm:p-6 lg:p-8 overflow-y-auto">
-            <div className="w-full max-w-[440px] space-y-10 py-8">
+        <div className="min-h-screen bg-white dark:bg-slate-950 flex flex-col items-center justify-start sm:justify-center p-4 sm:p-6 lg:p-8 overflow-y-auto overflow-x-hidden">
+            <div className="w-full max-w-[440px] space-y-8 py-10 sm:py-12">
                 {/* Logo Centralizado */}
                 <div className="flex flex-col items-center justify-center space-y-4 animate-in fade-in zoom-in duration-700">
                     <div className="w-16 h-16 bg-primary/10 rounded-2xl flex items-center justify-center">
@@ -106,7 +106,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, onRegister, onFor
                     </div>
                 </div>
 
-                <div className="bg-white dark:bg-slate-900/50 sm:border sm:border-slate-100 dark:sm:border-slate-800 sm:rounded-[2.5rem] sm:p-10 sm:shadow-2xl sm:shadow-primary/5 transition-all">
+                <div className="bg-white dark:bg-slate-900/50 sm:border sm:border-slate-100 dark:sm:border-slate-800 sm:rounded-[2.5rem] p-6 sm:p-10 sm:shadow-2xl sm:shadow-primary/5 transition-all">
                     <form onSubmit={handleLogin} className="space-y-6">
                         <div className="space-y-2">
                             <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">E-mail Corporativo</label>
@@ -192,6 +192,8 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, onRegister, onFor
                         </button>
                     </div>
                 </div>
+                {/* Spacer extra para garantir que o scroll vá até o fim no mobile */}
+                <div className="h-8 sm:hidden"></div>
             </div>
         </div>
     );
