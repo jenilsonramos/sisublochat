@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { evolutionApi, EvolutionInstance } from '../lib/evolution';
 import { supabase } from '../lib/supabase';
 import { useToast } from '../components/ToastProvider';
-import { Loader2, Plus, Smartphone, WifiOff, Battery, Trash2, QrCode, RefreshCw, Key, Copy, Check, Eye, EyeOff, AlertCircle } from 'lucide-react';
+import { Loader2, Plus, Smartphone, WifiOff, Battery, Trash2, QrCode, RefreshCw, Key, Copy, Check, Eye, EyeOff, AlertCircle, Webhook } from 'lucide-react';
 import { usePlanLimits } from '../hooks/usePlanLimits';
 
 interface InstancesViewProps {
@@ -15,6 +15,10 @@ const InstancesView: React.FC<InstancesViewProps> = ({ isBlocked = false }) => {
   const [processing, setProcessing] = useState<string | null>(null);
   const [showModal, setShowModal] = useState(false);
   const [qrCodeData, setQrCodeData] = useState<{ name: string, base64: string } | null>(null);
+
+  // Official API Config Modal State
+  const [showOfficialConfigModal, setShowOfficialConfigModal] = useState(false);
+  const [selectedOfficialConfig, setSelectedOfficialConfig] = useState<any>(null);
 
   // Form State
   const [newInstanceName, setNewInstanceName] = useState('');
@@ -387,6 +391,27 @@ const InstancesView: React.FC<InstancesViewProps> = ({ isBlocked = false }) => {
     }
   };
 
+  const handleShowOfficialConfig = async (instanceId: string) => {
+    try {
+      setProcessing('FETCH_CONFIG');
+      const { data, error } = await supabase
+        .from('whatsapp_official_resources')
+        .select('*')
+        .eq('instance_id', instanceId)
+        .single();
+
+      if (error) throw error;
+
+      setSelectedOfficialConfig(data);
+      setShowOfficialConfigModal(true);
+    } catch (err: any) {
+      showToast('Erro ao buscar configurações', 'error');
+      console.error(err);
+    } finally {
+      setProcessing(null);
+    }
+  };
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'open': // Connected
@@ -536,6 +561,15 @@ const InstancesView: React.FC<InstancesViewProps> = ({ isBlocked = false }) => {
                               </button>
                             )
                           )}
+                          {instance.channel_type === 'official' && (
+                            <button
+                              onClick={() => handleShowOfficialConfig(instance.id)}
+                              className="p-2 hover:bg-emerald-50 dark:hover:bg-emerald-500/10 rounded-xl text-slate-400 hover:text-emerald-500 transition-colors"
+                              title="Ver Webhook"
+                            >
+                              <Webhook className="w-5 h-5" />
+                            </button>
+                          )}
                           <button
                             onClick={() => handleDeleteInstance(instance.name)}
                             disabled={isProcessing}
@@ -641,168 +675,249 @@ const InstancesView: React.FC<InstancesViewProps> = ({ isBlocked = false }) => {
 
 
       {/* Create Modal */}
-      {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in">
-          <div className="bg-white dark:bg-slate-800 w-full max-w-lg md:max-w-2xl rounded-[2rem] md:rounded-[2.5rem] p-6 md:p-8 shadow-2xl animate-in zoom-in duration-300 max-h-[90vh] overflow-y-auto">
-            <h2 className="text-xl md:text-2xl font-black text-slate-900 dark:text-white mb-2">Nova Instância</h2>
-            <p className="text-sm md:text-base text-slate-500 mb-6 md:mb-8">Configure sua nova conexão do WhatsApp.</p>
+      {
+        showModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in">
+            <div className="bg-white dark:bg-slate-800 w-full max-w-lg md:max-w-2xl rounded-[2rem] md:rounded-[2.5rem] p-6 md:p-8 shadow-2xl animate-in zoom-in duration-300 max-h-[90vh] overflow-y-auto">
+              <h2 className="text-xl md:text-2xl font-black text-slate-900 dark:text-white mb-2">Nova Instância</h2>
+              <p className="text-sm md:text-base text-slate-500 mb-6 md:mb-8">Configure sua nova conexão do WhatsApp.</p>
 
-            <form onSubmit={handleCreateInstance} className="space-y-6">
+              <form onSubmit={handleCreateInstance} className="space-y-6">
 
-              {/* Type Selection */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                <div
-                  onClick={() => setConnectionType('evolution')}
-                  className={`cursor-pointer p-4 rounded-2xl border-2 transition-all relative overflow-hidden ${connectionType === 'evolution' ? 'border-primary bg-primary/5 shadow-lg shadow-primary/5' : 'border-slate-100 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600'}`}
-                >
-                  <div className="flex items-center gap-3 mb-2">
-                    <div className={`p-2 rounded-xl ${connectionType === 'evolution' ? 'bg-primary text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-400'}`}>
-                      <QrCode className="w-5 h-5" />
+                {/* Type Selection */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                  <div
+                    onClick={() => setConnectionType('evolution')}
+                    className={`cursor-pointer p-4 rounded-2xl border-2 transition-all relative overflow-hidden ${connectionType === 'evolution' ? 'border-primary bg-primary/5 shadow-lg shadow-primary/5' : 'border-slate-100 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600'}`}
+                  >
+                    <div className="flex items-center gap-3 mb-2">
+                      <div className={`p-2 rounded-xl ${connectionType === 'evolution' ? 'bg-primary text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-400'}`}>
+                        <QrCode className="w-5 h-5" />
+                      </div>
+                      <span className={`font-bold ${connectionType === 'evolution' ? 'text-primary' : 'text-slate-500 dark:text-slate-400'}`}>QR Code</span>
                     </div>
-                    <span className={`font-bold ${connectionType === 'evolution' ? 'text-primary' : 'text-slate-500 dark:text-slate-400'}`}>QR Code</span>
-                  </div>
-                  <p className="text-xs text-slate-500 leading-relaxed">Conecte seu WhatsApp existente escaneando um código.</p>
+                    <p className="text-xs text-slate-500 leading-relaxed">Conecte seu WhatsApp existente escaneando um código.</p>
 
-                  {connectionType === 'evolution' && (
-                    <div className="absolute top-2 right-2">
-                      <div className="w-4 h-4 rounded-full bg-primary flex items-center justify-center">
-                        <Check className="w-2.5 h-2.5 text-white" />
+                    {connectionType === 'evolution' && (
+                      <div className="absolute top-2 right-2">
+                        <div className="w-4 h-4 rounded-full bg-primary flex items-center justify-center">
+                          <Check className="w-2.5 h-2.5 text-white" />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  <div
+                    onClick={() => setConnectionType('official')}
+                    className={`cursor-pointer p-4 rounded-2xl border-2 transition-all relative overflow-hidden ${connectionType === 'official' ? 'border-emerald-500 bg-emerald-500/5 shadow-lg shadow-emerald-500/5' : 'border-slate-100 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600'}`}
+                  >
+                    <div className="flex items-center gap-3 mb-2">
+                      <div className={`p-2 rounded-xl flex items-center justify-center ${connectionType === 'official' ? 'bg-emerald-500 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-400'}`}>
+                        <span className="font-bold text-xs">M</span>
+                      </div>
+                      <span className={`font-bold ${connectionType === 'official' ? 'text-emerald-500' : 'text-slate-500 dark:text-slate-400'}`}>API Oficial</span>
+                    </div>
+                    <p className="text-xs text-slate-500 leading-relaxed">Use a API Cloud da Meta para alta performance e estabilidade.</p>
+
+                    {connectionType === 'official' && (
+                      <div className="absolute top-2 right-2">
+                        <div className="w-4 h-4 rounded-full bg-emerald-500 flex items-center justify-center">
+                          <Check className="w-2.5 h-2.5 text-white" />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold uppercase tracking-widest text-slate-400 ml-1">Nome da Instância</label>
+                  <input
+                    value={newInstanceName}
+                    onChange={(e) => setNewInstanceName(e.target.value)}
+                    placeholder="Ex: Vendas 01"
+                    className="w-full mt-2 p-4 bg-slate-50 dark:bg-slate-900 rounded-2xl font-bold outline-none focus:ring-2 focus:ring-primary/20 dark:text-white border-2 border-transparent focus:border-primary/20 transition-all"
+                    autoFocus
+                  />
+                </div>
+
+                {connectionType === 'official' && (
+                  <div className="space-y-4 pt-4 border-t border-slate-100 dark:border-slate-700 animate-in slide-in-from-top-2 fade-in duration-300">
+                    <div className="flex items-center gap-2 mb-2">
+                      <div className="w-8 h-8 rounded-full bg-emerald-100 dark:bg-emerald-500/10 flex items-center justify-center">
+                        <span className="text-emerald-600 dark:text-emerald-500 font-bold text-xs">ID</span>
+                      </div>
+                      <h3 className="text-sm font-black text-slate-700 dark:text-white">Credenciais da Meta</h3>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400 ml-1">Phone Number ID</label>
+                        <input
+                          value={metaPhoneId}
+                          onChange={(e) => setMetaPhoneId(e.target.value)}
+                          placeholder="Ex: 1059..."
+                          className="w-full mt-1 p-3 bg-slate-50 dark:bg-slate-900 rounded-xl text-sm font-medium outline-none focus:ring-2 focus:ring-emerald-500/20 dark:text-white border border-slate-100 dark:border-slate-700/50"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400 ml-1">Business Account ID</label>
+                        <input
+                          value={metaBusinessId}
+                          onChange={(e) => setMetaBusinessId(e.target.value)}
+                          placeholder="Ex: 1023..."
+                          className="w-full mt-1 p-3 bg-slate-50 dark:bg-slate-900 rounded-xl text-sm font-medium outline-none focus:ring-2 focus:ring-emerald-500/20 dark:text-white border border-slate-100 dark:border-slate-700/50"
+                        />
                       </div>
                     </div>
-                  )}
-                </div>
-
-                <div
-                  onClick={() => setConnectionType('official')}
-                  className={`cursor-pointer p-4 rounded-2xl border-2 transition-all relative overflow-hidden ${connectionType === 'official' ? 'border-emerald-500 bg-emerald-500/5 shadow-lg shadow-emerald-500/5' : 'border-slate-100 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600'}`}
-                >
-                  <div className="flex items-center gap-3 mb-2">
-                    <div className={`p-2 rounded-xl flex items-center justify-center ${connectionType === 'official' ? 'bg-emerald-500 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-400'}`}>
-                      <span className="font-bold text-xs">M</span>
-                    </div>
-                    <span className={`font-bold ${connectionType === 'official' ? 'text-emerald-500' : 'text-slate-500 dark:text-slate-400'}`}>API Oficial</span>
-                  </div>
-                  <p className="text-xs text-slate-500 leading-relaxed">Use a API Cloud da Meta para alta performance e estabilidade.</p>
-
-                  {connectionType === 'official' && (
-                    <div className="absolute top-2 right-2">
-                      <div className="w-4 h-4 rounded-full bg-emerald-500 flex items-center justify-center">
-                        <Check className="w-2.5 h-2.5 text-white" />
+                    <div>
+                      <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400 ml-1">Access Token (Permanente)</label>
+                      <div className="relative">
+                        <input
+                          value={metaToken}
+                          onChange={(e) => setMetaToken(e.target.value)}
+                          placeholder="Ex: EAAG..."
+                          type="password"
+                          className="w-full mt-1 p-3 bg-slate-50 dark:bg-slate-900 rounded-xl text-sm font-medium outline-none focus:ring-2 focus:ring-emerald-500/20 dark:text-white border border-slate-100 dark:border-slate-700/50"
+                        />
                       </div>
+                      <p className="text-[10px] text-slate-400 mt-1 ml-1">Use um token de sistema ou de usuário permanente.</p>
                     </div>
-                  )}
+                  </div>
+                )}
+
+                <div className="flex flex-col-reverse md:flex-row gap-3 pt-4">
+                  <button
+                    type="button"
+                    onClick={() => setShowModal(false)}
+                    className="flex-1 py-4 font-bold text-slate-500 hover:bg-slate-50 rounded-2xl transition-colors"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={processing === 'CREATING' || !newInstanceName || (connectionType === 'official' && (!metaPhoneId || !metaToken))}
+                    className={`flex-1 py-4 text-white font-bold rounded-2xl transition-all shadow-lg disabled:opacity-50 flex items-center justify-center gap-2 ${connectionType === 'official' ? 'bg-emerald-500 hover:bg-emerald-600 shadow-emerald-500/20' : 'bg-primary hover:bg-primary-light shadow-primary/20'}`}
+                  >
+                    {processing === 'CREATING' ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Criar Instância'}
+                  </button>
                 </div>
-              </div>
-
-              <div>
-                <label className="text-xs font-bold uppercase tracking-widest text-slate-400 ml-1">Nome da Instância</label>
-                <input
-                  value={newInstanceName}
-                  onChange={(e) => setNewInstanceName(e.target.value)}
-                  placeholder="Ex: Vendas 01"
-                  className="w-full mt-2 p-4 bg-slate-50 dark:bg-slate-900 rounded-2xl font-bold outline-none focus:ring-2 focus:ring-primary/20 dark:text-white border-2 border-transparent focus:border-primary/20 transition-all"
-                  autoFocus
-                />
-              </div>
-
-              {connectionType === 'official' && (
-                <div className="space-y-4 pt-4 border-t border-slate-100 dark:border-slate-700 animate-in slide-in-from-top-2 fade-in duration-300">
-                  <div className="flex items-center gap-2 mb-2">
-                    <div className="w-8 h-8 rounded-full bg-emerald-100 dark:bg-emerald-500/10 flex items-center justify-center">
-                      <span className="text-emerald-600 dark:text-emerald-500 font-bold text-xs">ID</span>
-                    </div>
-                    <h3 className="text-sm font-black text-slate-700 dark:text-white">Credenciais da Meta</h3>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400 ml-1">Phone Number ID</label>
-                      <input
-                        value={metaPhoneId}
-                        onChange={(e) => setMetaPhoneId(e.target.value)}
-                        placeholder="Ex: 1059..."
-                        className="w-full mt-1 p-3 bg-slate-50 dark:bg-slate-900 rounded-xl text-sm font-medium outline-none focus:ring-2 focus:ring-emerald-500/20 dark:text-white border border-slate-100 dark:border-slate-700/50"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400 ml-1">Business Account ID</label>
-                      <input
-                        value={metaBusinessId}
-                        onChange={(e) => setMetaBusinessId(e.target.value)}
-                        placeholder="Ex: 1023..."
-                        className="w-full mt-1 p-3 bg-slate-50 dark:bg-slate-900 rounded-xl text-sm font-medium outline-none focus:ring-2 focus:ring-emerald-500/20 dark:text-white border border-slate-100 dark:border-slate-700/50"
-                      />
-                    </div>
-                  </div>
-                  <div>
-                    <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400 ml-1">Access Token (Permanente)</label>
-                    <div className="relative">
-                      <input
-                        value={metaToken}
-                        onChange={(e) => setMetaToken(e.target.value)}
-                        placeholder="Ex: EAAG..."
-                        type="password"
-                        className="w-full mt-1 p-3 bg-slate-50 dark:bg-slate-900 rounded-xl text-sm font-medium outline-none focus:ring-2 focus:ring-emerald-500/20 dark:text-white border border-slate-100 dark:border-slate-700/50"
-                      />
-                    </div>
-                    <p className="text-[10px] text-slate-400 mt-1 ml-1">Use um token de sistema ou de usuário permanente.</p>
-                  </div>
-                </div>
-              )}
-
-              <div className="flex flex-col-reverse md:flex-row gap-3 pt-4">
-                <button
-                  type="button"
-                  onClick={() => setShowModal(false)}
-                  className="flex-1 py-4 font-bold text-slate-500 hover:bg-slate-50 rounded-2xl transition-colors"
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  disabled={processing === 'CREATING' || !newInstanceName || (connectionType === 'official' && (!metaPhoneId || !metaToken))}
-                  className={`flex-1 py-4 text-white font-bold rounded-2xl transition-all shadow-lg disabled:opacity-50 flex items-center justify-center gap-2 ${connectionType === 'official' ? 'bg-emerald-500 hover:bg-emerald-600 shadow-emerald-500/20' : 'bg-primary hover:bg-primary-light shadow-primary/20'}`}
-                >
-                  {processing === 'CREATING' ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Criar Instância'}
-                </button>
-              </div>
-            </form>
+              </form>
+            </div>
           </div>
-        </div>
-      )}
+        )
+      }
 
       {/* QR Code Modal */}
-      {qrCodeData && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in">
-          <div className="bg-white dark:bg-slate-800 w-full max-w-sm rounded-[2.5rem] p-8 shadow-2xl animate-in zoom-in duration-300 text-center relative">
-            <button
-              onClick={() => setQrCodeData(null)}
-              className="absolute top-4 right-4 p-2 bg-slate-100 dark:bg-slate-700 rounded-full text-slate-500 hover:bg-slate-200"
-            >
-              <Trash2 className="w-5 h-5 rotate-45" />
-            </button>
+      {
+        qrCodeData && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in">
+            <div className="bg-white dark:bg-slate-800 w-full max-w-sm rounded-[2.5rem] p-8 shadow-2xl animate-in zoom-in duration-300 text-center relative">
+              <button
+                onClick={() => setQrCodeData(null)}
+                className="absolute top-4 right-4 p-2 bg-slate-100 dark:bg-slate-700 rounded-full text-slate-500 hover:bg-slate-200"
+              >
+                <Trash2 className="w-5 h-5 rotate-45" />
+              </button>
 
-            <h2 className="text-xl font-black text-slate-900 dark:text-white mb-2">QR Code de Conexão</h2>
-            <p className="text-slate-500 mb-6 font-medium">{qrCodeData.name}</p>
+              <h2 className="text-xl font-black text-slate-900 dark:text-white mb-2">QR Code de Conexão</h2>
+              <p className="text-slate-500 mb-6 font-medium">{qrCodeData.name}</p>
 
-            <div className="bg-white p-4 rounded-3xl shadow-inner border border-slate-100 inline-block mb-6">
-              <img src={qrCodeData.base64} alt="QR Code" className="w-48 h-48 mx-auto" />
+              <div className="bg-white p-4 rounded-3xl shadow-inner border border-slate-100 inline-block mb-6">
+                <img src={qrCodeData.base64} alt="QR Code" className="w-48 h-48 mx-auto" />
+              </div>
+
+              <p className="text-xs text-slate-400 font-bold uppercase tracking-widest mb-6">Abra o WhatsApp &gt; Dispositivos Conectados &gt; Conectar</p>
+
+              <button
+                onClick={() => setQrCodeData(null)}
+                className="w-full py-4 bg-primary text-white font-bold rounded-2xl hover:bg-primary-light transition-all shadow-lg shadow-primary/20"
+              >
+                Fechar
+              </button>
             </div>
-
-            <p className="text-xs text-slate-400 font-bold uppercase tracking-widest mb-6">Abra o WhatsApp &gt; Dispositivos Conectados &gt; Conectar</p>
-
-            <button
-              onClick={() => setQrCodeData(null)}
-              className="w-full py-4 bg-primary text-white font-bold rounded-2xl hover:bg-primary-light transition-all shadow-lg shadow-primary/20"
-            >
-              Fechar
-            </button>
           </div>
-        </div>
-      )}
+        )
+      }
 
-    </div>
+      {/* Official API Config Modal */}
+      {
+        showOfficialConfigModal && selectedOfficialConfig && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in">
+            <div className="bg-white dark:bg-slate-800 w-full max-w-lg rounded-[2.5rem] p-8 shadow-2xl animate-in zoom-in duration-300">
+              <div className="flex justify-between items-start mb-6">
+                <div>
+                  <h2 className="text-xl font-black text-slate-900 dark:text-white mb-1">Configuração do Webhook</h2>
+                  <p className="text-slate-500 text-sm">Configure estes dados no Painel da Meta (Facebook).</p>
+                </div>
+                <button
+                  onClick={() => setShowOfficialConfigModal(false)}
+                  className="p-2 bg-slate-100 dark:bg-slate-700 rounded-full text-slate-500 hover:bg-slate-200 transition-colors"
+                >
+                  <Trash2 className="w-5 h-5 rotate-45" />
+                </button>
+              </div>
+
+              <div className="space-y-6">
+                <div className="bg-amber-50 dark:bg-amber-500/10 border border-amber-100 dark:border-amber-500/20 p-4 rounded-xl flex gap-3">
+                  <AlertCircle className="w-5 h-5 text-amber-500 shrink-0" />
+                  <p className="text-xs text-amber-700 dark:text-amber-500 font-bold leading-relaxed">
+                    Acesse developers.facebook.com &gt; WhatsApp &gt; Configuração &gt; Webhook e insira os dados abaixo.
+                  </p>
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold uppercase tracking-widest text-slate-400 ml-1">Callback URL</label>
+                  <div className="flex items-center gap-2 mt-2">
+                    <code className="flex-1 p-3 bg-slate-50 dark:bg-slate-900 rounded-xl border border-slate-100 dark:border-slate-700 text-xs font-mono text-slate-600 dark:text-slate-300 break-all">
+                      {`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/meta-webhook`}
+                    </code>
+                    <button
+                      onClick={() => {
+                        navigator.clipboard.writeText(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/meta-webhook`);
+                        showToast('URL copiada!', 'success');
+                      }}
+                      className="p-3 bg-primary/10 text-primary hover:bg-primary/20 rounded-xl transition-colors"
+                    >
+                      <Copy className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold uppercase tracking-widest text-slate-400 ml-1">Verify Token</label>
+                  <div className="flex items-center gap-2 mt-2">
+                    <code className="flex-1 p-3 bg-slate-50 dark:bg-slate-900 rounded-xl border border-slate-100 dark:border-slate-700 text-xs font-mono text-slate-600 dark:text-slate-300">
+                      {selectedOfficialConfig.verify_token}
+                    </code>
+                    <button
+                      onClick={() => {
+                        navigator.clipboard.writeText(selectedOfficialConfig.verify_token);
+                        showToast('Token copiado!', 'success');
+                      }}
+                      className="p-3 bg-primary/10 text-primary hover:bg-primary/20 rounded-xl transition-colors"
+                    >
+                      <Copy className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+
+                <div className="pt-2">
+                  <button
+                    onClick={() => setShowOfficialConfigModal(false)}
+                    className="w-full py-3 bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 font-bold rounded-xl hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors"
+                  >
+                    Entendi
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )
+      }
+
+    </div >
   );
 };
+
 
 export default InstancesView;
