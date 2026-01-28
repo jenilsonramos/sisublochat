@@ -86,9 +86,49 @@ async function sendEvolutionMessage(instanceName, remoteJid, text, apiKey, apiUr
 // Logic: Process Campaigns
 async function processCampaigns() {
     try {
+        // 0. Ensure Tables Exist (Safety Check)
+        await pool.query('CREATE EXTENSION IF NOT EXISTS "pgcrypto"');
+        await pool.query(`CREATE TABLE IF NOT EXISTS public.instances (
+            id uuid NOT NULL DEFAULT gen_random_uuid(),
+            name text UNIQUE NOT NULL,
+            status text DEFAULT 'connecting',
+            created_at timestamp with time zone DEFAULT now(),
+            CONSTRAINT instances_pkey PRIMARY KEY (id)
+        )`);
+        await pool.query(`CREATE TABLE IF NOT EXISTS public.campaigns (
+            id uuid NOT NULL DEFAULT gen_random_uuid(),
+            user_id uuid,
+            instance_id uuid,
+            name text NOT NULL,
+            message_template text,
+            min_delay integer DEFAULT 15,
+            max_delay integer DEFAULT 45,
+            total_messages integer DEFAULT 0,
+            sent_messages integer DEFAULT 0,
+            error_messages integer DEFAULT 0,
+            status text DEFAULT 'PENDING',
+            scheduled_at timestamp with time zone,
+            created_at timestamp with time zone DEFAULT now(),
+            updated_at timestamp with time zone DEFAULT now(),
+            CONSTRAINT campaigns_pkey PRIMARY KEY (id),
+            CONSTRAINT campaigns_instance_id_fkey FOREIGN KEY (instance_id) REFERENCES public.instances(id)
+        )`);
+        await pool.query(`CREATE TABLE IF NOT EXISTS public.campaign_messages (
+            id uuid NOT NULL DEFAULT gen_random_uuid(),
+            campaign_id uuid NOT NULL,
+            remote_jid text NOT NULL,
+            variables jsonb DEFAULT '{}'::jsonb,
+            status text DEFAULT 'PENDING',
+            sent_at timestamp with time zone,
+            error_message text,
+            created_at timestamp with time zone DEFAULT now(),
+            CONSTRAINT campaign_messages_pkey PRIMARY KEY (id),
+            CONSTRAINT campaign_messages_campaign_id_fkey FOREIGN KEY (campaign_id) REFERENCES public.campaigns(id) ON DELETE CASCADE
+        )`);
+
         // 1. Activate Scheduled Campaigns
         await pool.query(`
-            UPDATE campaigns 
+            UPDATE public.campaigns 
             SET status = 'PROCESSING' 
             WHERE status = 'PENDING' 
             AND scheduled_at IS NOT NULL 
@@ -98,8 +138,8 @@ async function processCampaigns() {
         // 2. Fetch Active Campaigns
         const [campaigns] = await pool.query(`
             SELECT c.*, i.name as instance_name 
-            FROM campaigns c 
-            JOIN instances i ON c.instance_id = i.id 
+            FROM public.campaigns c 
+            JOIN public.instances i ON c.instance_id = i.id 
             WHERE c.status = 'PROCESSING'
         `);
 

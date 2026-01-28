@@ -12,7 +12,31 @@ async function createTables() {
         console.log('📦 Enabling pgcrypto extension...');
         await pool.query('CREATE EXTENSION IF NOT EXISTS "pgcrypto"');
 
-        // 3. Create Campaigns Table
+        // 3. Create Instances Table
+        console.log('📋 Creating instances table...');
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS instances (
+                id uuid NOT NULL DEFAULT gen_random_uuid(),
+                name text UNIQUE NOT NULL,
+                status text DEFAULT 'connecting',
+                created_at timestamp with time zone DEFAULT now(),
+                CONSTRAINT instances_pkey PRIMARY KEY (id)
+            )
+        `);
+
+        // 4. Create System Settings Table
+        console.log('⚙️ Creating system_settings table...');
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS system_settings (
+                id integer PRIMARY KEY DEFAULT 1,
+                api_url text,
+                api_key text,
+                updated_at timestamp with time zone DEFAULT now(),
+                CONSTRAINT system_settings_id_check CHECK (id = 1)
+            )
+        `);
+
+        // 5. Create Campaigns Table
         console.log('📋 Creating campaigns table...');
         await pool.query(`
             CREATE TABLE IF NOT EXISTS campaigns (
@@ -30,11 +54,12 @@ async function createTables() {
                 scheduled_at timestamp with time zone,
                 created_at timestamp with time zone DEFAULT now(),
                 updated_at timestamp with time zone DEFAULT now(),
-                CONSTRAINT campaigns_pkey PRIMARY KEY (id)
+                CONSTRAINT campaigns_pkey PRIMARY KEY (id),
+                CONSTRAINT campaigns_instance_id_fkey FOREIGN KEY (instance_id) REFERENCES instances(id)
             )
         `);
 
-        // 4. Create Campaign Messages Table
+        // 6. Create Campaign Messages Table
         console.log('📧 Creating campaign_messages table...');
         await pool.query(`
             CREATE TABLE IF NOT EXISTS campaign_messages (
