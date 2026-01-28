@@ -26,10 +26,10 @@ services:
     build:
       context: .
       args:
-        - VITE_SUPABASE_URL=https://rormftnssmqwcluvlszg.supabase.co
-        - VITE_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJvcm1mdG5zc21xd2NsdXZsc3pnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg5NDMwNzYsImV4cCI6MjA4NDUxOTA3Nn0.Jb8d8JwEdCyubUVbMTNXi5y9VKYmVaOeQi85RwplB-E
+        - VITE_SUPABASE_URL=https://kvjpmwvwlbkqlsdysmxy.supabase.co
+        - VITE_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt2anBtd3Z3bGJrcWxzZHlzbXh5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk2MjY1NDksImV4cCI6MjA4NTIwMjU0OX0.YN54cN_6664obfdl63ogZfSUAb0l7W7w8khrMyzHcYE
         - VITE_EVOLUTION_API_URL=https://api.ublochat.com.br
-        - VITE_EVOLUTION_API_KEY=f534ab200345bc2b35ef679dde6e61ec
+        - VITE_EVOLUTION_API_KEY=da1900feae82ae3a1f234966ccad7a03
     container_name: ublochat_frontend
     restart: always
     expose:

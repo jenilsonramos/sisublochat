@@ -3,9 +3,13 @@ import axios from 'axios';
 const API_URL = import.meta.env.VITE_EVOLUTION_API_URL;
 const API_KEY = import.meta.env.VITE_EVOLUTION_API_KEY;
 
+// URL do Webhook - pode ser o Supabase Edge Functions ou o servidor backend
+const WEBHOOK_URL = import.meta.env.VITE_WEBHOOK_URL || 'https://banco.ublochat.com.br/functions/v1/evolution-webhook';
+
 console.log('Evolution API Config:', {
     url: API_URL,
-    hasKey: !!API_KEY
+    hasKey: !!API_KEY,
+    webhookUrl: WEBHOOK_URL
 });
 
 if (!API_URL || !API_KEY) {
@@ -55,12 +59,12 @@ export const evolutionApi = {
 
         // Auto-configure Webhook for this instance
         try {
-            const webhookUrl = `https://rormftnssmqwcluvlszg.supabase.co/functions/v1/evolution-webhook`;
-            console.log('Configuring Webhook:', webhookUrl);
+            // Usa a URL do webhook configurada via variável de ambiente
+            console.log('Configuring Webhook:', WEBHOOK_URL);
             await api.post(`/webhook/set/${encodeURIComponent(instanceName)}`, {
                 webhook: {
                     enabled: true,
-                    url: webhookUrl,
+                    url: WEBHOOK_URL,
                     events: [
                         'MESSAGES_UPSERT',
                         'MESSAGES_UPDATE',
@@ -80,13 +84,14 @@ export const evolutionApi = {
         return response.data;
     },
 
+
     // Set Webhook Manual
     setWebhook: async (instanceName: string, enabled: boolean = true) => {
-        const webhookUrl = `https://rormftnssmqwcluvlszg.supabase.co/functions/v1/evolution-webhook`;
+        // Usa a URL do webhook configurada via variável de ambiente
         const payload = {
             webhook: {
                 enabled,
-                url: webhookUrl,
+                url: WEBHOOK_URL,
                 events: [
                     'MESSAGES_UPSERT',
                     'MESSAGES_UPDATE',
