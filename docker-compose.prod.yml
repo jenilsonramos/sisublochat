@@ -26,8 +26,8 @@ services:
     build:
       context: .
       args:
-        - VITE_SUPABASE_URL=https://kvjpmwvwlbkqlsdysmxy.supabase.co
-        - VITE_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt2anBtd3Z3bGJrcWxzZHlzbXh5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk2MjY1NDksImV4cCI6MjA4NTIwMjU0OX0.YN54cN_6664obfdl63ogZfSUAb0l7W7w8khrMyzHcYE
+        - VITE_SUPABASE_URL=https://banco.ublochat.com.br
+        - VITE_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiYW5vbiIsImlzcyI6InN1cGFiYXNlIiwiaWF0IjoxNzM4MDQ2MDAwfQ.XdZPpX9J4qZcZqf9yZxZVZ0dFz9L7Nn8X9V2n5wF8JY
         - VITE_EVOLUTION_API_URL=https://api.ublochat.com.br
         - VITE_EVOLUTION_API_KEY=da1900feae82ae3a1f234966ccad7a03
     container_name: ublochat_frontend
