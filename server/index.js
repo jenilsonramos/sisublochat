@@ -302,6 +302,7 @@ async function processChatbot(instanceId, userId, remoteJid, text, instanceName)
 
         // 3. Send response
         for (const step of steps) {
+            console.log('🤖 Processing Step:', JSON.stringify(step));
             // Apply Delay and Typing Simulation
             if (step.delay && step.delay > 0) {
                 if (step.simulate_typing) {
