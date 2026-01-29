@@ -59,6 +59,25 @@ cron.schedule('* * * * *', async () => {
 
 console.log('🚀 Internal Cron Scheduler Started (Timezone: America/Sao_Paulo)');
 
+// Helper: Delay
+const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+// Helper: Send Chat Presence (Typing)
+async function sendChatPresence(instanceName, remoteJid, status) {
+    const apiUrl = process.env.EVOLUTION_API_URL;
+    const apiKey = process.env.EVOLUTION_API_KEY;
+    if (!apiUrl || !apiKey) return;
+    try {
+        await fetch(`${apiUrl}/chat/presenceUpdate/${instanceName}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'apikey': apiKey },
+            body: JSON.stringify({ number: remoteJid, presence: status })
+        });
+    } catch (e) {
+        console.error('❌ Presence Error:', e.message);
+    }
+}
+
 // Helper: Send Message via Evolution API
 async function sendEvolutionMessage(instanceName, remoteJid, text, apiKey, apiUrl) {
     if (!apiKey || !apiUrl) return false;
@@ -260,6 +279,15 @@ async function processChatbot(instanceId, userId, remoteJid, text, instanceName)
 
         // 3. Send response
         for (const step of steps) {
+            // Apply Delay and Typing Simulation
+            if (step.delay && step.delay > 0) {
+                if (step.simulate_typing) {
+                    console.log(`✍️ Simulating typing for ${step.delay}s...`);
+                    await sendChatPresence(instanceName, remoteJid, 'composing');
+                }
+                await sleep(step.delay * 1000);
+            }
+
             if (step.type === 'text' && step.content) {
                 console.log(`📤 Sending chatbot response to ${remoteJid}`);
                 await sendEvolutionMessage(
