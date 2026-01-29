@@ -13,7 +13,7 @@ services:
       - PORT=3001
       - DB_TYPE=postgres
       - DB_HOST=194.163.189.247
-      - DB_PORT=5432
+      - DB_PORT=5433
       - DB_USER=postgres
       - DB_PASS=e52f57838865b7d25b4b8a161b3d3efa
       - DB_NAME=postgres
