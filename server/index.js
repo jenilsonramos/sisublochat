@@ -233,25 +233,25 @@ async function processChatbot(instanceId, userId, remoteJid, text, instanceName)
             `SELECT id FROM chatbots 
              WHERE instance_id = ? 
              AND user_id = ? 
-             AND is_active = true 
+             AND status = 'ACTIVE' 
              AND (
-                LOWER(trigger_value) = LOWER(?) 
-                OR (trigger_type = 'contains' AND LOWER(?) LIKE '%' || LOWER(trigger_value) || '%')
+                LOWER("trigger") = LOWER(?) 
+                OR (match_type = 'CONTAINS' AND LOWER(?) LIKE '%' || LOWER("trigger") || '%')
              )`,
             [instanceId, userId, text.trim(), text.trim()]
         );
 
         if (chatbots.length === 0) {
-            console.log('❌ No matching chatbot found.');
+            console.log('❌ No matching chatbot found for:', text.trim());
             return;
         }
 
         const chatbotId = chatbots[0].id;
         console.log(`🎯 Chatbot Match found: ${chatbotId}`);
 
-        // 2. Get first step (assuming position 0 or based on next_step_id flow)
+        // 2. Get steps ordered by "order" column
         const [steps] = await pool.query(
-            'SELECT * FROM chatbot_steps WHERE chatbot_id = ? ORDER BY position ASC LIMIT 1',
+            'SELECT * FROM chatbot_steps WHERE chatbot_id = ? ORDER BY "order" ASC',
             [chatbotId]
         );
 
