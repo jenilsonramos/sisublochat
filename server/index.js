@@ -68,13 +68,33 @@ async function sendChatPresence(instanceName, remoteJid, status) {
     const apiKey = process.env.EVOLUTION_API_KEY;
     if (!apiUrl || !apiKey) return;
     try {
+        // We Use the JID directly
         await fetch(`${apiUrl}/chat/presenceUpdate/${instanceName}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'apikey': apiKey },
-            body: JSON.stringify({ number: remoteJid, presence: status })
+            body: JSON.stringify({
+                number: remoteJid,
+                presence: status // 'composing', 'recording', 'paused'
+            })
         });
     } catch (e) {
         console.error('❌ Presence Error:', e.message);
+    }
+}
+
+// Helper: Mark Message as Read
+async function markMessageAsRead(instanceName, remoteJid) {
+    const apiUrl = process.env.EVOLUTION_API_URL;
+    const apiKey = process.env.EVOLUTION_API_KEY;
+    if (!apiUrl || !apiKey) return;
+    try {
+        await fetch(`${apiUrl}/chat/markMessageAsRead/${instanceName}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'apikey': apiKey },
+            body: JSON.stringify({ number: remoteJid })
+        });
+    } catch (e) {
+        console.error('❌ Read Status Error:', e.message);
     }
 }
 
@@ -268,6 +288,9 @@ async function processChatbot(instanceId, userId, remoteJid, text, instanceName)
 
         const chatbotId = chatbots[0].id;
         console.log(`🎯 Chatbot Match found: ${chatbotId}`);
+
+        // 0. Mark message as read immediately
+        await markMessageAsRead(instanceName, remoteJid);
 
         // 2. Get steps ordered by "order" column
         const [steps] = await pool.query(
