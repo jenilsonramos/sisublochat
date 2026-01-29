@@ -12,13 +12,20 @@ services:
     environment:
       - PORT=3001
       - DB_TYPE=postgres
-      - DB_HOST=ublochat_db
+      - DB_HOST=194.163.189.247
       - DB_PORT=5432
-      - DB_USER=supabase_admin
-      - DB_PASS=967d7e6b537be56e6677b96a606c7d8b
+      - DB_USER=postgres
+      - DB_PASS=e52f57838865b7d25b4b8a161b3d3efa
       - DB_NAME=postgres
+      - JWT_SECRET=add191305385622344aa4a08353d6691ca47fd23
+      - SUPABASE_URL=https://banco.ublochat.com.br
+      - SUPABASE_SERVICE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.ewogICJyb2xlIjogInNlcnZpY2Vfcm9sZSIsCiAgImlzcyI6ICJzdXBhYmFzZSIsCiAgImlhdCI6IDE3MTUwNTA4MDAsCiAgImV4cCI6IDE4NzI4MTcyMDAKfQ.4lJXVKXK5AEKHLMrvcluh-kmYwwLeRXqLrp3998u-rU
+      - SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.ewogICJyb2xlIjogImFub24iLAogICJpc3MiOiAic3VwYWJhc2UiLAogICJpYXQiOiAxNzE1MDUwODAwLAogICJleHAiOiAxODcyODE3MjAwCn0.IEHlSEhCYXk6E3QO785siSA5KGdmfWq_UH25z_MLuqA
+      - EVOLUTION_API_URL=https://api.ublochat.com.br
+      - EVOLUTION_API_KEY=6923599069fc6ab48f10c2277e730f7c
     networks:
       - ublochatnet
+
 
 
   # Frontend
