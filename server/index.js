@@ -260,6 +260,97 @@ app.use((req, res, next) => {
     next();
 });
 
+// Logic: Process FlowBuilder
+async function processFlow(instanceId, userId, remoteJid, text, instanceName) {
+    if (!text) return;
+
+    try {
+        console.log(`🌊 Checking FlowBuilder for: "${text}" (Instance: ${instanceName})`);
+
+        // 1. Find active flow with matching trigger
+        // trigger_type = 'any' or 'keyword'
+        const [flows] = await pool.query(
+            `SELECT * FROM flows 
+             WHERE (instance_id = $1 OR instance_id IS NULL) 
+             AND user_id = $2 
+             AND status = 'ACTIVE' 
+             AND (
+                trigger_type = 'any' 
+                OR (trigger_type = 'keyword' AND LOWER(trigger_keyword) = LOWER($3))
+             )
+             ORDER BY instance_id NULLS LAST LIMIT 1`,
+            [instanceId, userId, text.trim()]
+        );
+
+        if (flows.length === 0) {
+            console.log('❌ No matching flow found for:', text.trim());
+            return;
+        }
+
+        const flow = flows[0];
+        console.log(`🎯 Flow Match found: ${flow.name} (${flow.id})`);
+
+        // 2. Identify Start Node
+        const nodes = flow.nodes || [];
+        const edges = flow.edges || [];
+        const startNode = nodes.find(n => n.type === 'start');
+
+        if (!startNode) {
+            console.log('⚠️ Flow has no start node');
+            return;
+        }
+
+        // 3. Simple execution engine (Sequential for now)
+        let currentNode = startNode;
+        const processedNodeIds = new Set();
+
+        while (currentNode) {
+            if (processedNodeIds.has(currentNode.id)) {
+                console.log('⚠️ Loop detected in flow execution, stopping.');
+                break;
+            }
+            processedNodeIds.add(currentNode.id);
+
+            const now = () => new Date().toISOString();
+            console.log(`[${now()}] 🌊 Executing Node: ${currentNode.type} (${currentNode.id})`);
+
+            // EXECUTE NODE LOGIC
+            if (currentNode.type === 'message') {
+                const content = currentNode.data?.content;
+                if (content) {
+                    // Basic variable replacement (can be expanded)
+                    let finalText = content;
+                    // For now, let's skip complex vars and just send
+                    await sendEvolutionMessage(
+                        instanceName,
+                        remoteJid,
+                        finalText,
+                        process.env.EVOLUTION_API_KEY,
+                        process.env.EVOLUTION_API_URL
+                    );
+                }
+            } else if (currentNode.type === 'delay') {
+                const seconds = currentNode.data?.delay || 5;
+                console.log(`[${now()}] ⏳ Flow Waiting ${seconds}s...`);
+                await new Promise(resolve => setTimeout(resolve, seconds * 1000));
+            }
+
+            // FIND NEXT NODE
+            const edge = edges.find(e => e.source === currentNode.id);
+            if (edge) {
+                currentNode = nodes.find(n => n.id === edge.target);
+            } else {
+                currentNode = null;
+            }
+        }
+
+        console.log(`✅ Flow execution finished: ${flow.name}`);
+
+    } catch (e) {
+        console.error('❌ FlowBuilder Error:', e.message);
+    }
+}
+
 // Logic: Process Chatbot
 async function processChatbot(instanceId, userId, remoteJid, text, instanceName) {
     if (!text) return;
@@ -270,12 +361,12 @@ async function processChatbot(instanceId, userId, remoteJid, text, instanceName)
         // 1. Find active chatbot with matching trigger (case insensitive)
         const [chatbots] = await pool.query(
             `SELECT id FROM chatbots 
-             WHERE (instance_id = ? OR instance_id IS NULL) 
-             AND user_id = ? 
+             WHERE (instance_id = $1 OR instance_id IS NULL) 
+             AND user_id = $2 
              AND status = 'ACTIVE' 
              AND (
-                LOWER("trigger") = LOWER(?) 
-                OR (LOWER(match_type) = 'contains' AND LOWER(?) LIKE '%' || LOWER("trigger") || '%')
+                LOWER("trigger") = LOWER($3) 
+                OR (LOWER(match_type) = 'contains' AND LOWER($4) LIKE '%' || LOWER("trigger") || '%')
              )
              ORDER BY instance_id NULLS LAST LIMIT 1`,
             [instanceId, userId, text.trim(), text.trim()]
@@ -283,7 +374,7 @@ async function processChatbot(instanceId, userId, remoteJid, text, instanceName)
 
         if (chatbots.length === 0) {
             console.log('❌ No matching chatbot found for:', text.trim());
-            return;
+            return false;
         }
 
         const chatbotId = chatbots[0].id;
@@ -294,11 +385,11 @@ async function processChatbot(instanceId, userId, remoteJid, text, instanceName)
 
         // 2. Get steps ordered by "order" column
         const [steps] = await pool.query(
-            'SELECT * FROM chatbot_steps WHERE chatbot_id = ? ORDER BY "order" ASC',
+            'SELECT * FROM chatbot_steps WHERE chatbot_id = $1 ORDER BY "order" ASC',
             [chatbotId]
         );
 
-        if (steps.length === 0) return;
+        if (steps.length === 0) return true;
 
         // 3. Send response
         for (const step of steps) {
@@ -330,8 +421,10 @@ async function processChatbot(instanceId, userId, remoteJid, text, instanceName)
             }
             // Add other media types as needed
         }
+        return true;
     } catch (e) {
         console.error('❌ Chatbot Error:', e.message);
+        return false;
     }
 }
 
@@ -428,9 +521,15 @@ app.use('/webhook/evolution', async (req, res) => {
                 // Insert Message
                 await pool.query('INSERT INTO messages (id, conversation_id, text, sender, status, media_url, media_type, wamid, timestamp) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)', [uuidv4(), convId, text, fromMe ? 'me' : 'contact', 'sent', mediaUrl, mediaType, msg.key.id, timestamp]);
 
-                // 4. CHATBOT TRIGGER (Only if not from me)
+                // 4. CHATBOT & FLOW TRIGGER (Only if not from me)
                 if (!fromMe && text) {
-                    processChatbot(instanceId, userId, remoteJid, text, instanceName);
+                    // Try Chatbot first
+                    const matchedChatbot = await processChatbot(instanceId, userId, remoteJid, text, instanceName);
+
+                    // If no chatbot matched, try FlowBuilder
+                    if (!matchedChatbot) {
+                        await processFlow(instanceId, userId, remoteJid, text, instanceName);
+                    }
                 }
             }
         }
