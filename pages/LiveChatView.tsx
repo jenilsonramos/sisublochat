@@ -157,40 +157,53 @@ const LiveChatView: React.FC<LiveChatViewProps> = ({ isBlocked = false }) => {
     return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
   }, []);
 
-  // 1. Initial Load & Subscriptions
+  // 1. Initial Load & Subscriptions + Polling Fallback
   useEffect(() => {
     fetchInstances();
     fetchConversations();
 
-    // Subscribe to conversation changes
-    const conversationsSubscription = supabase
-      .channel('public:conversations')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'conversations' }, (payload) => {
-        const updatedConv = payload.new as Conversation;
+    // Polling fallback for conversations (every 5 seconds)
+    const conversationsPollingInterval = setInterval(() => {
+      fetchConversations(true); // silent fetch
+    }, 5000);
 
-        // Update the conversations list
-        setConversations(prev => prev.map(c =>
-          c.id === updatedConv.id ? { ...c, ...updatedConv } : c
-        ));
+    // Try Realtime subscription (may fail but we have polling)
+    let conversationsSubscription: any = null;
+    try {
+      conversationsSubscription = supabase
+        .channel('public:conversations')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'conversations' }, (payload) => {
+          const updatedConv = payload.new as Conversation;
 
-        // Update selectedChat in real-time if it's the one that changed
-        if (selectedChatRef.current?.id === updatedConv.id) {
-          setSelectedChat(prev => {
-            if (!prev) return null;
-            // Ensure we handle cleared fields (like assigned_agent_id becoming null)
-            return { ...prev, ...updatedConv };
-          });
-        }
+          // Update the conversations list
+          setConversations(prev => prev.map(c =>
+            c.id === updatedConv.id ? { ...c, ...updatedConv } : c
+          ));
 
-        // If it's a new conversation or we need a full refresh, we can still fetch
-        if (payload.eventType === 'INSERT') {
-          fetchConversations(true);
-        }
-      })
-      .subscribe();
+          // Update selectedChat in real-time if it's the one that changed
+          if (selectedChatRef.current?.id === updatedConv.id) {
+            setSelectedChat(prev => {
+              if (!prev) return null;
+              // Ensure we handle cleared fields (like assigned_agent_id becoming null)
+              return { ...prev, ...updatedConv };
+            });
+          }
+
+          // If it's a new conversation or we need a full refresh, we can still fetch
+          if (payload.eventType === 'INSERT') {
+            fetchConversations(true);
+          }
+        })
+        .subscribe();
+    } catch (e) {
+      console.log('Realtime conversations subscription failed, using polling only');
+    }
 
     return () => {
-      supabase.removeChannel(conversationsSubscription);
+      clearInterval(conversationsPollingInterval);
+      if (conversationsSubscription) {
+        supabase.removeChannel(conversationsSubscription);
+      }
     };
   }, []);
 
@@ -258,7 +271,7 @@ const LiveChatView: React.FC<LiveChatViewProps> = ({ isBlocked = false }) => {
     }
   };
 
-  // 2. Select Chat & Subscriptions
+  // 2. Select Chat & Subscriptions + Polling Fallback
   useEffect(() => {
     if (!selectedChat) return;
 
@@ -271,45 +284,114 @@ const LiveChatView: React.FC<LiveChatViewProps> = ({ isBlocked = false }) => {
     const chatInst = instances.find(i => i.id === selectedChat.instance_id);
     if (chatInst) setActiveInstance(chatInst);
 
-    // Subscribe to message changes for this conversation
-    const messagesSubscription = supabase
-      .channel(`public:messages:conv_${selectedChat.id}`)
-      .on('postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'messages',
-          filter: `conversation_id=eq.${selectedChat.id}`
-        },
-        (payload) => {
-          const newMessage = payload.new as ChatMessage;
-          setMessages(prev => {
-            const exists = prev.some(m => m.id === newMessage.id);
-            if (exists) return prev;
+    // Track the last message timestamp for polling
+    let lastMessageTimestamp: string | null = null;
 
-            if (newMessage.sender !== 'me') {
-              playNotificationSound();
+    // Polling fallback function - runs every 3 seconds
+    const pollMessages = async () => {
+      try {
+        const query = supabase
+          .from('messages')
+          .select('*')
+          .eq('conversation_id', selectedChat.id)
+          .order('timestamp', { ascending: false })
+          .limit(20);
+
+        // Only fetch new messages if we have a timestamp
+        if (lastMessageTimestamp) {
+          query.gt('timestamp', lastMessageTimestamp);
+        }
+
+        const { data, error } = await query;
+        if (error) throw error;
+
+        if (data && data.length > 0) {
+          // Update last timestamp
+          lastMessageTimestamp = data[0].timestamp;
+
+          // Add new messages
+          setMessages(prev => {
+            const newMsgs = data.filter(m => !prev.some(p => p.id === m.id));
+            if (newMsgs.length > 0) {
+              // Play sound for incoming messages
+              const hasIncoming = newMsgs.some(m => m.sender !== 'me');
+              if (hasIncoming) {
+                playNotificationSound();
+              }
+              // Sort by timestamp ascending
+              const sorted = [...prev, ...newMsgs].sort((a, b) =>
+                new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+              );
+              return sorted;
             }
-            return [...prev, newMessage];
+            return prev;
           });
         }
-      )
-      .on('postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'messages',
-          filter: `conversation_id=eq.${selectedChat.id}`
-        },
-        (payload) => {
-          const updatedMessage = payload.new as ChatMessage;
-          setMessages(prev => prev.map(m => m.id === updatedMessage.id ? updatedMessage : m));
+      } catch (error) {
+        console.log('Polling error (non-fatal):', error);
+      }
+    };
+
+    // Set initial timestamp after first fetch
+    fetchMessages(selectedChat.id).then(() => {
+      setMessages(prev => {
+        if (prev.length > 0) {
+          lastMessageTimestamp = prev[prev.length - 1].timestamp;
         }
-      )
-      .subscribe();
+        return prev;
+      });
+    });
+
+    // Start polling interval (every 3 seconds)
+    const pollingInterval = setInterval(pollMessages, 3000);
+
+    // Also try Realtime subscription (may fail but we have polling fallback)
+    let messagesSubscription: any = null;
+    try {
+      messagesSubscription = supabase
+        .channel(`public:messages:conv_${selectedChat.id}`)
+        .on('postgres_changes',
+          {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'messages',
+            filter: `conversation_id=eq.${selectedChat.id}`
+          },
+          (payload) => {
+            const newMessage = payload.new as ChatMessage;
+            setMessages(prev => {
+              const exists = prev.some(m => m.id === newMessage.id);
+              if (exists) return prev;
+
+              if (newMessage.sender !== 'me') {
+                playNotificationSound();
+              }
+              return [...prev, newMessage];
+            });
+          }
+        )
+        .on('postgres_changes',
+          {
+            event: 'UPDATE',
+            schema: 'public',
+            table: 'messages',
+            filter: `conversation_id=eq.${selectedChat.id}`
+          },
+          (payload) => {
+            const updatedMessage = payload.new as ChatMessage;
+            setMessages(prev => prev.map(m => m.id === updatedMessage.id ? updatedMessage : m));
+          }
+        )
+        .subscribe();
+    } catch (e) {
+      console.log('Realtime subscription failed, using polling only');
+    }
 
     return () => {
-      supabase.removeChannel(messagesSubscription);
+      clearInterval(pollingInterval);
+      if (messagesSubscription) {
+        supabase.removeChannel(messagesSubscription);
+      }
     };
   }, [selectedChat?.id]);
 
