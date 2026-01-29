@@ -1,0 +1,28 @@
+# Configuração do Supabase para Self-Hosted
+# Este arquivo configura as Edge Functions e outras definições do projeto
+
+[project]
+id = "setuporion"
+name = "Ublo Chat"
+
+# Configurações das Edge Functions
+[functions]
+# Habilitar verificação de JWT apenas quando necessário
+
+[functions.evolution-webhook]
+verify_jwt = false
+
+[functions.billing-cron]
+verify_jwt = false
+
+[functions.chatbot-handler]
+verify_jwt = false
+
+[functions.cron-manager]
+verify_jwt = false
+
+[functions.evolution-cron]
+verify_jwt = false
+
+[functions.meta-webhook]
+verify_jwt = false
