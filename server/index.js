@@ -231,13 +231,14 @@ async function processChatbot(instanceId, userId, remoteJid, text, instanceName)
         // 1. Find active chatbot with matching trigger (case insensitive)
         const [chatbots] = await pool.query(
             `SELECT id FROM chatbots 
-             WHERE instance_id = ? 
+             WHERE (instance_id = ? OR instance_id IS NULL) 
              AND user_id = ? 
              AND status = 'ACTIVE' 
              AND (
                 LOWER("trigger") = LOWER(?) 
-                OR (match_type = 'CONTAINS' AND LOWER(?) LIKE '%' || LOWER("trigger") || '%')
-             )`,
+                OR (LOWER(match_type) = 'contains' AND LOWER(?) LIKE '%' || LOWER("trigger") || '%')
+             )
+             ORDER BY instance_id NULLS LAST LIMIT 1`,
             [instanceId, userId, text.trim(), text.trim()]
         );
 
