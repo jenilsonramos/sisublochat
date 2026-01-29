@@ -302,18 +302,19 @@ async function processChatbot(instanceId, userId, remoteJid, text, instanceName)
 
         // 3. Send response
         for (const step of steps) {
-            console.log('🤖 Processing Step:', JSON.stringify(step));
+            const now = () => new Date().toISOString();
+            console.log(`[${now()}] 🤖 Processing Step:`, JSON.stringify(step));
             // Apply Delay and Typing Simulation
             if (step.delay && step.delay > 0) {
                 if (step.simulate_typing) {
-                    console.log(`✍️ Simulating typing for ${step.delay}s...`);
+                    console.log(`[${now()}] ✍️ Simulating typing for ${step.delay}s...`);
                     await sendChatPresence(instanceName, remoteJid, 'composing');
                 }
                 await sleep(step.delay * 1000);
             }
 
             if (step.type === 'text' && step.content) {
-                console.log(`📤 Sending chatbot response to ${remoteJid}`);
+                console.log(`[${now()}] 📤 Sending chatbot response to ${remoteJid}`);
                 await sendEvolutionMessage(
                     instanceName,
                     remoteJid,
