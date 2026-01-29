@@ -3,18 +3,17 @@ import { Client } from 'ssh2';
 const conn = new Client();
 
 conn.on('ready', () => {
-    console.log('✅ Conectado ao servidor');
+    console.log('✅ SSH Conectado ao servidor Supabase');
 
-    // List all docker containers
-    conn.exec('docker ps --format "{{.Names}}: {{.Image}}"', (err, stream) => {
+    conn.exec('docker ps --format "{{.Names}}"', (err, stream) => {
         if (err) throw err;
 
         let output = '';
         stream.on('data', (data) => output += data.toString());
+        stream.stderr.on('data', (data) => output += data.toString());
         stream.on('close', () => {
             console.log('=== CONTAINERS DOCKER ===');
             console.log(output);
-            console.log('=========================');
             conn.end();
         });
     });
@@ -22,5 +21,6 @@ conn.on('ready', () => {
     host: '194.163.189.247',
     port: 22,
     username: 'root',
-    password: 'zlPnsbN8y37?Xyaw'
+    password: 'zlPnsbN8y37?Xyaw',
+    readyTimeout: 120000
 });

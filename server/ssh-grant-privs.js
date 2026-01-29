@@ -1,0 +1,29 @@
+import { Client } from 'ssh2';
+
+const conn = new Client();
+
+conn.on('ready', () => {
+    console.log('✅ SSH Conectado ao servidor Supabase');
+
+    // Grant all privileges on public to authenticated
+    const sql = `
+GRANT USAGE ON SCHEMA public TO authenticated;
+GRANT SELECT ON ALL TABLES IN SCHEMA public TO authenticated;
+GRANT SELECT ON ALL SEQUENCES IN SCHEMA public TO authenticated;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT ON TABLES TO authenticated;
+NOTIFY pgrst, 'reload schema';
+`;
+
+    conn.exec(`docker exec $(docker ps -q -f name=supabase_db) psql -U postgres -d postgres -c "${sql}"`, (err, stream) => {
+        if (err) throw err;
+
+        let output = '';
+        stream.on('data', (data) => output += data.toString());
+        stream.stderr.on('data', (data) => output += data.toString());
+        stream.on('close', () => {
+            console.log('=== PERMISSÕES ATUALIZADAS E RELOAD DISPARADO ===');
+            console.log(output);
+            conn.end();
+        });
+    });
+}).connect({ host: '194.163.189.247', port: 22, username: 'root', password: 'zlPnsbN8y37?Xyaw', readyTimeout: 120000 });

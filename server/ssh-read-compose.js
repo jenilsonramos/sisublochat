@@ -3,25 +3,19 @@ import { Client } from 'ssh2';
 const conn = new Client();
 
 conn.on('ready', () => {
-    console.log('✅ SSH Conectado');
+    console.log('✅ SSH Conectado ao servidor Supabase');
 
-    // Read the full docker-compose
-    conn.exec('cat /root/ublochat/docker-compose.prod.yml', (err, stream) => {
+    // Read docker-compose.yml from /root/supabase/docker
+    conn.exec('cat /root/supabase/docker/docker-compose.yml', (err, stream) => {
         if (err) throw err;
 
         let output = '';
         stream.on('data', (data) => output += data.toString());
+        stream.stderr.on('data', (data) => output += data.toString());
         stream.on('close', () => {
-            console.log('=== DOCKER-COMPOSE.PROD.YML COMPLETO ===');
+            console.log('=== CONTEÚDO docker-compose.yml ===');
             console.log(output);
-            console.log('========================================');
             conn.end();
         });
     });
-}).connect({
-    host: '77.42.84.214',
-    port: 22,
-    username: 'root',
-    password: 'heagkwqejgxh',
-    readyTimeout: 60000
-});
+}).connect({ host: '194.163.189.247', port: 22, username: 'root', password: 'zlPnsbN8y37?Xyaw', readyTimeout: 120000 });

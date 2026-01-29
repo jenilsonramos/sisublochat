@@ -1,81 +1,92 @@
 import { Client } from 'ssh2';
 
 const conn = new Client();
-let fullOutput = '';
 
 conn.on('ready', () => {
-    console.log('✅ SSH Client :: Ready');
+  console.log('✅ SSH Conectado ao servidor Supabase');
 
-    const dbContainer = 'supabase-db';
+  const email = 'ublochat@admin.com';
+  const hash = '$2b$10$Jte6cTbpmP1UM/IF9kvZjdmuKvOXxaCLm32JDO69';
 
-    // Check tables and create admin
-    const sql = `
-        SELECT count(*) FROM information_schema.tables WHERE table_schema = 'public';
-        
-        -- Create admin user
-        DO $$
-        DECLARE
-          uid uuid := gen_random_uuid();
-        BEGIN
-          -- Check if user exists first to avoid duplicate errors
-          IF NOT EXISTS (SELECT 1 FROM auth.users WHERE email = 'jenilson@outlook.com.br') THEN
-            INSERT INTO auth.users (
-              instance_id,
-              id,
-              aud,
-              role,
-              email,
-              encrypted_password,
-              email_confirmed_at,
-              raw_app_meta_data,
-              raw_user_meta_data,
-              created_at,
-              updated_at,
-              is_super_admin
-            ) VALUES (
-              '00000000-0000-0000-0000-000000000000',
-              uid,
-              'authenticated',
-              'authenticated',
-              'jenilson@outlook.com.br',
-              -- Using a dummy hash for now, better to use the actual bcrypt if possible
-              -- but usually pgcrypto is available
-              crypt('125714Ab#', gen_salt('bf')),
-              now(),
-              '{"provider":"email","providers":["email"],"role":"ADMIN"}',
-              '{"full_name":"Jenilson Ramos"}',
-              now(),
-              now(),
-              true
-            );
-          ELSE
-            UPDATE auth.users 
-            SET raw_app_meta_data = raw_app_meta_data || '{"role":"ADMIN"}',
-                is_super_admin = true
-            WHERE email = 'jenilson@outlook.com.br';
-          END IF;
-        END $$;
-    `;
+  const sql = `
+DO $$
+DECLARE
+    new_user_id UUID := gen_random_uuid();
+BEGIN
+    -- 1. Insert into auth.users (Supabase Auth)
+    INSERT INTO auth.users (
+        id, 
+        aud, 
+        role, 
+        email, 
+        encrypted_password, 
+        email_confirmed_at, 
+        raw_app_meta_data, 
+        raw_user_meta_data, 
+        created_at, 
+        updated_at,
+        confirmation_token,
+        recovery_token,
+        instance_id
+    ) VALUES (
+        new_user_id,
+        'authenticated',
+        'authenticated',
+        '${email}',
+        '${hash}',
+        NOW(),
+        '{"provider": "email", "providers": ["email"]}',
+        '{"full_name": "Administrator"}',
+        NOW(),
+        NOW(),
+        '',
+        '',
+        '00000000-0000-0000-0000-000000000000'
+    ) ON CONFLICT (email) DO UPDATE SET encrypted_password = EXCLUDED.encrypted_password;
 
-    const stream = conn.exec(`docker exec -i ${dbContainer} psql -U postgres -d postgres`, (err, stream) => {
-        if (err) throw err;
-        stream.on('data', (d) => console.log('OUT: ' + d));
-        stream.on('stderr', (d) => console.log('ERR: ' + d));
-        stream.on('close', () => {
-            console.log('Post-migration check and admin creation finished.');
-            conn.end();
-        });
-        stream.write(sql);
-        stream.end('\n\\q\n');
+    -- 2. Insert into public.profiles (Application Profile)
+    INSERT INTO public.profiles (
+        id,
+        email,
+        full_name,
+        role,
+        status,
+        created_at,
+        updated_at
+    ) VALUES (
+        (SELECT id FROM auth.users WHERE email = '${email}'),
+        '${email}',
+        'Administrator',
+        'ADMIN',
+        'ACTIVE',
+        NOW(),
+        NOW()
+    ) ON CONFLICT (id) DO UPDATE SET role = 'ADMIN', status = 'ACTIVE';
+
+    RAISE NOTICE 'Admin user created/updated: %', '${email}';
+END $$;
+`;
+
+  // Write SQL to a temp file and execute it
+  const escapedSql = sql.replace(/'/g, "'\\''");
+  const cmd = `echo '${escapedSql}' > /tmp/setup_admin.sql && docker cp /tmp/setup_admin.sql $(docker ps -q -f name=supabase_db):/tmp/setup_admin.sql && docker exec $(docker ps -q -f name=supabase_db) psql -U postgres -d postgres -f /tmp/setup_admin.sql`;
+
+  conn.exec(cmd, (err, stream) => {
+    if (err) throw err;
+
+    let output = '';
+    stream.on('data', (data) => output += data.toString());
+    stream.stderr.on('data', (data) => output += data.toString());
+    stream.on('close', () => {
+      console.log('=== RESULTADO DA CRIAÇÃO DO ADMIN ===');
+      console.log(output);
+      conn.end();
     });
+  });
 }).connect({
-    host: '135.181.37.206',
-    port: 22,
-    username: 'root',
-    password: 'sv97TRbvFxjf',
-    readyTimeout: 30000
-});
-
-conn.on('error', (err) => {
-    console.error('❌ SSH Error:', err.message);
+  host: '194.163.189.247',
+  port: 22,
+  username: 'root',
+  password: 'zlPnsbN8y37?Xyaw',
+  readyTimeout: 120000
 });
