@@ -228,13 +228,23 @@ async function processChatbot(instanceId, userId, remoteJid, text, instanceName)
     try {
         console.log(`🤖 Checking chatbot for: "${text}" (Instance: ${instanceName})`);
 
-        // 1. Find active chatbot with matching keyword (case insensitive)
+        // 1. Find active chatbot with matching trigger (case insensitive)
         const [chatbots] = await pool.query(
-            'SELECT id FROM chatbots WHERE instance_id = ? AND user_id = ? AND is_active = true AND LOWER(keyword) = LOWER(?)',
-            [instanceId, userId, text.trim()]
+            `SELECT id FROM chatbots 
+             WHERE instance_id = ? 
+             AND user_id = ? 
+             AND is_active = true 
+             AND (
+                LOWER(trigger_value) = LOWER(?) 
+                OR (trigger_type = 'contains' AND LOWER(?) LIKE '%' || LOWER(trigger_value) || '%')
+             )`,
+            [instanceId, userId, text.trim(), text.trim()]
         );
 
-        if (chatbots.length === 0) return;
+        if (chatbots.length === 0) {
+            console.log('❌ No matching chatbot found.');
+            return;
+        }
 
         const chatbotId = chatbots[0].id;
         console.log(`🎯 Chatbot Match found: ${chatbotId}`);
