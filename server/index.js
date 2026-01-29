@@ -303,18 +303,23 @@ async function processChatbot(instanceId, userId, remoteJid, text, instanceName)
         // 3. Send response
         for (const step of steps) {
             const now = () => new Date().toISOString();
-            console.log(`[${now()}] 🤖 Processing Step:`, JSON.stringify(step));
+            console.log(`[${now()}] 🤖 Processing Step: ${step.id} (Delay: ${step.delay}s)`);
+
             // Apply Delay and Typing Simulation
             if (step.delay && step.delay > 0) {
                 if (step.simulate_typing) {
                     console.log(`[${now()}] ✍️ Simulating typing for ${step.delay}s...`);
+                    // Using /instance/setPresence for v2
                     await sendChatPresence(instanceName, remoteJid, 'composing');
                 }
-                await sleep(step.delay * 1000);
+
+                console.log(`[${now()}] ⏳ Waiting ${step.delay}s...`);
+                await new Promise(resolve => setTimeout(resolve, step.delay * 1000));
+                console.log(`[${now()}] ✅ Wait finished.`);
             }
 
             if (step.type === 'text' && step.content) {
-                console.log(`[${now()}] 📤 Sending chatbot response to ${remoteJid}`);
+                console.log(`[${now()}] 📤 Sending response to ${remoteJid}`);
                 await sendEvolutionMessage(
                     instanceName,
                     remoteJid,
