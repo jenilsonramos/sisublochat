@@ -60,19 +60,27 @@ const AdminView: React.FC = () => {
                 return;
             }
 
-            const { data } = await supabase
-                .from('profiles')
-                .select('role')
-                .eq('id', user.id)
+            // Check admin_access table by email
+            const { data, error } = await supabase
+                .from('admin_access')
+                .select('email')
+                .eq('email', user.email)
                 .single();
 
-            setIsAdmin(data?.role === 'ADMIN');
+            if (error) {
+                console.error('Admin check error:', error);
+                setIsAdmin(false);
+            } else {
+                setIsAdmin(!!data);
+            }
         } catch (err) {
+            console.error('Admin check exception:', err);
             setIsAdmin(false);
         } finally {
             setLoading(false);
         }
     };
+
 
     if (loading) {
         return (
