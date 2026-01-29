@@ -221,6 +221,51 @@ app.use((req, res, next) => {
     next();
 });
 
+// Logic: Process Chatbot
+async function processChatbot(instanceId, userId, remoteJid, text, instanceName) {
+    if (!text) return;
+
+    try {
+        console.log(`🤖 Checking chatbot for: "${text}" (Instance: ${instanceName})`);
+
+        // 1. Find active chatbot with matching keyword (case insensitive)
+        const [chatbots] = await pool.query(
+            'SELECT id FROM chatbots WHERE instance_id = ? AND user_id = ? AND is_active = true AND LOWER(keyword) = LOWER(?)',
+            [instanceId, userId, text.trim()]
+        );
+
+        if (chatbots.length === 0) return;
+
+        const chatbotId = chatbots[0].id;
+        console.log(`🎯 Chatbot Match found: ${chatbotId}`);
+
+        // 2. Get first step (assuming position 0 or based on next_step_id flow)
+        const [steps] = await pool.query(
+            'SELECT * FROM chatbot_steps WHERE chatbot_id = ? ORDER BY position ASC LIMIT 1',
+            [chatbotId]
+        );
+
+        if (steps.length === 0) return;
+
+        // 3. Send response
+        for (const step of steps) {
+            if (step.type === 'text' && step.content) {
+                console.log(`📤 Sending chatbot response to ${remoteJid}`);
+                await sendEvolutionMessage(
+                    instanceName,
+                    remoteJid,
+                    step.content,
+                    process.env.EVOLUTION_API_KEY,
+                    process.env.EVOLUTION_API_URL
+                );
+            }
+            // Add other media types as needed
+        }
+    } catch (e) {
+        console.error('❌ Chatbot Error:', e.message);
+    }
+}
+
 // --- WEBHOOK HANDLER (MOVED TO TOP PRIORITY) ---
 app.use('/webhook/evolution', async (req, res) => {
     console.log('🔹 [EARLY HANDLER] Hit:', req.path);
@@ -313,6 +358,11 @@ app.use('/webhook/evolution', async (req, res) => {
 
                 // Insert Message
                 await pool.query('INSERT INTO messages (id, conversation_id, text, sender, status, media_url, media_type, wamid, timestamp) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)', [uuidv4(), convId, text, fromMe ? 'me' : 'contact', 'sent', mediaUrl, mediaType, msg.key.id, timestamp]);
+
+                // 4. CHATBOT TRIGGER (Only if not from me)
+                if (!fromMe && text) {
+                    processChatbot(instanceId, userId, remoteJid, text, instanceName);
+                }
             }
         }
         res.json({ received: true });
