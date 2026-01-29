@@ -5,22 +5,10 @@ const conn = new Client();
 conn.on('ready', () => {
     console.log('✅ SSH Conectado ao servidor de Produção');
 
+    // First, find the correct directory
     const cmd = `
-echo "=== PARANDO CONTAINERS ==="
-cd /root/ublochat
-docker compose down 2>/dev/null || docker-compose down
-
-echo ""
-echo "=== RECONSTRUINDO CONTAINERS ==="
-docker compose build --no-cache 2>/dev/null || docker-compose build --no-cache
-
-echo ""
-echo "=== INICIANDO CONTAINERS ==="
-docker compose up -d 2>/dev/null || docker-compose up -d
-
-echo ""
-echo "=== STATUS FINAL ==="
-docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
+find /www/wwwroot -name "package.json" -path "*/ublo*" 2>/dev/null | head -5
+ls -la /www/wwwroot/ | grep -i ublo
 `;
 
     conn.exec(cmd, (err, stream) => {
@@ -30,6 +18,7 @@ docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
         stream.on('data', (data) => output += data.toString());
         stream.stderr.on('data', (data) => output += data.toString());
         stream.on('close', () => {
+            console.log('=== DIRETÓRIOS DO SITE ===');
             console.log(output);
             conn.end();
         });

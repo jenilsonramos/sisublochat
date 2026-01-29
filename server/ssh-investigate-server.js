@@ -5,22 +5,22 @@ const conn = new Client();
 conn.on('ready', () => {
     console.log('✅ SSH Conectado ao servidor de Produção');
 
+    // List all containers with full output and check home directory
     const cmd = `
-echo "=== PARANDO CONTAINERS ==="
-cd /root/ublochat
-docker compose down 2>/dev/null || docker-compose down
+echo "=== TODOS OS CONTAINERS ==="
+docker ps -a --format "{{.Names}} - {{.Image}}"
 
 echo ""
-echo "=== RECONSTRUINDO CONTAINERS ==="
-docker compose build --no-cache 2>/dev/null || docker-compose build --no-cache
+echo "=== DIRETÓRIO HOME ==="
+ls -la /home/
 
 echo ""
-echo "=== INICIANDO CONTAINERS ==="
-docker compose up -d 2>/dev/null || docker-compose up -d
+echo "=== DIRETÓRIO ROOT ==="
+ls -la /root/
 
 echo ""
-echo "=== STATUS FINAL ==="
-docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
+echo "=== BUSCANDO PACKAGE.JSON ==="
+find /home /root -name "package.json" -not -path "*/node_modules/*" 2>/dev/null | head -10
 `;
 
     conn.exec(cmd, (err, stream) => {

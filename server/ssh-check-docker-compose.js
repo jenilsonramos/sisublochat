@@ -6,21 +6,16 @@ conn.on('ready', () => {
     console.log('✅ SSH Conectado ao servidor de Produção');
 
     const cmd = `
-echo "=== PARANDO CONTAINERS ==="
-cd /root/ublochat
-docker compose down 2>/dev/null || docker-compose down
+echo "=== DOCKER COMPOSE ==="
+cat /root/ublochat/docker-compose.yml 2>/dev/null || cat /root/docker-compose.yml 2>/dev/null || echo "No docker-compose found"
 
 echo ""
-echo "=== RECONSTRUINDO CONTAINERS ==="
-docker compose build --no-cache 2>/dev/null || docker-compose build --no-cache
+echo "=== LISTA CONTAINERS ==="
+docker ps --format "table {{.Names}}\t{{.Image}}\t{{.Ports}}"
 
 echo ""
-echo "=== INICIANDO CONTAINERS ==="
-docker compose up -d 2>/dev/null || docker-compose up -d
-
-echo ""
-echo "=== STATUS FINAL ==="
-docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
+echo "=== NGINX PROXY CONFIG ==="
+docker exec nginx-proxy cat /etc/nginx/conf.d/default.conf 2>/dev/null | head -60 || echo "No nginx-proxy container"
 `;
 
     conn.exec(cmd, (err, stream) => {

@@ -6,21 +6,20 @@ conn.on('ready', () => {
     console.log('✅ SSH Conectado ao servidor de Produção');
 
     const cmd = `
-echo "=== PARANDO CONTAINERS ==="
-cd /root/ublochat
-docker compose down 2>/dev/null || docker-compose down
+echo "=== PM2 STATUS ==="
+pm2 status
 
 echo ""
-echo "=== RECONSTRUINDO CONTAINERS ==="
-docker compose build --no-cache 2>/dev/null || docker-compose build --no-cache
+echo "=== PM2 LOGS RECENTES ==="
+pm2 logs --lines 30 --nostream 2>/dev/null || echo "Could not get logs"
+
+echo ""  
+echo "=== ESTRUTURA /root/ublochat ==="
+ls -la /root/ublochat/
 
 echo ""
-echo "=== INICIANDO CONTAINERS ==="
-docker compose up -d 2>/dev/null || docker-compose up -d
-
-echo ""
-echo "=== STATUS FINAL ==="
-docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
+echo "=== PACKAGE.JSON SCRIPTS ==="
+cat /root/ublochat/package.json | grep -A 20 '"scripts"'
 `;
 
     conn.exec(cmd, (err, stream) => {

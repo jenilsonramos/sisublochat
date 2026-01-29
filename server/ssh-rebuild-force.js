@@ -6,21 +6,16 @@ conn.on('ready', () => {
     console.log('✅ SSH Conectado ao servidor de Produção');
 
     const cmd = `
-echo "=== PARANDO CONTAINERS ==="
-cd /root/ublochat
-docker compose down 2>/dev/null || docker-compose down
+echo "=== TODOS OS CONTAINERS INCLUINDO PARADOS ==="
+docker ps -a --format "table {{.Names}}\t{{.Image}}\t{{.Status}}\t{{.Ports}}"
 
 echo ""
-echo "=== RECONSTRUINDO CONTAINERS ==="
-docker compose build --no-cache 2>/dev/null || docker-compose build --no-cache
+echo "=== DOCKER-COMPOSE DO PROJETO ==="
+cd /root/ublochat && cat docker-compose.yml 2>/dev/null || cat docker-compose.yaml 2>/dev/null
 
 echo ""
-echo "=== INICIANDO CONTAINERS ==="
-docker compose up -d 2>/dev/null || docker-compose up -d
-
-echo ""
-echo "=== STATUS FINAL ==="
-docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
+echo "=== RECONSTRUÇÃO FORÇADA ==="
+cd /root/ublochat && docker compose build --no-cache && docker compose up -d
 `;
 
     conn.exec(cmd, (err, stream) => {

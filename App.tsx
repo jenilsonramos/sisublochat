@@ -251,6 +251,22 @@ const AppContent: React.FC = () => {
   }, []);
 
   if (!user) {
+    // Update URL to reflect auth state
+    const currentPath = window.location.pathname.replace('/', '');
+    if (currentPath && !['login', 'register', 'forgot-password'].includes(currentPath)) {
+      // Save intended destination for after login
+      sessionStorage.setItem('redirectAfterLogin', currentPath);
+    }
+
+    // Update URL to /login for unauthenticated users
+    if (authView === 'login' && window.location.pathname !== '/login') {
+      window.history.replaceState({}, '', '/login');
+    } else if (authView === 'register' && window.location.pathname !== '/register') {
+      window.history.replaceState({}, '', '/register');
+    } else if (authView === 'forgot-password' && window.location.pathname !== '/forgot-password') {
+      window.history.replaceState({}, '', '/forgot-password');
+    }
+
     switch (authView) {
       case 'register':
         return (
@@ -269,13 +285,25 @@ const AppContent: React.FC = () => {
       default:
         return (
           <LoginPage
-            onLoginSuccess={(userData) => setUser(userData)}
+            onLoginSuccess={(userData) => {
+              setUser(userData);
+              // Redirect to saved destination after login
+              const redirectTo = sessionStorage.getItem('redirectAfterLogin');
+              if (redirectTo) {
+                sessionStorage.removeItem('redirectAfterLogin');
+                setActiveTab(redirectTo as TabType);
+                window.history.replaceState({}, '', `/${redirectTo}`);
+              } else {
+                window.history.replaceState({}, '', '/dashboard');
+              }
+            }}
             onRegister={() => setAuthView('register')}
             onForgotPassword={() => setAuthView('forgot-password')}
           />
         );
     }
   }
+
 
   // Calculate blocking state
   const isBlocked = userProfile?.status === 'INACTIVE' && userProfile?.role !== 'ADMIN';

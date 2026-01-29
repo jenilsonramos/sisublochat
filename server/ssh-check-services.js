@@ -6,21 +6,20 @@ conn.on('ready', () => {
     console.log('✅ SSH Conectado ao servidor de Produção');
 
     const cmd = `
-echo "=== PARANDO CONTAINERS ==="
-cd /root/ublochat
-docker compose down 2>/dev/null || docker-compose down
+echo "=== SERVIÇOS ATIVOS ==="
+systemctl list-units --type=service --state=running | grep -E "(nginx|apache|caddy|node|pm2)" 
 
 echo ""
-echo "=== RECONSTRUINDO CONTAINERS ==="
-docker compose build --no-cache 2>/dev/null || docker-compose build --no-cache
+echo "=== PM2 LIST ==="
+pm2 list 2>/dev/null || echo "PM2 not installed"
 
 echo ""
-echo "=== INICIANDO CONTAINERS ==="
-docker compose up -d 2>/dev/null || docker-compose up -d
+echo "=== NGINX CONFIG ==="
+cat /etc/nginx/sites-enabled/default 2>/dev/null || cat /etc/nginx/nginx.conf 2>/dev/null || echo "No nginx config"
 
 echo ""
-echo "=== STATUS FINAL ==="
-docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
+echo "=== PROCESSOS NODE ==="
+ps aux | grep node | head -10
 `;
 
     conn.exec(cmd, (err, stream) => {

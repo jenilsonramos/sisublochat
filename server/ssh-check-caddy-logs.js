@@ -6,21 +6,12 @@ conn.on('ready', () => {
     console.log('✅ SSH Conectado ao servidor de Produção');
 
     const cmd = `
-echo "=== PARANDO CONTAINERS ==="
-cd /root/ublochat
-docker compose down 2>/dev/null || docker-compose down
+echo "=== CADDYFILE ATUAL ==="
+cat /etc/caddy/Caddyfile
 
 echo ""
-echo "=== RECONSTRUINDO CONTAINERS ==="
-docker compose build --no-cache 2>/dev/null || docker-compose build --no-cache
-
-echo ""
-echo "=== INICIANDO CONTAINERS ==="
-docker compose up -d 2>/dev/null || docker-compose up -d
-
-echo ""
-echo "=== STATUS FINAL ==="
-docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
+echo "=== LOGS CADDY RECENTES ==="
+journalctl -u caddy --no-pager -n 20 2>/dev/null || tail -20 /var/log/caddy/access.log 2>/dev/null || echo "No logs found"
 `;
 
     conn.exec(cmd, (err, stream) => {

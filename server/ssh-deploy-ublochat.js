@@ -5,22 +5,12 @@ const conn = new Client();
 conn.on('ready', () => {
     console.log('✅ SSH Conectado ao servidor de Produção');
 
+    // Enter the ublochat container and run git pull
     const cmd = `
-echo "=== PARANDO CONTAINERS ==="
-cd /root/ublochat
-docker compose down 2>/dev/null || docker-compose down
+docker exec ublochat sh -c "cd /app && git pull origin main && npm run build" 2>&1 || echo "Build inside container failed, trying direct approach..."
 
-echo ""
-echo "=== RECONSTRUINDO CONTAINERS ==="
-docker compose build --no-cache 2>/dev/null || docker-compose build --no-cache
-
-echo ""
-echo "=== INICIANDO CONTAINERS ==="
-docker compose up -d 2>/dev/null || docker-compose up -d
-
-echo ""
-echo "=== STATUS FINAL ==="
-docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
+# If the above fails, try a direct approach
+docker cp ublochat:/app/package.json /tmp/test_package.json 2>/dev/null && cat /tmp/test_package.json | head -5
 `;
 
     conn.exec(cmd, (err, stream) => {
@@ -30,6 +20,7 @@ docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
         stream.on('data', (data) => output += data.toString());
         stream.stderr.on('data', (data) => output += data.toString());
         stream.on('close', () => {
+            console.log('=== RESULTADO DEPLOY FRONTEND ===');
             console.log(output);
             conn.end();
         });

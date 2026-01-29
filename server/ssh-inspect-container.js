@@ -6,21 +6,24 @@ conn.on('ready', () => {
     console.log('✅ SSH Conectado ao servidor de Produção');
 
     const cmd = `
-echo "=== PARANDO CONTAINERS ==="
-cd /root/ublochat
-docker compose down 2>/dev/null || docker-compose down
+echo "=== BUSCANDO DOCKER-COMPOSE ==="
+find /root -name "docker-compose*" 2>/dev/null
 
 echo ""
-echo "=== RECONSTRUINDO CONTAINERS ==="
-docker compose build --no-cache 2>/dev/null || docker-compose build --no-cache
+echo "=== INSPECT CONTAINER UBLOCHAT ==="
+docker inspect ublochat 2>/dev/null | grep -E "(Image|WorkingDir|Cmd|Binds|PortBindings)" | head -20
 
 echo ""
-echo "=== INICIANDO CONTAINERS ==="
-docker compose up -d 2>/dev/null || docker-compose up -d
+echo "=== MOUNTS DO CONTAINER ==="
+docker inspect ublochat -f '{{range .Mounts}}{{.Source}} -> {{.Destination}}{{"\n"}}{{end}}' 2>/dev/null
 
 echo ""
-echo "=== STATUS FINAL ==="
-docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
+echo "=== INFORMAÇÕES DO CONTAINER ==="
+docker inspect -f '{{.Config.Image}}' ublochat 2>/dev/null
+
+echo ""
+echo "=== PORTAS DO CONTAINER ==="
+docker port ublochat 2>/dev/null
 `;
 
     conn.exec(cmd, (err, stream) => {

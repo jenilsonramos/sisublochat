@@ -5,22 +5,14 @@ const conn = new Client();
 conn.on('ready', () => {
     console.log('✅ SSH Conectado ao servidor de Produção');
 
+    // List root directories to find website
     const cmd = `
-echo "=== PARANDO CONTAINERS ==="
-cd /root/ublochat
-docker compose down 2>/dev/null || docker-compose down
-
-echo ""
-echo "=== RECONSTRUINDO CONTAINERS ==="
-docker compose build --no-cache 2>/dev/null || docker-compose build --no-cache
-
-echo ""
-echo "=== INICIANDO CONTAINERS ==="
-docker compose up -d 2>/dev/null || docker-compose up -d
-
-echo ""
-echo "=== STATUS FINAL ==="
-docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
+ls -la /
+ls -la /www 2>/dev/null || echo "No /www"
+ls -la /home 2>/dev/null || echo "No /home"
+ls -la /var/www 2>/dev/null || echo "No /var/www"
+find / -name "evolutionapi" -type d 2>/dev/null | head -5
+find / -name "package.json" 2>/dev/null | head -10
 `;
 
     conn.exec(cmd, (err, stream) => {
@@ -30,6 +22,7 @@ docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
         stream.on('data', (data) => output += data.toString());
         stream.stderr.on('data', (data) => output += data.toString());
         stream.on('close', () => {
+            console.log('=== ESTRUTURA DO SERVIDOR ===');
             console.log(output);
             conn.end();
         });

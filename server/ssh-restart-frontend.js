@@ -6,21 +6,19 @@ conn.on('ready', () => {
     console.log('✅ SSH Conectado ao servidor de Produção');
 
     const cmd = `
-echo "=== PARANDO CONTAINERS ==="
+echo "=== REINICIANDO SERVIÇOS ==="
 cd /root/ublochat
-docker compose down 2>/dev/null || docker-compose down
+
+echo "Parando serviços..."
+pm2 stop all 2>/dev/null || echo "PM2 not running"
 
 echo ""
-echo "=== RECONSTRUINDO CONTAINERS ==="
-docker compose build --no-cache 2>/dev/null || docker-compose build --no-cache
+echo "Iniciando preview do build (produção)..."
+pm2 start "npm run preview -- --host 0.0.0.0 --port 3001" --name "ublochat-frontend" 2>/dev/null || npm run preview -- --host 0.0.0.0 --port 3001 &
 
 echo ""
-echo "=== INICIANDO CONTAINERS ==="
-docker compose up -d 2>/dev/null || docker-compose up -d
-
-echo ""
-echo "=== STATUS FINAL ==="
-docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
+echo "=== PM2 STATUS FINAL ==="
+pm2 status
 `;
 
     conn.exec(cmd, (err, stream) => {

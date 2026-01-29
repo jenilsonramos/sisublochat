@@ -6,21 +6,17 @@ conn.on('ready', () => {
     console.log('✅ SSH Conectado ao servidor de Produção');
 
     const cmd = `
-echo "=== PARANDO CONTAINERS ==="
-cd /root/ublochat
-docker compose down 2>/dev/null || docker-compose down
+echo "=== VARIÁVEIS DE AMBIENTE DO FRONTEND ==="
+cat /root/ublochat/.env 2>/dev/null || echo "No .env file"
+cat /root/ublochat/.env.production 2>/dev/null || echo "No .env.production file"
 
 echo ""
-echo "=== RECONSTRUINDO CONTAINERS ==="
-docker compose build --no-cache 2>/dev/null || docker-compose build --no-cache
+echo "=== CONTEÚDO DO DIST ==="
+ls -la /root/ublochat/dist/ 2>/dev/null | head -10
 
 echo ""
-echo "=== INICIANDO CONTAINERS ==="
-docker compose up -d 2>/dev/null || docker-compose up -d
-
-echo ""
-echo "=== STATUS FINAL ==="
-docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
+echo "=== CONFIGURAÇÃO DO CADDY ==="
+cat /etc/caddy/Caddyfile 2>/dev/null | head -50
 `;
 
     conn.exec(cmd, (err, stream) => {
