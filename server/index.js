@@ -1202,9 +1202,16 @@ app.all(/^\/webhook\/evolution/, async (req, res) => {
             if (!messages.length) return res.json({ received: true });
 
             const instanceName = payload.instance;
-            // Find Instance & User
-            const [instRows] = await pool.query('SELECT id, user_id FROM instances WHERE name = ?', [instanceName]);
-            if (instRows.length === 0) return res.json({ received: true }); // Instance not found locally
+            console.log(`📨 Webhook Message for Instance: "${instanceName}"`); // DEBUG
+
+            // Find Instance & User (Case Insensitive)
+            // Postgres uses ILIKE, but generic SQL uses LOWER()
+            const [instRows] = await pool.query('SELECT id, user_id FROM instances WHERE LOWER(name) = LOWER(?)', [instanceName]);
+
+            if (instRows.length === 0) {
+                console.warn(`❌ Instance "${instanceName}" not found in DB! Ignoring message.`);
+                return res.json({ received: true });
+            }
 
             const instanceId = instRows[0].id;
             const userId = instRows[0].user_id;
