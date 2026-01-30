@@ -33,10 +33,10 @@ ublochat.com.br {
         reverse_proxy app_backend:3001
     }
 
-    # Evolution API (WhatsApp)
-    handle_path /evolution/* {
-        reverse_proxy evolution_api:8080
-    }
+    # Evolution API (WhatsApp) - Desativado temporariamente para estabilidade
+    # handle_path /evolution/* {
+    #    reverse_proxy evolution_api:8080
+    # }
     
     # WebSocket (Socket.io)
     handle /socket.io/* {
