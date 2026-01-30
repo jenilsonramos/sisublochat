@@ -60,18 +60,18 @@ const AdminView: React.FC = () => {
                 return;
             }
 
-            // Check admin_access table by email
+            // Check profiles table (Unified Logic)
             const { data, error } = await supabase
-                .from('admin_access')
-                .select('email')
-                .eq('email', user.email)
+                .from('profiles')
+                .select('role')
+                .eq('id', user.id)
                 .single();
 
             if (error) {
                 console.error('Admin check error:', error);
                 setIsAdmin(false);
             } else {
-                setIsAdmin(!!data);
+                setIsAdmin(data?.role === 'ADMIN');
             }
         } catch (err) {
             console.error('Admin check exception:', err);
