@@ -68,18 +68,20 @@ async function verify() {
         console.log('   (This means Evolution API likely cannot call this URL either if hosted similarly)');
     }
 
-    console.log('\n3. Testing Internal Localhost Route...');
+    console.log('\n3. Testing Internal Localhost Route (127.0.0.1)...');
     try {
-        const res = await fetch(INTERNAL_WEBHOOK_URL, {
+        const res = await fetch('http://127.0.0.1:3001/webhook/evolution', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
+            error(err) { console.error('Error details:', err); }, // extra debug
             body: JSON.stringify({ type: 'TEST_PROBE_LOCAL', instance: 'debug_probe_local', data: { test: true } })
         });
         console.log(`   Response Code: ${res.status}`);
-        if (res.ok) console.log('✅ Internal localhost route works (Server is active).');
-        else console.log('❌ Internal route failed.');
+        if (res.ok) console.log('✅ Internal 127.0.0.1 route works (Server is active).');
+        else console.log(`❌ Internal route failed with status ${res.status}.`);
     } catch (err) {
         console.error('❌ Internal Route Error:', err.message);
+        if (err.cause) console.error('   Cause:', err.cause);
     }
 
     console.log('--- DEBUG NETWORK END ---');
