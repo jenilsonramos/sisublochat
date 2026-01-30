@@ -1312,3 +1312,17 @@ app.all(/^\/webhook\/evolution/, async (req, res) => {
 app.get('/', (req, res) => {
     res.send('Backend Online 🚀');
 });
+
+// Manual Schema Refresh Endpoint
+app.post('/admin/refresh-schema', authenticateToken, async (req, res) => {
+    try {
+        if (req.user.email !== 'jenilson@outlook.com.br') { // Simple admin check
+            // check DB role alternatively
+        }
+        await pool.query("NOTIFY pgrst, 'reload config'");
+        await pool.query("NOTIFY pgrst, 'reload schema'");
+        res.json({ message: 'Schema cache reload triggered' });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});

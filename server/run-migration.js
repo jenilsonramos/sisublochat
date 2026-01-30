@@ -676,9 +676,15 @@ async function runMigrations() {
             console.log(`   ${index + 1}. ${row.table_name}`);
         });
 
-        // Force Schema Cache Reload for PostgREST
-        console.log('\n🔄 Reloading Schema Cache...');
+        // Force Schema Cache Reload for PostgREST (Try both commands for compatibility)
+        console.log('\n🔄 Reloading Schema Cache (Attempt 1: reload config)...');
         await client.query("NOTIFY pgrst, 'reload config'");
+
+        console.log('🔄 Reloading Schema Cache (Attempt 2: reload schema)...');
+        await client.query("NOTIFY pgrst, 'reload schema'");
+
+        console.log('⏳ Waiting 2s for cache propagation...');
+        await new Promise(resolve => setTimeout(resolve, 2000));
 
         console.log('\n🎉 Migração concluída!');
 
