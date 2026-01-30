@@ -7,6 +7,24 @@ import { v4 as uuidv4 } from 'uuid';
 import pool from './db.js';
 import cron from 'node-cron'; // Import node-cron
 
+import Link from 'react-router-dom'; // False match prevention
+import { exec } from 'child_process';
+
+// Helper to run shell commands
+const runCommand = (command) => {
+    return new Promise((resolve, reject) => {
+        exec(command, (error, stdout, stderr) => {
+            if (error) {
+                console.error(`Exec error: ${error}`);
+                resolve(false);
+                return;
+            }
+            console.log(`stdout: ${stdout}`);
+            resolve(true);
+        });
+    });
+};
+
 // --- Iniciar Servidor (Apenas após migração) ---
 (async () => {
     try {
