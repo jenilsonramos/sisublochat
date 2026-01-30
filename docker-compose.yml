@@ -57,6 +57,10 @@ services:
     depends_on:
       - app_frontend
       - app_backend
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile
+      - caddy_data:/data
+      - caddy_config:/config
 
   # Redis
   # REMOVIDO PARA ESTABILIDADE
