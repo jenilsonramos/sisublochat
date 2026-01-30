@@ -1,17 +1,10 @@
 ublochat.com.br {
-    # Webhook route - Proxy to NodeJS Backend
-    handle /webhook/* {
-        reverse_proxy ublochat_backend:3001
-    }
+    # 1. Webhook - Priority Route (Backend)
+    reverse_proxy /webhook/* ublochat_backend:3001
     
-    handle /webhook-health {
-        respond "Webhook Configured Correctly" 200
-    }
+    # 2. Health Check (Backend)
+    respond /webhook-health "Caddy OK" 200
 
-    # Allow direct backend access if needed (optional, keeping it safe for now)
-    
-    # Default - Proxy to React Frontend
-    handle {
-        reverse_proxy app_frontend:80
-    }
+    # 3. Frontend - Default Fallback
+    reverse_proxy * app_frontend:80
 }
