@@ -1,7 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 
 const supabaseUrl = 'https://banco.ublochat.com.br';
-const supabaseServiceKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoic2VydmljZV9yb2xlIiwiaXNzIjoic3VwYWJhc2UiLCJpYXQiOjE3MzgwNDYwMDB9.A9sFJ7XwP3KZtQmMZL0kFJX2PZJ3m8Qn1R8w6bN5A';
+const supabaseServiceKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.ewogICJyb2xlIjogInNlcnZpY2Vfcm9sZSIsCiAgImlzcyI6ICJzdXBhYmFzZSIsCiAgImlhdCI6IDE3MTUwNTA4MDAsCiAgImV4cCI6IDE4NzI4MTcyMDAKfQ.G9-cP-w5knkteRI82Q00Ac9eWjYYRyQRgVLZ3_vqND8';
 
 const supabase = createClient(supabaseUrl, supabaseServiceKey, {
     auth: {

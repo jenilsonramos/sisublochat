@@ -7,6 +7,32 @@ import { v4 as uuidv4 } from 'uuid';
 import pool from './db.js';
 import cron from 'node-cron'; // Import node-cron
 
+// Auto-run migration and admin creation
+import { exec } from 'child_process';
+const runCommand = (command) => {
+    return new Promise((resolve, reject) => {
+        exec(command, (error, stdout, stderr) => {
+            if (error) {
+                console.error(`Exec error: ${error}`);
+                resolve(false);
+                return;
+            }
+            console.log(`stdout: ${stdout}`);
+            resolve(true);
+        });
+    });
+};
+
+(async () => {
+    try {
+        console.log('🔄 Executing Auto-Migration...');
+        await runCommand('node run-migration.js');
+        // await runCommand('node create-admin-v2.js'); // Optional: Add if we want to force admin creation
+    } catch (e) {
+        console.error('Migration failed but starting server anyway:', e);
+    }
+})();
+
 dotenv.config();
 
 // --- INTERNAL CRON SCHEDULER ---
