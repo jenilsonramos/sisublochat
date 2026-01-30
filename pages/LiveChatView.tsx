@@ -284,45 +284,36 @@ const LiveChatView: React.FC<LiveChatViewProps> = ({ isBlocked = false }) => {
     const chatInst = instances.find(i => i.id === selectedChat.instance_id);
     if (chatInst) setActiveInstance(chatInst);
 
-    // Track the last message timestamp for polling
-    let lastMessageTimestamp: string | null = null;
-
     // Polling fallback function - runs every 3 seconds
     const pollMessages = async () => {
       try {
-        const query = supabase
+        // Robust Polling: Fetch last 30 messages always to avoid timestamp drift issues
+        const { data, error } = await supabase
           .from('messages')
           .select('*')
           .eq('conversation_id', selectedChat.id)
           .order('timestamp', { ascending: false })
-          .limit(20);
+          .limit(30);
 
-        // Only fetch new messages if we have a timestamp
-        if (lastMessageTimestamp) {
-          query.gt('timestamp', lastMessageTimestamp);
-        }
-
-        const { data, error } = await query;
         if (error) throw error;
 
         if (data && data.length > 0) {
-          // Update last timestamp
-          lastMessageTimestamp = data[0].timestamp;
-
-          // Add new messages
           setMessages(prev => {
-            const newMsgs = data.filter(m => !prev.some(p => p.id === m.id));
+            // Create a Map of existing messages for O(1) lookup
+            const existingIds = new Set(prev.map(p => p.id));
+            const newMsgs = data.filter(m => !existingIds.has(m.id));
+
             if (newMsgs.length > 0) {
               // Play sound for incoming messages
               const hasIncoming = newMsgs.some(m => m.sender !== 'me');
               if (hasIncoming) {
                 playNotificationSound();
               }
-              // Sort by timestamp ascending
-              const sorted = [...prev, ...newMsgs].sort((a, b) =>
+              // Merge and Sort
+              const combined = [...prev, ...newMsgs].sort((a, b) =>
                 new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
               );
-              return sorted;
+              return combined;
             }
             return prev;
           });
@@ -331,16 +322,6 @@ const LiveChatView: React.FC<LiveChatViewProps> = ({ isBlocked = false }) => {
         console.log('Polling error (non-fatal):', error);
       }
     };
-
-    // Set initial timestamp after first fetch
-    fetchMessages(selectedChat.id).then(() => {
-      setMessages(prev => {
-        if (prev.length > 0) {
-          lastMessageTimestamp = prev[prev.length - 1].timestamp;
-        }
-        return prev;
-      });
-    });
 
     // Start polling interval (every 3 seconds)
     const pollingInterval = setInterval(pollMessages, 3000);
