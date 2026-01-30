@@ -19,6 +19,7 @@ if (!API_URL || !API_KEY) {
 
 const api = axios.create({
     baseURL: API_URL,
+    timeout: 30000, // 30 seconds timeout
     headers: {
         'apikey': API_KEY,
         'Content-Type': 'application/json'

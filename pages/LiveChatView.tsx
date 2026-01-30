@@ -207,6 +207,27 @@ const LiveChatView: React.FC<LiveChatViewProps> = ({ isBlocked = false }) => {
     };
   }, []);
 
+  // 2. Recovery on Visibility Change (Tab Switch / Hibernation)
+  useEffect(() => {
+    const handleVisibilityChange = async () => {
+      if (document.visibilityState === 'visible') {
+        console.log('DEBUG: Tab active again. Refreshing session and data...');
+        // Force session refresh
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) {
+          console.warn('DEBUG: No session found on return. Redirecting?');
+          return;
+        }
+        // Refresh Data
+        fetchInstances();
+        fetchConversations(true);
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, []);
+
   const fetchInstances = async () => {
     try {
       // Fetch from Supabase instead of Evolution API to get the ID mapping
@@ -951,6 +972,14 @@ const LiveChatView: React.FC<LiveChatViewProps> = ({ isBlocked = false }) => {
     try {
       setSending(true);
 
+      // 0. Session Health Check (Prevent hang on stale auth)
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      if (sessionError || !session) {
+        console.warn('DEBUG: Session expired or invalid. Attempting to refresh...');
+        const { error: refreshError } = await supabase.auth.refreshSession();
+        if (refreshError) throw new Error('Sua sessão expirou. Por favor, recarregue a página.');
+      }
+
       const tempId = crypto.randomUUID();
       const optimisticMsg: ChatMessage = {
         id: tempId,
@@ -1001,6 +1030,8 @@ const LiveChatView: React.FC<LiveChatViewProps> = ({ isBlocked = false }) => {
       if (!chatInstance) {
         console.error('DEBUG: ERROR - Instance not found in mapped instances.');
         showToast('Erro: Instância vinculada a esta conversa não encontrada no sistema.', 'error');
+        // Rollback optimistic message
+        setMessages(prev => prev.filter(m => m.id !== tempId));
         return;
       }
 
