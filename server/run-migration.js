@@ -676,6 +676,10 @@ async function runMigrations() {
             console.log(`   ${index + 1}. ${row.table_name}`);
         });
 
+        // Force Schema Cache Reload for PostgREST
+        console.log('\n🔄 Reloading Schema Cache...');
+        await client.query("NOTIFY pgrst, 'reload config'");
+
         console.log('\n🎉 Migração concluída!');
 
     } catch (error) {

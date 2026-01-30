@@ -7,29 +7,21 @@ import { v4 as uuidv4 } from 'uuid';
 import pool from './db.js';
 import cron from 'node-cron'; // Import node-cron
 
-// Auto-run migration and admin creation
-import { exec } from 'child_process';
-const runCommand = (command) => {
-    return new Promise((resolve, reject) => {
-        exec(command, (error, stdout, stderr) => {
-            if (error) {
-                console.error(`Exec error: ${error}`);
-                resolve(false);
-                return;
-            }
-            console.log(`stdout: ${stdout}`);
-            resolve(true);
-        });
-    });
-};
-
+// --- Iniciar Servidor (Apenas após migração) ---
 (async () => {
     try {
         console.log('🔄 Executing Auto-Migration...');
         await runCommand('node run-migration.js');
-        // await runCommand('node create-admin-v2.js'); // Optional: Add if we want to force admin creation
+
+        // Iniciar Servidor
+        app.listen(PORT, '0.0.0.0', () => {
+            console.log(`🚀 Servidor rodando na porta ${PORT}`);
+            console.log(`📡 Base URL: http://localhost:${PORT}`);
+        });
+
     } catch (e) {
-        console.error('Migration failed but starting server anyway:', e);
+        console.error('❌ Startup Error:', e);
+        process.exit(1);
     }
 })();
 
@@ -1301,15 +1293,4 @@ app.all(/^\/webhook\/evolution/, async (req, res) => {
 // Health Check
 app.get('/', (req, res) => {
     res.send('Backend Online 🚀');
-});
-
-// Bind to 0.0.0.0 to allow access from Docker/Caddy
-app.listen(PORT, '0.0.0.0', async () => {
-    console.log(`Servidor rodando na porta ${PORT}`);
-    try {
-        const [rows] = await pool.query('SELECT now()');
-        console.log('✅ Database Connected:', rows[0].now);
-    } catch (e) {
-        console.error('❌ Database Connection Failed:', e.message);
-    }
 });
