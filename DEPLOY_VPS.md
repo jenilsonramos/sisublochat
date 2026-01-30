@@ -27,9 +27,6 @@ ublochat.com.br {
 api.ublochat.com.br {
     reverse_proxy 127.0.0.1:3001
 }
-banco.ublochat.com.br {
-    reverse_proxy 127.0.0.1:8000
-}
 EOF
 
 # 3. Iniciar o sistema
