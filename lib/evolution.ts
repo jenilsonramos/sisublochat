@@ -4,7 +4,8 @@ const API_URL = import.meta.env.VITE_EVOLUTION_API_URL;
 const API_KEY = import.meta.env.VITE_EVOLUTION_API_KEY;
 
 // URL do Webhook - pode ser o Supabase Edge Functions ou o servidor backend
-const WEBHOOK_URL = import.meta.env.VITE_WEBHOOK_URL || 'https://banco.ublochat.com.br/functions/v1/evolution-webhook';
+// URL do Webhook - aponta para o backend self-hosted
+const WEBHOOK_URL = import.meta.env.VITE_WEBHOOK_URL || 'https://ublochat.com.br/webhook/evolution';
 
 console.log('Evolution API Config:', {
     url: API_URL,
