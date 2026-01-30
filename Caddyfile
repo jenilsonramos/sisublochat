@@ -3,6 +3,10 @@ ublochat.com.br {
     handle /webhook/* {
         reverse_proxy ublochat_backend:3001
     }
+    
+    handle /webhook-health {
+        respond "Webhook Configured Correctly" 200
+    }
 
     # Allow direct backend access if needed (optional, keeping it safe for now)
     
