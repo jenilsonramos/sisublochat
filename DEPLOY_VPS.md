@@ -27,7 +27,9 @@ cd sisublochat
 
 # Configurar SSL (Apenas ublochat.com.br)
 cat <<EOF > Caddyfile
-ublochat.com.br {
+https://ublochat.com.br {
+    # Habilitar logs detalhados para debug (opcional)
+    log
     # Backend (API)
     handle_path /api/* {
         reverse_proxy app_backend:3001
