@@ -632,6 +632,25 @@ const migrations = [
             SELECT 'Ublo Chat Billing'
             WHERE NOT EXISTS (SELECT 1 FROM public.billing_settings);
         `
+    },
+    // Parte 12 - Configuração Realtime
+    {
+        name: 'Ativar Realtime',
+        sql: `
+            -- Create publication if it doesn't exist
+            DO $$
+            BEGIN
+                IF NOT EXISTS (SELECT 1 FROM pg_publication WHERE pubname = 'supabase_realtime') THEN
+                    CREATE PUBLICATION supabase_realtime;
+                END IF;
+            END
+            $$;
+
+            -- Add tables to publication (ignoring errors if already added)
+            ALTER PUBLICATION supabase_realtime ADD TABLE messages;
+            ALTER PUBLICATION supabase_realtime ADD TABLE conversations;
+            ALTER PUBLICATION supabase_realtime ADD TABLE instances;
+        `
     }
 ];
 
