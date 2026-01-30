@@ -545,7 +545,7 @@ app.use('/webhook/evolution', async (req, res) => {
                 }
 
                 // Insert Message
-                await pool.query('INSERT INTO messages (id, conversation_id, text, sender, status, media_url, media_type, wamid, timestamp) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)', [uuidv4(), convId, text, fromMe ? 'me' : 'contact', 'sent', mediaUrl, mediaType, msg.key.id, timestamp]);
+                await pool.query('INSERT INTO messages (id, conversation_id, user_id, text, sender, status, media_url, media_type, wamid, timestamp) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', [uuidv4(), convId, userId, text, fromMe ? 'me' : 'contact', 'sent', mediaUrl, mediaType, msg.key.id, timestamp]);
 
                 // 4. CHATBOT & FLOW TRIGGER (Only if not from me)
                 if (!fromMe && text) {
