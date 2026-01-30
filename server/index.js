@@ -478,12 +478,18 @@ app.use('/webhook/evolution', async (req, res) => {
             if (!messages.length) return res.json({ received: true });
 
             const instanceName = payload.instance;
-            const [instRows] = await pool.query('SELECT id, user_id FROM instances WHERE name = ?', [instanceName]);
+
+            console.log(`🔎 Looking for instance: "${instanceName}" (Case Insensitive)`);
+
+            // Find Instance & User (Case Insensitive)
+            const [instRows] = await pool.query('SELECT id, user_id FROM instances WHERE LOWER(name) = LOWER(?)', [instanceName]);
+
             if (instRows.length === 0) {
-                console.log(`⚠️ Webhook Skip: Instance '${instanceName}' not found in database`);
+                console.log(`❌ Instance '${instanceName}' not found in database! (Query returned 0 rows)`);
                 return res.json({ received: true });
             }
 
+            console.log(`✅ Instance Found: ${instRows[0].id}`);
             const instanceId = instRows[0].id;
             const userId = instRows[0].user_id;
 
