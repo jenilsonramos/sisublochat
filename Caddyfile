@@ -1,15 +1,21 @@
 ublochat.com.br {
-    # Force precedence using 'route' blocks
-    route /webhook/* {
+    # Debug Header to verify Caddy is applying this config
+    header X-Caddy-Debug "Config-V3"
+
+    # 1. Backend Routes (Mutually Exclusive)
+    handle /webhook* {
+        header X-Debug-Route "Backend"
         reverse_proxy ublochat_backend:3001
     }
     
-    route /webhook-health {
+    handle /webhook-health {
+        header X-Debug-Route "Health"
         respond "Caddy OK" 200
     }
 
-    # Catch-all for frontend
-    route /* {
+    # 2. Frontend Catch-All (Mutually Exclusive)
+    handle {
+        header X-Debug-Route "Frontend"
         reverse_proxy app_frontend:80
     }
 }
