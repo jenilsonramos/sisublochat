@@ -167,43 +167,26 @@ const LiveChatView: React.FC<LiveChatViewProps> = ({ isBlocked = false }) => {
       fetchConversations(true); // silent fetch
     }, 5000);
 
-    // Try Realtime subscription (may fail but we have polling)
+    // Realtime disabled due to WebSocket instability on the server
+    /*
     let conversationsSubscription: any = null;
     try {
       conversationsSubscription = supabase
         .channel('public:conversations')
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'conversations' }, (payload) => {
-          const updatedConv = payload.new as Conversation;
-
-          // Update the conversations list
-          setConversations(prev => prev.map(c =>
-            c.id === updatedConv.id ? { ...c, ...updatedConv } : c
-          ));
-
-          // Update selectedChat in real-time if it's the one that changed
-          if (selectedChatRef.current?.id === updatedConv.id) {
-            setSelectedChat(prev => {
-              if (!prev) return null;
-              // Ensure we handle cleared fields (like assigned_agent_id becoming null)
-              return { ...prev, ...updatedConv };
-            });
-          }
-
-          // If it's a new conversation or we need a full refresh, we can still fetch
-          if (payload.eventType === 'INSERT') {
-            fetchConversations(true);
-          }
-        })
+        ...
         .subscribe();
     } catch (e) {
       console.log('Realtime conversations subscription failed, using polling only');
     }
+    */
 
     return () => {
       clearInterval(conversationsPollingInterval);
+      /*
       if (conversationsSubscription) {
         supabase.removeChannel(conversationsSubscription);
       }
+      */
     };
   }, []);
 
@@ -215,7 +198,7 @@ const LiveChatView: React.FC<LiveChatViewProps> = ({ isBlocked = false }) => {
         // Force session refresh
         const { data: { session } } = await supabase.auth.getSession();
         if (!session) {
-          console.warn('DEBUG: No session found on return. Redirecting?');
+          console.warn('DEBUG: No session found on return.');
           return;
         }
         // Refresh Data
@@ -228,14 +211,20 @@ const LiveChatView: React.FC<LiveChatViewProps> = ({ isBlocked = false }) => {
     return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
   }, []);
 
+  const isFetchingInstancesRef = useRef(false);
   const fetchInstances = async () => {
+    if (isFetchingInstancesRef.current) return;
     try {
+      isFetchingInstancesRef.current = true;
       // Fetch from Supabase instead of Evolution API to get the ID mapping
       const { data: dbInstances, error } = await supabase
         .from('instances')
         .select('*');
 
-      if (error) throw error;
+      if (error) {
+        if (error.message?.includes('aborted')) return;
+        throw error;
+      };
 
       // Also fetch from Evolution API to get real-time connection status
       const evoData = await evolutionApi.fetchInstances();
@@ -254,8 +243,11 @@ const LiveChatView: React.FC<LiveChatViewProps> = ({ isBlocked = false }) => {
       // Restore: Select first connected instance as active by default to avoid "Connecting..." hang
       const firstConnected = enrichedInstances.find(i => i.connectionStatus === 'open' || i.status === 'open');
       if (firstConnected) setActiveInstance(firstConnected);
-    } catch (error) {
+    } catch (error: any) {
+      if (error.message?.includes('aborted')) return;
       console.error('Instances Error:', error);
+    } finally {
+      isFetchingInstancesRef.current = false;
     }
   };
 
@@ -264,8 +256,11 @@ const LiveChatView: React.FC<LiveChatViewProps> = ({ isBlocked = false }) => {
     selectedChatRef.current = selectedChat;
   }, [selectedChat]);
 
+  const isFetchingConversationsRef = useRef(false);
   const fetchConversations = async (silent = false) => {
+    if (isFetchingConversationsRef.current) return;
     try {
+      isFetchingConversationsRef.current = true;
       if (!silent) setLoadingChats(true);
 
       console.log('DEBUG: Fetching conversations...');
@@ -297,6 +292,7 @@ const LiveChatView: React.FC<LiveChatViewProps> = ({ isBlocked = false }) => {
       console.error('Chats Error:', error);
     } finally {
       if (!silent) setLoadingChats(false);
+      isFetchingConversationsRef.current = false;
     }
   };
 
@@ -355,53 +351,26 @@ const LiveChatView: React.FC<LiveChatViewProps> = ({ isBlocked = false }) => {
     // Start polling interval (every 3 seconds)
     const pollingInterval = setInterval(pollMessages, 3000);
 
-    // Also try Realtime subscription (may fail but we have polling fallback)
+    // Realtime disabled due to WebSocket instability on the server
+    /*
     let messagesSubscription: any = null;
     try {
       messagesSubscription = supabase
         .channel(`public:messages:conv_${selectedChat.id}`)
-        .on('postgres_changes',
-          {
-            event: 'INSERT',
-            schema: 'public',
-            table: 'messages',
-            filter: `conversation_id=eq.${selectedChat.id}`
-          },
-          (payload) => {
-            const newMessage = payload.new as ChatMessage;
-            setMessages(prev => {
-              const exists = prev.some(m => m.id === newMessage.id);
-              if (exists) return prev;
-
-              if (newMessage.sender !== 'me') {
-                playNotificationSound();
-              }
-              return [...prev, newMessage];
-            });
-          }
-        )
-        .on('postgres_changes',
-          {
-            event: 'UPDATE',
-            schema: 'public',
-            table: 'messages',
-            filter: `conversation_id=eq.${selectedChat.id}`
-          },
-          (payload) => {
-            const updatedMessage = payload.new as ChatMessage;
-            setMessages(prev => prev.map(m => m.id === updatedMessage.id ? updatedMessage : m));
-          }
-        )
+        ...
         .subscribe();
     } catch (e) {
       console.log('Realtime subscription failed, using polling only');
     }
+    */
 
     return () => {
       clearInterval(pollingInterval);
+      /*
       if (messagesSubscription) {
         supabase.removeChannel(messagesSubscription);
       }
+      */
     };
   }, [selectedChat?.id]);
 
@@ -1071,6 +1040,22 @@ const LiveChatView: React.FC<LiveChatViewProps> = ({ isBlocked = false }) => {
       setSending(false);
     }
   };
+
+  // Watchdog to prevent sending lock
+  useEffect(() => {
+    let timeout: any;
+    if (sending) {
+      timeout = setTimeout(() => {
+        if (sending) {
+          console.warn('DEBUG: Message sending watchdog triggered. Force resetting state.');
+          setSending(false);
+          setMessages(prev => prev.filter(m => m.status !== 'sending'));
+          showToast('O envio está demorando muito. Verifique sua conexão.', 'info');
+        }
+      }, 45000); // 45s safety net
+    }
+    return () => clearTimeout(timeout);
+  }, [sending]);
 
   const handleDeleteClick = () => {
     if (selectedChat) setIsDeleteModalOpen(true);
