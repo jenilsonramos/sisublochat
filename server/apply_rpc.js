@@ -11,7 +11,7 @@ const connectionString = process.env.DATABASE_URL ||
 
 const pool = new pg.Pool({
     connectionString,
-    ssl: { rejectUnauthorized: false } // Required for external connections usually
+    // ssl: { rejectUnauthorized: false } // Removed: Server does not support SSL
 });
 
 
