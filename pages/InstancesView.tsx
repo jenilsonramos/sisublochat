@@ -166,13 +166,39 @@ const InstancesView: React.FC<InstancesViewProps> = ({ isBlocked = false }) => {
   const fetchInstances = async (showLoading = false) => {
     try {
       if (showLoading) setLoading(true);
-      const { data, error } = await supabase
+
+      const { data: dbInstances, error } = await supabase
         .from('instances')
         .select('*')
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      setInstances(data || []);
+
+      // Fetch Real-time Status
+      try {
+        const evoData = await evolutionApi.fetchInstances();
+        const validEvoInstances = Array.isArray(evoData) ? evoData : [];
+
+        const enriched = (dbInstances || []).map(inst => {
+          const evo = validEvoInstances.find(e => ((e as any).instance?.instanceName || e.name) === inst.name);
+          const realStatus = evo?.connectionStatus || (evo as any)?.status;
+
+          // Log for debugging
+          if (realStatus) console.log(`Instance ${inst.name} Real Status:`, realStatus);
+
+          return {
+            ...inst,
+            // If API returns a status, use it. Otherwise fallback to DB.
+            // Map API 'open' -> DB 'open'
+            connectionStatus: realStatus || inst.status
+          };
+        });
+        setInstances(enriched);
+      } catch (evoError) {
+        console.warn('Evolution API fetch error:', evoError);
+        setInstances(dbInstances || []);
+      }
+
     } catch (err: any) {
       console.error(err);
       showToast(err.message || 'Erro ao carregar instâncias', 'error');
