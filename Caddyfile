@@ -1,10 +1,15 @@
 ublochat.com.br {
-    # 1. Webhook - Priority Route (Backend)
-    reverse_proxy /webhook/* ublochat_backend:3001
+    # Force precedence using 'route' blocks
+    route /webhook/* {
+        reverse_proxy ublochat_backend:3001
+    }
     
-    # 2. Health Check (Backend)
-    respond /webhook-health "Caddy OK" 200
+    route /webhook-health {
+        respond "Caddy OK" 200
+    }
 
-    # 3. Frontend - Default Fallback
-    reverse_proxy * app_frontend:80
+    # Catch-all for frontend
+    route /* {
+        reverse_proxy app_frontend:80
+    }
 }
