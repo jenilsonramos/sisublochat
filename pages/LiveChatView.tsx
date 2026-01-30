@@ -247,15 +247,21 @@ const LiveChatView: React.FC<LiveChatViewProps> = ({ isBlocked = false }) => {
     try {
       if (!silent) setLoadingChats(true);
 
+      console.log('DEBUG: Fetching conversations...');
       const { data, error } = await supabase
         .from('conversations')
         .select('*')
         .order('last_message_time', { ascending: false })
         .limit(50);
 
-      if (error) throw error;
+      if (error) {
+        // Suppress AbortError logs as they are usually intentional/system-level
+        if (error.message?.includes('aborted')) return;
+        throw error;
+      }
 
       if (data) {
+        console.log(`DEBUG: Found ${data.length} conversations.`);
         data.forEach((c: Conversation) => {
           if (c.id === selectedChatRef.current?.id) {
             if (c.unread_count > 0) markChatAsRead(c.id);
@@ -265,7 +271,8 @@ const LiveChatView: React.FC<LiveChatViewProps> = ({ isBlocked = false }) => {
       }
 
       setConversations(data || []);
-    } catch (error) {
+    } catch (error: any) {
+      if (error.message?.includes('aborted')) return;
       console.error('Chats Error:', error);
     } finally {
       if (!silent) setLoadingChats(false);
@@ -986,9 +993,14 @@ const LiveChatView: React.FC<LiveChatViewProps> = ({ isBlocked = false }) => {
       } : undefined;
 
       // Find the correct instance for this specific chat
+      console.log('DEBUG: Sending message. Chat Instance ID:', selectedChat.instance_id);
+      console.log('DEBUG: Available Instances in state:', instances.map(i => ({ id: i.id, name: i.name })));
+
       const chatInstance = instances.find(i => i.id === selectedChat.instance_id);
+
       if (!chatInstance) {
-        showToast('Erro: Instância vinculada a esta conversa não encontrada.', 'error');
+        console.error('DEBUG: ERROR - Instance not found in mapped instances.');
+        showToast('Erro: Instância vinculada a esta conversa não encontrada no sistema.', 'error');
         return;
       }
 
