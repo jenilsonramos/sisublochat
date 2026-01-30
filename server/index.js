@@ -25,21 +25,19 @@ const runCommand = (command) => {
     });
 };
 
-// --- Iniciar Servidor (Apenas após migração) ---
+// --- Iniciar Servidor (Tenta migração, mas inicia de qualquer jeito) ---
 (async () => {
     try {
         console.log('🔄 Executing Auto-Migration...');
         await runCommand('node run-migration.js');
-
-        // Iniciar Servidor
+    } catch (e) {
+        console.error('❌ Migration Failed (Starting server anyway):', e);
+    } finally {
+        // Iniciar Servidor Independente do Resultado da Migração
         app.listen(PORT, '0.0.0.0', () => {
             console.log(`🚀 Servidor rodando na porta ${PORT}`);
             console.log(`📡 Base URL: http://localhost:${PORT}`);
         });
-
-    } catch (e) {
-        console.error('❌ Startup Error:', e);
-        process.exit(1);
     }
 })();
 

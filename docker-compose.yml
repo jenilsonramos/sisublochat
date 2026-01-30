@@ -57,7 +57,6 @@ services:
     depends_on:
       - app_frontend
       - app_backend
-      - evolution_api
 
   # Evolution API v2
   evolution_api:
