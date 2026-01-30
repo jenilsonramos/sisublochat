@@ -13,7 +13,8 @@ const config = {
     user: process.env.DB_USER || 'postgres',
     password: process.env.DB_PASS || 'R8mF9kP2sQ4VxA7ZLwC3eT',
     database: process.env.DB_NAME || 'postgres',
-    ssl: (process.env.DB_SSL === 'true')
+    ssl: (process.env.DB_SSL === 'true'),
+    connectionTimeoutMillis: 5000 // 5 seconds timeout
 };
 
 console.log(`🚀 Iniciando migração incremental...`);
