@@ -6,8 +6,14 @@ Como o banco de dados já está configurado, você só precisa colocar o sistema
 Copie e cole este bloco para instalar Docker e Git:
 
 ```bash
+# Atualizar sistema
 sudo apt update && sudo apt upgrade -y
-sudo apt install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin git
+
+# Instalar Git e Curl
+sudo apt install -y git curl
+
+# Instalar Docker (Script Oficial Automático)
+curl -fsSL https://get.docker.com | sh
 ```
 
 ## Passo 2: Baixar e Rodar
