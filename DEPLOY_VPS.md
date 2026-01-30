@@ -1,81 +1,142 @@
-# Deploy na VPS - SisUbloChat
+# Guia de Instalação na VPS (Ubuntu 24.04)
 
-Este guia contém as instruções para implantar o sistema na sua VPS e configurar o SSL.
+Este guia contém o passo a passo completo para configurar um servidor Ubuntu 24.04 do zero e colocar o sistema **SisUbloChat** no ar com SSL.
 
-## Pré-requisitos na VPS
-- **Docker** e **Docker Compose** instalados.
-- **Git** instalado.
+## 1. Acesso e Atualização do Sistema
+Acesse sua VPS via SSH e execute os comandos abaixo para garantir que o sistema está atualizado.
 
-## Passo a Passo
+```bash
+# Atualizar lista de pacotes e o sistema
+sudo apt update && sudo apt upgrade -y
+```
 
-1. **Clonar/Atualizar o Repositório**
-   Acesse sua VPS via SSH e navegue até a pasta onde deseja instalar (ou atualize se já existir).
-   ```bash
-   # Se for primeira instalação:
-   git clone https://github.com/jenilsonramos/sisublochat.git evolutionapi
-   cd evolutionapi
-   
-   # Se já existir:
-   cd evolutionapi
-   git pull origin main
-   ```
+## 2. Instalar Docker e Git
+O sistema roda em containers, então precisamos do Docker.
 
-2. **Verificar Configurações**
-   Certifique-se de que o arquivo `.env` (ou `server/.env`) está com as credenciais corretas que acabamos de configurar.
-   Caso precise editar na VPS:
-   ```bash
-   nano server/.env
-   # Salve com Ctrl+O e Saia com Ctrl+X
-   ```
-   *Nota: O `DB_HOST` está configurado como `supabase_db` assumindo que o banco roda no mesmo docker-compose. Se o banco for externo ou rodar direto na máquina, ajuste para o IP correto.*
+```bash
+# Instalar utilitários essenciais
+sudo apt install -y apt-transport-https ca-certificates curl software-properties-common git
 
-3. **Subir os Containers**
-   Na pasta raiz do projeto, execute:
-   ```bash
-   docker-compose up -d --build
-   ```
-   Isso irá construir as imagens e iniciar o sistema.
+# Adicionar repositório oficial do Docker
+curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
 
-4. **Rodar Migrações do Banco**
-   Para garantir que o banco tenha todas as tabelas e o usuário admin:
-   ```bash
-   # Opção 1: Se houver script via container
-   docker-compose exec server npm run migrate
-   
-   # Opção 2: Rodar manualmente conectando no banco (necessário cliente psql ou usar a interface do Supabase Studio se disponível)
-   # O sistema deve rodar as migrações ao iniciar se estiver configurado para tal.
-   ```
+echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
 
-## Configuração de SSL do Domínio (ublochat.com.br)
+# Instalar Docker e Docker Compose (Plugin)
+sudo apt update
+sudo apt install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
 
-Para ativar o SSL no domínio `ublochat.com.br` e `api.ublochat.com.br`, recomendamos usar o **Caddy** ou **Nginx** como Proxy Reverso.
+# Verificar se instalou corretamente
+docker compose version
+```
 
-### Exemplo com Caddy (Mais fácil - Automático)
+## 3. Instalar e Configurar o Projeto
 
-1. Crie ou edite o arquivo `Caddyfile` na raiz (se estiver usando Docker para o Caddy):
-   ```caddyfile
-   ublochat.com.br {
-       reverse_proxy 127.0.0.1:3000
-   }
+Vamos baixar o código e preparar o ambiente.
 
-   api.ublochat.com.br {
-       reverse_proxy 127.0.0.1:3001
-   }
-   
-   banco.ublochat.com.br {
-       reverse_proxy 127.0.0.1:8000
-   }
-   ```
-   *Ajuste as portas (3000, 3001, 8000) conforme o que estiver rodando no seu docker-compose.*
+```bash
+# 1. Navegar para a pasta home (ou outra de sua preferência)
+cd ~
 
-2. Suba o Caddy:
-   ```bash
-   docker run -d --name caddy --network host -v $(pwd)/Caddyfile:/etc/caddy/Caddyfile -v caddy_data:/data caddy
-   ```
+# 2. Clonar o repositório
+git clone https://github.com/jenilsonramos/sisublochat.git evolutionapi
 
-### Verificação
-Acesse https://ublochat.com.br e verifique se o sistema carrega e se o cadeado SSL aparece.
+# 3. Entrar na pasta do projeto
+cd evolutionapi
 
-## Admin
-**Email**: jenilson@outlook.com.br
-**Senha**: 125714Ab#
+# 4. Verificar se o arquivo .env está correto (OPCIONAL, apenas para conferência)
+# Os arquivos já foram enviados configurados, mas confira se necessário:
+cat server/.env
+```
+
+## 4. Iniciar o Sistema
+
+Agora vamos subir os containers (Backend, Frontend e Banco de Dados, se aplicável).
+
+```bash
+# Iniciar em modo 'detach' (segundo plano) e reconstruir as imagens se necessário
+sudo docker compose up -d --build
+```
+
+### Verificar se subiu tudo
+```bash
+sudo docker compose ps
+```
+Você deve ver containers como `server`, `web` (ou similar) com status `Up`.
+
+## 5. Migrações do Banco de Dados
+
+Para criar as tabelas e o usuário administrador:
+
+```bash
+# Execute o comando de migração dentro do container do servidor
+sudo docker compose exec server npm run migrate
+```
+
+Isso irá criar o administrador:
+- **Email**: `jenilson@outlook.com.br`
+- **Senha**: `125714Ab#`
+
+## 6. Configurar SSL (HTTPS) com Caddy
+
+A maneira mais fácil de ter HTTPS automático é usando o **Caddy**.
+
+### Opção A: Rodar Caddy via Docker (Recomendado)
+
+1. **Criar o arquivo Caddyfile** na raiz do projeto (`~/evolutionapi`):
+
+```bash
+nano Caddyfile
+```
+
+2. **Colar o seguinte conteúdo** (Ctrl+Shift+V para colar):
+
+```caddyfile
+ublochat.com.br {
+    reverse_proxy 127.0.0.1:3000
+}
+
+api.ublochat.com.br {
+    reverse_proxy 127.0.0.1:3001
+}
+
+# Se você estiver rodando o banco/supabase viewer publicamente (cuidado com segurança)
+banco.ublochat.com.br {
+    reverse_proxy 127.0.0.1:8000
+}
+```
+*Salve com `Ctrl+O`, `Enter` e saia com `Ctrl+X`.*
+
+> **Atenção**: Certifique-se que o Firewall da VPS (portas 80 e 443) está liberado.
+
+3. **Iniciar o Caddy**:
+
+```bash
+sudo docker run -d \
+    --name caddy \
+    --restart unless-stopped \
+    --network host \
+    -v $(pwd)/Caddyfile:/etc/caddy/Caddyfile \
+    -v caddy_data:/data \
+    caddy
+```
+
+Agora acesse **https://ublochat.com.br**. O SSL deve estar ativo.
+
+---
+
+## Comandos Úteis para Manutenção
+
+- **Ver logs do servidor**:
+  ```bash
+  sudo docker compose logs -f server
+  ```
+- **Parar o sistema**:
+  ```bash
+  sudo docker compose down
+  ```
+- **Atualizar o sistema** (quando você fizer push de novidades):
+  ```bash
+  git pull origin main
+  sudo docker compose up -d --build
+  ```
