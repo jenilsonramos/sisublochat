@@ -69,5 +69,5 @@ volumes:
 
 networks:
   ublochatnet:
-    external: true
+    driver: bridge
 

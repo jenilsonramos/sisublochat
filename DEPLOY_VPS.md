@@ -25,22 +25,22 @@ cd ~
 git clone https://github.com/jenilsonramos/sisublochat.git sisublochat
 cd sisublochat
 
-# 2. Configurar domínios (SSL)
+# Configurar SSL (Apenas ublochat.com.br)
 cat <<EOF > Caddyfile
 ublochat.com.br {
-    # Backend (API) em /api
+    # Backend (API)
     handle_path /api/* {
-        reverse_proxy 127.0.0.1:3001
+        reverse_proxy app_backend:3001
     }
     
     # WebSocket (Socket.io)
     handle /socket.io/* {
-        reverse_proxy 127.0.0.1:3001
+        reverse_proxy app_backend:3001
     }
 
-    # Frontend (Padrão)
+    # Frontend (Site)
     handle {
-        reverse_proxy 127.0.0.1:3000
+        reverse_proxy app_frontend:80
     }
 }
 EOF
