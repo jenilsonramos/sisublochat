@@ -89,6 +89,7 @@ services:
       - DATABASE_PROVIDER=postgresql
       - DATABASE_CONNECTION_URI=postgres://postgres:140feba84a688d204e3a2f9945f9cd75@banco.ublochat.com.br:5432/postgres
       - DATABASE_CLIENT_NAME=evolution_v2
+      - DATABASE_SSL=false
       # Redis
       - CACHE_REDIS_ENABLED=true
       - CACHE_REDIS_URI=redis://redis:6379/0
