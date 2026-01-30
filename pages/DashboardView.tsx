@@ -64,69 +64,27 @@ const DashboardView: React.FC = () => {
     try {
       setLoading(true);
 
-      const [
-        { count: instancesCount },
-        { count: chatbotsCount },
-        { count: usersCount },
-        { count: totalMessages },
-        { data: sentMessagesData },
-        { count: conversationsCount },
-        { data: recentMessages }
-      ] = await Promise.all([
-        supabase.from('instances').select('*', { count: 'exact', head: true }),
-        supabase.from('chatbots').select('*', { count: 'exact', head: true }),
-        supabase.from('profiles').select('*', { count: 'exact', head: true }),
-        supabase.from('messages').select('*', { count: 'exact', head: true }),
-        supabase.from('messages').select('*', { count: 'exact', head: true }).eq('sender', 'me'),
-        supabase.from('conversations').select('*', { count: 'exact', head: true }),
-        supabase.from('messages').select('*').order('timestamp', { ascending: false }).limit(1000)
-      ]);
+      const { data, error } = await supabase.rpc('get_dashboard_stats');
 
-      const sentMessages = sentMessagesData?.length || 0;
+      if (error) {
+        console.error('RPC Error:', error);
+        throw error;
+      };
 
-      // Calculate Weekly Data
-      const days = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
-      const weeklyMap: { [key: string]: number } = {};
-
-      for (let i = 6; i >= 0; i--) {
-        const d = new Date();
-        d.setDate(d.getDate() - i);
-        weeklyMap[d.toDateString()] = 0;
+      if (data) {
+        setStats({
+          totalMessages: data.totalMessages,
+          sentMessages: data.sentMessages,
+          receivedMessages: data.receivedMessages,
+          avgTime: '2 Min', // Placeholder as not in RPC yet
+          activeConversations: data.activeConversations,
+          instancesCount: data.instancesCount,
+          chatbotsCount: data.chatbotsCount,
+          usersCount: data.usersCount,
+          statusStats: data.statusStats,
+          weeklyData: data.weeklyData
+        });
       }
-
-      const statusStats = { sent: 0, received: 0, pending: 0, failed: 0 };
-
-      recentMessages?.forEach((m: any) => {
-        const d = new Date(m.timestamp).toDateString();
-        if (weeklyMap[d] !== undefined) weeklyMap[d]++;
-
-        if (m.sender === 'me') {
-          statusStats.sent++;
-        } else {
-          statusStats.received++;
-        }
-
-        if (m.status === 'pending') statusStats.pending++;
-        if (m.status === 'failed') statusStats.failed++;
-      });
-
-      const weeklyData = Object.entries(weeklyMap).map(([date, count]) => ({
-        day: days[new Date(date).getDay()],
-        count
-      }));
-
-      setStats({
-        totalMessages: totalMessages || 0,
-        sentMessages: sentMessages || 0,
-        receivedMessages: (totalMessages || 0) - (sentMessages || 0),
-        avgTime: '2 Min',
-        activeConversations: conversationsCount || 0,
-        instancesCount: instancesCount || 0,
-        chatbotsCount: chatbotsCount || 0,
-        usersCount: usersCount || 0,
-        statusStats,
-        weeklyData
-      });
 
     } catch (error) {
       console.error('Error fetching dashboard data:', error);

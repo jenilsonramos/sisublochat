@@ -250,7 +250,8 @@ const LiveChatView: React.FC<LiveChatViewProps> = ({ isBlocked = false }) => {
       const { data, error } = await supabase
         .from('conversations')
         .select('*')
-        .order('last_message_time', { ascending: false });
+        .order('last_message_time', { ascending: false })
+        .limit(50);
 
       if (error) throw error;
 
