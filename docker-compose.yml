@@ -83,8 +83,8 @@ services:
       # Por garantia, vou NÃO ligar o banco na Evolution agora e deixar ela usar SQLite interno (se suportado) ou apenas Redis, 
       # POIS o 'app_backend' gerencia as instancias no banco.
       # MENTIRA: Evolution requer banco persistente na V2.
-      - DATABASE_PROVIDER=postgresql
-      - DATABASE_CONNECTION_URI=postgres://postgres:140feba84a688d204e3a2f9945f9cd75@banco.ublochat.com.br:5432/postgres
+      - DATABASE_PROVIDER=sqlite
+      - DATABASE_CONNECTION_URI=evolution_store
       - DATABASE_CLIENT_NAME=evolution_v2
       - DATABASE_SSL=false
       # Redis
