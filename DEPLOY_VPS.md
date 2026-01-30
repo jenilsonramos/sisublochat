@@ -22,10 +22,20 @@ cd sisublochat
 # 2. Configurar domínios (SSL)
 cat <<EOF > Caddyfile
 ublochat.com.br {
-    reverse_proxy 127.0.0.1:3000
-}
-api.ublochat.com.br {
-    reverse_proxy 127.0.0.1:3001
+    # Backend (API) em /api
+    handle_path /api/* {
+        reverse_proxy 127.0.0.1:3001
+    }
+    
+    # WebSocket (Socket.io)
+    handle /socket.io/* {
+        reverse_proxy 127.0.0.1:3001
+    }
+
+    # Frontend (Padrão)
+    handle {
+        reverse_proxy 127.0.0.1:3000
+    }
 }
 EOF
 
@@ -34,3 +44,20 @@ sudo docker compose up -d --build
 ```
 
 **Pronto!** O sistema estará funcionando em `https://ublochat.com.br`.
+
+## Comandos Úteis (Manutenção)
+
+Ver se está rodando:
+```bash
+sudo docker ps
+```
+
+Ver logs do sistema (Backend):
+```bash
+sudo docker logs -f ublochat_backend
+```
+
+Parar tudo:
+```bash
+sudo docker compose down
+```

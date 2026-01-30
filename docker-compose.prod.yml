@@ -19,9 +19,9 @@ services:
       - DB_NAME=postgres
       - JWT_SECRET=2ba1e504c2695559673d031f3d9f4179c9d20aa2
       - SUPABASE_URL=https://banco.ublochat.com.br
-      - SUPABASE_SERVICE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.ewogICJyb2xlIjogInNlcnZpY2Vfcm9sZSIsCiAgImlzcyI6ICJzdXBhYmFzZSIsCiAgImlhdCI6IDE3MTUwNTA4MDAsCiAgImV4cCI6IDE4NzI4MTcyMDAKfQ.G9-cP-w5knkteRI82Q00Ac9eWjYYRyQRgVLZ3_vqND8
+      - SUPABASE_SERVICE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.ewogICJyb2xlIjogInNlcnZpY2Vfcm9sZSIsCiAgImlzcyI6ICJzdXBhYmFzZSIsCiAgImlhdCI6IDE3MTUwNTA4MDAsCiAgImV4cCI6IDE4NzI4MTcyMDAKfQ.G9-cP-w5knkteRI82Q00Ac9eWjYYRyQRgVL3_vqND8
       - SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.ewogICJyb2xlIjogImFub24iLAogICJpc3MiOiAic3VwYWJhc2UiLAogICJpYXQiOiAxNzE1MDUwODAwLAogICJleHAiOiAxODcyODE3MjAwCn0.-lY1swDGj4v3LT9Rp01bSm8dQ3zt3K1Ac_GoaZnWzS8
-      - EVOLUTION_API_URL=https://api.ublochat.com.br
+      - EVOLUTION_API_URL=https://ublochat.com.br/api
       - EVOLUTION_API_KEY=8d6bec6437028284c41a6a4859156bef
     networks:
       - ublochatnet
@@ -35,7 +35,7 @@ services:
       args:
         - VITE_SUPABASE_URL=https://banco.ublochat.com.br
         - VITE_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.ewogICJyb2xlIjogImFub24iLAogICJpc3MiOiAic3VwYWJhc2UiLAogICJpYXQiOiAxNzE1MDUwODAwLAogICJleHAiOiAxODcyODE3MjAwCn0.-lY1swDGj4v3LT9Rp01bSm8dQ3zt3K1Ac_GoaZnWzS8
-        - VITE_EVOLUTION_API_URL=https://api.ublochat.com.br
+        - VITE_EVOLUTION_API_URL=https://ublochat.com.br/api
         - VITE_EVOLUTION_API_KEY=8d6bec6437028284c41a6a4859156bef
     container_name: ublochat_frontend
     restart: always
