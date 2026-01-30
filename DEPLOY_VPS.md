@@ -32,6 +32,11 @@ ublochat.com.br {
     handle_path /api/* {
         reverse_proxy app_backend:3001
     }
+
+    # Evolution API (WhatsApp)
+    handle_path /evolution/* {
+        reverse_proxy evolution_api:8080
+    }
     
     # WebSocket (Socket.io)
     handle /socket.io/* {

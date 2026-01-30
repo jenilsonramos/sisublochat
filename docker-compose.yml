@@ -21,7 +21,7 @@ services:
       - SUPABASE_URL=https://banco.ublochat.com.br
       - SUPABASE_SERVICE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.ewogICJyb2xlIjogInNlcnZpY2Vfcm9sZSIsCiAgImlzcyI6ICJzdXBhYmFzZSIsCiAgImlhdCI6IDE3MTUwNTA4MDAsCiAgImV4cCI6IDE4NzI4MTcyMDAKfQ.G9-cP-w5knkteRI82Q00Ac9eWjYYRyQRgVL3_vqND8
       - SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.ewogICJyb2xlIjogImFub24iLAogICJpc3MiOiAic3VwYWJhc2UiLAogICJpYXQiOiAxNzE1MDUwODAwLAogICJleHAiOiAxODcyODE3MjAwCn0.-lY1swDGj4v3LT9Rp01bSm8dQ3zt3K1Ac_GoaZnWzS8
-      - EVOLUTION_API_URL=https://ublochat.com.br/api
+      - EVOLUTION_API_URL=http://evolution_api:8080
       - EVOLUTION_API_KEY=8d6bec6437028284c41a6a4859156bef
     networks:
       - ublochatnet
@@ -35,7 +35,7 @@ services:
       args:
         - VITE_SUPABASE_URL=https://banco.ublochat.com.br
         - VITE_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.ewogICJyb2xlIjogImFub24iLAogICJpc3MiOiAic3VwYWJhc2UiLAogICJpYXQiOiAxNzE1MDUwODAwLAogICJleHAiOiAxODcyODE3MjAwCn0.-lY1swDGj4v3LT9Rp01bSm8dQ3zt3K1Ac_GoaZnWzS8
-        - VITE_EVOLUTION_API_URL=https://ublochat.com.br/api
+        - VITE_EVOLUTION_API_URL=https://ublochat.com.br/evolution
         - VITE_EVOLUTION_API_KEY=8d6bec6437028284c41a6a4859156bef
     container_name: ublochat_frontend
     restart: always
@@ -52,19 +52,67 @@ services:
     ports:
       - "80:80"
       - "443:443"
-    volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile
-      - caddy_data:/data
-      - caddy_config:/config
     networks:
       - ublochatnet
     depends_on:
       - app_frontend
       - app_backend
+      - evolution_api
+
+  # Evolution API v2
+  evolution_api:
+    image: atendai/evolution-api:v2.1.1
+    container_name: evolution_api
+    restart: always
+    ports:
+      - "8080:8080"
+    environment:
+      - SERVER_PORT=8080
+      - SERVER_URL=https://ublochat.com.br/evolution
+      - DOCKER_ENV=true
+      - AUTHENTICATION_API_KEY=8d6bec6437028284c41a6a4859156bef
+      - AUTHENTICATION_EXPOSE_IN_FETCH_INSTANCES=true
+      - DATABASE_ENABLED=true # Use o mesmo banco para persistencia se quiser, mas cuidado com conflitos. 
+      # Vou usar SQLite interno por simplicidade ou Redis para sessao.
+      # Melhor usar Redis para sessao e Postgres para dados se configurado.
+      # Configuração simplificada para EVOLUTION API (Usando Postgres do projeto ou interno?)
+      # O projeto 'sisublochat' parece usar o banco principal para tabelas 'instances'.
+      # A Evolution API TEM SUAS PROPRIAS TABELAS.
+      # Vamos configurar para usar o MESMO Postgres, mas talvez schemas diferentes?
+      # Ou deixar ela criar as tabelas dela no public mesmo? (Pode dar conflito com 'instances' do app?)
+      # O app cria 'instances'. A Evolution cria 'Instance' (TypeORM).
+      # Pela analise do index.js, o app cria tabela 'instances' (lowercase).
+      # Melhor apontar a Evolution para o banco mas com cuidado. 
+      # Por garantia, vou NÃO ligar o banco na Evolution agora e deixar ela usar SQLite interno (se suportado) ou apenas Redis, 
+      # POIS o 'app_backend' gerencia as instancias no banco.
+      # MENTIRA: Evolution requer banco persistente na V2.
+      - DATABASE_PROVIDER=postgresql
+      - DATABASE_CONNECTION_URI=postgres://postgres:140feba84a688d204e3a2f9945f9cd75@banco.ublochat.com.br:5432/postgres
+      - DATABASE_CLIENT_NAME=evolution_v2
+      # Redis
+      - CACHE_REDIS_ENABLED=true
+      - CACHE_REDIS_URI=redis://redis:6379/0
+      # S3 / Minio (Opcional)
+    networks:
+      - ublochatnet
+    depends_on:
+      - redis
+
+  # Redis
+  redis:
+    image: redis:alpine
+    container_name: ublochat_redis
+    restart: always
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    networks:
+      - ublochatnet
 
 volumes:
   caddy_data:
   caddy_config:
+  redis_data:
   postgres_data:  # Volume persistente do banco
 
 networks:
