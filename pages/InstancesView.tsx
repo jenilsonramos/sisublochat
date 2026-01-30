@@ -217,23 +217,29 @@ const InstancesView: React.FC<InstancesViewProps> = ({ isBlocked = false }) => {
 
     try {
       setProcessing('CREATING');
+      console.log('DEBUG: Starting creation...');
 
       let instanceId = null;
 
       // 1. Create in Evolution API (ONLY if type is evolution)
       if (connectionType === 'evolution') {
+        console.log('DEBUG: Calling Evolution API createInstance...');
         await evolutionApi.createInstance(newInstanceName.trim());
+        console.log('DEBUG: Evolution API createInstance done.');
       }
 
       // 2. Get User ID
+      console.log('DEBUG: Getting User ID...');
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Usuário não autenticado');
+      console.log('DEBUG: User ID found:', user.id);
 
       // 3. Save to Supabase (Instances Table)
+      console.log('DEBUG: Inserting into Supabase...');
       const { data: insertedInstance, error: dbError } = await supabase.from('instances').insert({
         name: newInstanceName.trim(),
         identifier: newInstanceName.trim(),
-        status: connectionType === 'official' ? 'open' : 'connecting', // Official is 'open' directly as we have tokens
+        status: connectionType === 'official' ? 'open' : 'connecting',
         type: 'whatsapp',
         channel_type: connectionType,
         user_id: user.id,
@@ -242,8 +248,17 @@ const InstancesView: React.FC<InstancesViewProps> = ({ isBlocked = false }) => {
         owner_jid: connectionType === 'official' && metaPhoneNumber ? `${metaPhoneNumber.replace(/\D/g, '')}@s.whatsapp.net` : null
       }).select('id').single();
 
-      if (dbError) throw dbError;
+      console.log('DEBUG: Supabase Insert result:', { insertedInstance, dbError });
+
+      if (dbError) {
+        console.error('DEBUG: DB Error details:', dbError);
+        // Check for RLS or Unique violation
+        if (dbError.code === '23505') throw new Error('Nome da instância já existe (em uso por outro usuário ou sistema).');
+        throw dbError;
+      }
+
       instanceId = insertedInstance.id;
+      console.log('DEBUG: Instance ID created:', instanceId);
 
       // 4. Save Official Credentials (if applicable)
       if (connectionType === 'official') {
@@ -252,7 +267,7 @@ const InstancesView: React.FC<InstancesViewProps> = ({ isBlocked = false }) => {
           phone_number_id: metaPhoneId.trim(),
           business_account_id: metaBusinessId.trim(),
           access_token: metaToken.trim(),
-          verify_token: `verify_${Math.random().toString(36).substring(7)}` // Auto-generate verify token
+          verify_token: `verify_${Math.random().toString(36).substring(7)}`
         });
 
         if (metaError) {
