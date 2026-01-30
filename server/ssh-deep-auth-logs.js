@@ -5,14 +5,24 @@ const conn = new Client();
 conn.on('ready', () => {
     console.log('✅ SSH Conectado ao servidor Supabase');
 
-    // Check REST (PostgREST) logs
+    // Get exact logs from the auth container
     const cmd = `
-docker ps --format "{{.Names}}" | head -20
-echo "=== TESTING SCHEMA ENDPOINT ==="
-curl -s -o /dev/null -w "%{http_code}" http://localhost:3000/ 2>/dev/null || echo "Error"
+echo "=== LISTANDO CONTAINERS DE AUTH ==="
+docker ps --format "table {{.Names}}\t{{.Status}}" | grep -i auth
+
 echo ""
-echo "=== CHECKING IF THE ERROR HAPPENS IN REST ===  "
-docker logs supabase-rest-1 --tail 30 2>&1 || docker logs supabase_rest_1 --tail 30 2>&1 || echo "Could not get REST logs"
+echo "=== OBTENDO LOGS DO CONTAINER EXATO ==="
+AUTH_CONTAINER=$(docker ps -q -f name=auth | head -1)
+if [ -n "$AUTH_CONTAINER" ]; then
+    docker logs --tail 100 $AUTH_CONTAINER 2>&1
+else
+    echo "Container auth não encontrado. Tentando logs do serviço..."
+    docker service logs supabase_supabase_auth --tail 100 2>&1
+fi
+
+echo ""
+echo "=== VERIFICANDO CONEXÃO COM O DB VIA supabase_auth_admin ==="
+docker exec $(docker ps -q -f name=supabase_db | head -1) psql -U supabase_auth_admin -d postgres -c "SELECT current_user, current_database();" 2>&1 || echo "Falha na conexão do supabase_auth_admin"
 `;
 
     conn.exec(cmd, (err, stream) => {

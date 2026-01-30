@@ -5,14 +5,29 @@ const conn = new Client();
 conn.on('ready', () => {
     console.log('✅ SSH Conectado ao servidor Supabase');
 
-    // Check REST (PostgREST) logs
+    // Restart PostgREST and test
     const cmd = `
-docker ps --format "{{.Names}}" | head -20
-echo "=== TESTING SCHEMA ENDPOINT ==="
-curl -s -o /dev/null -w "%{http_code}" http://localhost:3000/ 2>/dev/null || echo "Error"
+echo "=== REINICIANDO POSTGREST ==="
+docker restart $(docker ps -q -f name=rest) 2>&1
+
+sleep 5
+
 echo ""
-echo "=== CHECKING IF THE ERROR HAPPENS IN REST ===  "
-docker logs supabase-rest-1 --tail 30 2>&1 || docker logs supabase_rest_1 --tail 30 2>&1 || echo "Could not get REST logs"
+echo "=== TESTANDO ENDPOINT ROOT ==="
+curl -s http://localhost:3000/ 2>/dev/null | head -c 200
+
+echo ""
+echo ""
+echo "=== TESTANDO VIA KONG (PORTA 8000) ==="
+curl -s http://localhost:8000/rest/v1/ 2>/dev/null | head -c 200
+
+echo ""
+echo ""
+echo "=== TESTANDO API EXTERNA ==="
+curl -s -k https://banco.ublochat.com.br/rest/v1/ 2>/dev/null | head -c 300
+
+echo ""
+echo "TESTE COMPLETO"
 `;
 
     conn.exec(cmd, (err, stream) => {

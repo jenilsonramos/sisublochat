@@ -5,14 +5,19 @@ const conn = new Client();
 conn.on('ready', () => {
     console.log('✅ SSH Conectado ao servidor Supabase');
 
-    // Check REST (PostgREST) logs
+    // Test PostgREST deeply
     const cmd = `
-docker ps --format "{{.Names}}" | head -20
-echo "=== TESTING SCHEMA ENDPOINT ==="
-curl -s -o /dev/null -w "%{http_code}" http://localhost:3000/ 2>/dev/null || echo "Error"
+echo "=== TESTING REST ENDPOINT NOW ==="
+curl -s http://localhost:3000/ 2>&1 | head -c 1000
+
 echo ""
-echo "=== CHECKING IF THE ERROR HAPPENS IN REST ===  "
-docker logs supabase-rest-1 --tail 30 2>&1 || docker logs supabase_rest_1 --tail 30 2>&1 || echo "Could not get REST logs"
+echo ""
+echo "=== CHECKING POSTGREST LOGS AFTER RESTART ==="
+docker logs $(docker ps -q -f name=rest) --tail 30 2>&1
+
+echo ""
+echo "=== TESTING KONG API GATEWAY ==="
+curl -s http://localhost:8000/rest/v1/ 2>&1 | head -c 500
 `;
 
     conn.exec(cmd, (err, stream) => {

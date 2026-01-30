@@ -5,15 +5,8 @@ const conn = new Client();
 conn.on('ready', () => {
     console.log('✅ SSH Conectado ao servidor Supabase');
 
-    // Check REST (PostgREST) logs
-    const cmd = `
-docker ps --format "{{.Names}}" | head -20
-echo "=== TESTING SCHEMA ENDPOINT ==="
-curl -s -o /dev/null -w "%{http_code}" http://localhost:3000/ 2>/dev/null || echo "Error"
-echo ""
-echo "=== CHECKING IF THE ERROR HAPPENS IN REST ===  "
-docker logs supabase-rest-1 --tail 30 2>&1 || docker logs supabase_rest_1 --tail 30 2>&1 || echo "Could not get REST logs"
-`;
+    // Get triggers only
+    const cmd = `docker exec $(docker ps -q -f name=supabase_db | head -1) psql -U postgres -d postgres -c "SELECT tgname, tgenabled, tgtype FROM pg_trigger WHERE tgrelid = 'auth.users'::regclass;"`;
 
     conn.exec(cmd, (err, stream) => {
         if (err) {
@@ -31,6 +24,7 @@ docker logs supabase-rest-1 --tail 30 2>&1 || docker logs supabase_rest_1 --tail
         });
 
         stream.on('close', () => {
+            console.log('=== TRIGGERS EM AUTH.USERS ===');
             console.log(output);
             conn.end();
         });

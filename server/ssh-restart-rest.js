@@ -5,14 +5,28 @@ const conn = new Client();
 conn.on('ready', () => {
     console.log('✅ SSH Conectado ao servidor Supabase');
 
-    // Check REST (PostgREST) logs
+    // Multiple diagnostic commands
     const cmd = `
-docker ps --format "{{.Names}}" | head -20
-echo "=== TESTING SCHEMA ENDPOINT ==="
-curl -s -o /dev/null -w "%{http_code}" http://localhost:3000/ 2>/dev/null || echo "Error"
+echo "=== ALL CONTAINERS ==="
+docker ps --format "{{.Names}}" | grep -i supa
+
 echo ""
-echo "=== CHECKING IF THE ERROR HAPPENS IN REST ===  "
-docker logs supabase-rest-1 --tail 30 2>&1 || docker logs supabase_rest_1 --tail 30 2>&1 || echo "Could not get REST logs"
+echo "=== TESTING REST DIRECTLY ==="
+curl -s http://localhost:3000/ | head -c 500 || echo "CURL FAILED"
+
+echo ""
+echo "=== CHECKING POSTGREST CONTAINER STATUS ==="
+docker ps -a | grep -i rest
+
+echo ""  
+echo "=== LET'S RESTART POSTGREST ==="
+docker restart $(docker ps -q -f name=rest) 2>&1
+
+sleep 3
+
+echo ""
+echo "=== TEST AFTER RESTART ==="
+curl -s http://localhost:3000/ | head -c 500 || echo "CURL FAILED"
 `;
 
     conn.exec(cmd, (err, stream) => {

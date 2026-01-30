@@ -5,14 +5,10 @@ const conn = new Client();
 conn.on('ready', () => {
     console.log('✅ SSH Conectado ao servidor Supabase');
 
-    // Check REST (PostgREST) logs
+    // Check auth container logs directly
     const cmd = `
-docker ps --format "{{.Names}}" | head -20
-echo "=== TESTING SCHEMA ENDPOINT ==="
-curl -s -o /dev/null -w "%{http_code}" http://localhost:3000/ 2>/dev/null || echo "Error"
-echo ""
-echo "=== CHECKING IF THE ERROR HAPPENS IN REST ===  "
-docker logs supabase-rest-1 --tail 30 2>&1 || docker logs supabase_rest_1 --tail 30 2>&1 || echo "Could not get REST logs"
+cd /opt/supabase/docker
+docker-compose logs --tail 50 auth 2>&1
 `;
 
     conn.exec(cmd, (err, stream) => {
@@ -31,6 +27,7 @@ docker logs supabase-rest-1 --tail 30 2>&1 || docker logs supabase_rest_1 --tail
         });
 
         stream.on('close', () => {
+            console.log('=== LOGS AUTH (GoTrue) ===');
             console.log(output);
             conn.end();
         });

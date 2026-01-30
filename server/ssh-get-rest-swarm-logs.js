@@ -5,14 +5,18 @@ const conn = new Client();
 conn.on('ready', () => {
     console.log('✅ SSH Conectado ao servidor Supabase');
 
-    // Check REST (PostgREST) logs
+    // Get PostgREST service logs from Docker Swarm
     const cmd = `
-docker ps --format "{{.Names}}" | head -20
-echo "=== TESTING SCHEMA ENDPOINT ==="
-curl -s -o /dev/null -w "%{http_code}" http://localhost:3000/ 2>/dev/null || echo "Error"
+echo "=== LOGS DO SERVIÇO REST (Docker Swarm) ==="
+docker service logs supabase_supabase_rest --tail 100 --no-trunc 2>&1
+
 echo ""
-echo "=== CHECKING IF THE ERROR HAPPENS IN REST ===  "
-docker logs supabase-rest-1 --tail 30 2>&1 || docker logs supabase_rest_1 --tail 30 2>&1 || echo "Could not get REST logs"
+echo "=== VERIFICANDO SE O SERVIÇO ESTÁ RUNNING ==="
+docker service ps supabase_supabase_rest --no-trunc 2>&1
+
+echo ""
+echo "=== VERIFICANDO CONEXÃO COM O DB ==="
+docker exec $(docker ps -q -f name=supabase_db | head -1) psql -U authenticator -d postgres -c "SELECT current_user, current_database();" 2>&1
 `;
 
     conn.exec(cmd, (err, stream) => {

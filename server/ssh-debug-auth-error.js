@@ -5,14 +5,22 @@ const conn = new Client();
 conn.on('ready', () => {
     console.log('✅ SSH Conectado ao servidor Supabase');
 
-    // Check REST (PostgREST) logs
     const cmd = `
-docker ps --format "{{.Names}}" | head -20
-echo "=== TESTING SCHEMA ENDPOINT ==="
-curl -s -o /dev/null -w "%{http_code}" http://localhost:3000/ 2>/dev/null || echo "Error"
+echo "=== 1. VERIFICANDO COLUNAS DA TABELA PROFILES ==="
+docker exec $(docker ps -q -f name=supabase_db | head -1) psql -U postgres -d postgres -c "\\d public.profiles"
+
 echo ""
-echo "=== CHECKING IF THE ERROR HAPPENS IN REST ===  "
-docker logs supabase-rest-1 --tail 30 2>&1 || docker logs supabase_rest_1 --tail 30 2>&1 || echo "Could not get REST logs"
+echo "=== 2. TESTANDO LOGIN E CAPTURANDO CORPO DO ERRO ==="
+# Teste de login administrativo
+curl -s -X POST "http://localhost:8000/auth/v1/token?grant_type=password" \
+  -H "Content-Type: application/json" \
+  -H "apikey: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.ewogICJyb2xlIjogImFub24iLAogICJpc3MiOiAic3VwYWJhc2UiLAogICJpYXQiOiAxNzE1MDUwODAwLAogICJleHAiOiAxODcyODE3MjAwCn0.IEHlSEhCYXk6E3QO785siSA5KGdmfWq_UH25z_MLuqA" \
+  -d '{"email":"ublochat@admin.com","password":"Admin123!@#"}' | tee /tmp/auth_error_body.json
+echo ""
+
+echo ""
+echo "=== 3. BUSCANDO MENSAGENS DE 'PANIC' NO LOG DO AUTH ==="
+docker service logs supabase_supabase_auth --tail 100 2>&1 | grep -iE "(panic|fatal|error|500)" | tail -n 20
 `;
 
     conn.exec(cmd, (err, stream) => {

@@ -5,34 +5,29 @@ const conn = new Client();
 conn.on('ready', () => {
     console.log('✅ SSH Conectado ao servidor Supabase');
 
-    // Check for triggers and potential errors
+    // Check GoTrue auth service logs
     const cmd = `
-echo "=== 1. VERIFICANDO TRIGGERS EM AUTH.USERS ==="
-docker exec $(docker ps -q -f name=supabase_db | head -1) psql -U postgres -d postgres -c "
-SELECT tgname, tgenabled, tgtype, proname 
-FROM pg_trigger t 
-JOIN pg_proc p ON t.tgfoid = p.oid 
-WHERE tgrelid = 'auth.users'::regclass;
-"
+echo "=============================================="
+echo "=== LOGS DO GOTRUE AUTH SERVICE ==="
+echo "=============================================="
 
 echo ""
-echo "=== 2. VERIFICANDO A FUNÇÃO DO TRIGGER ==="
-docker exec $(docker ps -q -f name=supabase_db | head -1) psql -U postgres -d postgres -c "
-SELECT proname, prosrc 
-FROM pg_proc 
-WHERE proname IN (SELECT proname FROM pg_trigger t JOIN pg_proc p ON t.tgfoid = p.oid WHERE tgrelid = 'auth.users'::regclass);
-"
+echo "=== LOGS DO SERVIÇO AUTH (últimas 100 linhas) ==="
+docker service logs supabase_supabase_auth --tail 100 2>&1
 
 echo ""
-echo "=== 3. VERIFICANDO LOGS DO POSTGRES (ERROS DE DATABASE) ==="
-docker service logs supabase_supabase_db --tail 30 2>&1 | grep -iE "(error|fail|denied|abort|panic)" || echo "Sem erros no Postgres"
-
-echo ""
-echo "=== 4. TESTANDO LOGIN NOVAMENTE (VENDO RESPOSTA COMPLETA) ==="
-curl -s -i -X POST "http://localhost:8000/auth/v1/token?grant_type=password" \
+echo "=== TESTANDO ENDPOINT AUTH DIRETAMENTE ==="
+curl -s -w "\\nHTTP: %{http_code}" -X POST "http://localhost:9999/token?grant_type=password" \
   -H "Content-Type: application/json" \
   -H "apikey: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.ewogICJyb2xlIjogImFub24iLAogICJpc3MiOiAic3VwYWJhc2UiLAogICJpYXQiOiAxNzE1MDUwODAwLAogICJleHAiOiAxODcyODE3MjAwCn0.IEHlSEhCYXk6E3QO785siSA5KGdmfWq_UH25z_MLuqA" \
-  -d '{"email":"ublochat@admin.com","password":"Admin123!@#"}'
+  -d '{"email":"ublochat@admin.com","password":"Admin123!@#"}' 2>&1
+
+echo ""
+echo "=== STATUS DO SERVIÇO AUTH ==="
+docker service ps supabase_supabase_auth 2>&1 | head -5
+
+echo ""
+echo "DIAGNÓSTICO COMPLETO"
 `;
 
     conn.exec(cmd, (err, stream) => {
