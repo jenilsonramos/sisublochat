@@ -5,10 +5,11 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { v4 as uuidv4 } from 'uuid';
 import pool from './db.js';
-import cron from 'node-cron'; // Import node-cron
-
-import Link from 'react-router-dom'; // False match prevention
 import { exec } from 'child_process';
+
+dotenv.config();
+
+const __filename = fileURLToPath(import.meta.url);
 
 // Helper to run shell commands
 const runCommand = (command) => {
@@ -24,24 +25,6 @@ const runCommand = (command) => {
         });
     });
 };
-
-// --- Iniciar Servidor (Tenta migração, mas inicia de qualquer jeito) ---
-(async () => {
-    try {
-        console.log('🔄 Executing Auto-Migration...');
-        await runCommand('node run-migration.js');
-    } catch (e) {
-        console.error('❌ Migration Failed (Starting server anyway):', e);
-    } finally {
-        // Iniciar Servidor Independente do Resultado da Migração
-        app.listen(PORT, '0.0.0.0', () => {
-            console.log(`🚀 Servidor rodando na porta ${PORT}`);
-            console.log(`📡 Base URL: http://localhost:${PORT}`);
-        });
-    }
-})();
-
-dotenv.config();
 
 // --- INTERNAL CRON SCHEDULER ---
 const SUPABASE_URL = process.env.SUPABASE_URL;
