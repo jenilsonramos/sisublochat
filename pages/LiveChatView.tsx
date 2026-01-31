@@ -258,22 +258,19 @@ const LiveChatView: React.FC<LiveChatViewProps> = ({ isBlocked = false }) => {
   const fetchInstances = async () => {
     if (isFetchingInstancesRef.current) return;
 
-    const controller = new AbortController();
-    abortControllersRef.current['instances'] = controller;
-    const timeoutId = setTimeout(() => controller.abort(), 10000);
-
     try {
+      const controller = new AbortController();
+      abortControllersRef.current['instances'] = controller;
+
       isFetchingInstancesRef.current = true;
 
       const { data: dbInstances, error } = await supabase
         .from('instances')
         .select('*')
+        // @ts-ignore
         .abortSignal(controller.signal);
 
-      if (error) {
-        if (isAbortError(error)) return;
-        throw error;
-      };
+      if (error) throw error;
 
       // Also fetch from Evolution API to get real-time connection status
       let evoData: any = [];
@@ -297,11 +294,14 @@ const LiveChatView: React.FC<LiveChatViewProps> = ({ isBlocked = false }) => {
       // Restore: Select first connected instance as active by default to avoid "Connecting..." hang
       const firstConnected = enrichedInstances.find(i => i.connectionStatus === 'open' || i.status === 'open');
       if (firstConnected) setActiveInstance(firstConnected);
+
     } catch (error: any) {
-      if (isAbortError(error)) return;
+      if (error.name === 'AbortError' || isAbortError(error)) {
+        console.warn('Fetch de instâncias abortado');
+        return;
+      }
       console.error('Instances Error:', error);
     } finally {
-      clearTimeout(timeoutId);
       delete abortControllersRef.current['instances'];
       isFetchingInstancesRef.current = false;
     }
@@ -316,24 +316,24 @@ const LiveChatView: React.FC<LiveChatViewProps> = ({ isBlocked = false }) => {
   const fetchConversations = async (silent = false) => {
     if (isFetchingConversationsRef.current) return;
 
-    const controller = new AbortController();
-    abortControllersRef.current['conversations'] = controller;
-    const timeoutId = setTimeout(() => controller.abort(), 10000);
-
     try {
+      const controller = new AbortController();
+      abortControllersRef.current['conversations'] = controller;
+
       isFetchingConversationsRef.current = true;
       if (!silent) setLoadingChats(true);
 
       console.log('DEBUG: Fetching conversations...');
+
       const { data, error } = await supabase
         .from('conversations')
         .select('*')
         .order('last_message_time', { ascending: false })
         .limit(50)
+        // @ts-ignore
         .abortSignal(controller.signal);
 
       if (error) {
-        if (isAbortError(error)) return;
         throw error;
       }
 
@@ -348,11 +348,14 @@ const LiveChatView: React.FC<LiveChatViewProps> = ({ isBlocked = false }) => {
       }
 
       setConversations(data || []);
+
     } catch (error: any) {
-      if (isAbortError(error)) return;
+      if (error.name === 'AbortError' || isAbortError(error)) {
+        console.warn('Fetch de conversas abortado (troca de aba)');
+        return;
+      }
       console.error('Chats Error:', error);
     } finally {
-      clearTimeout(timeoutId);
       delete abortControllersRef.current['conversations'];
       if (!silent) setLoadingChats(false);
       isFetchingConversationsRef.current = false;
@@ -449,11 +452,10 @@ const LiveChatView: React.FC<LiveChatViewProps> = ({ isBlocked = false }) => {
   const fetchContactDetails = async (remoteJid: string) => {
     if (isFetchingDetailsRef.current) return;
 
-    const controller = new AbortController();
-    abortControllersRef.current['details'] = controller;
-    const timeoutId = setTimeout(() => controller.abort(), 10000);
-
     try {
+      const controller = new AbortController();
+      abortControllersRef.current['details'] = controller;
+
       isFetchingDetailsRef.current = true;
       setLoadingDetails(true);
       const { data, error } = await supabase
@@ -461,12 +463,10 @@ const LiveChatView: React.FC<LiveChatViewProps> = ({ isBlocked = false }) => {
         .select('id, tags, notes')
         .eq('remote_jid', remoteJid)
         .maybeSingle()
+        // @ts-ignore
         .abortSignal(controller.signal);
 
-      if (error) {
-        if (isAbortError(error)) return;
-        throw error;
-      }
+      if (error) throw error;
 
       if (data) {
         setContactDetails({
@@ -479,10 +479,11 @@ const LiveChatView: React.FC<LiveChatViewProps> = ({ isBlocked = false }) => {
         setContactDetails({ id: '', tags: [], notes: '' });
       }
     } catch (error: any) {
-      if (isAbortError(error)) return;
+      if (error.name === 'AbortError' || isAbortError(error)) {
+        return;
+      }
       console.error('Error fetching contact details:', error);
     } finally {
-      clearTimeout(timeoutId);
       delete abortControllersRef.current['details'];
       isFetchingDetailsRef.current = false;
       setLoadingDetails(false);
@@ -749,11 +750,10 @@ const LiveChatView: React.FC<LiveChatViewProps> = ({ isBlocked = false }) => {
   const fetchMessages = async (convId: string, silent = false) => {
     if (isFetchingMessagesRef.current) return;
 
-    const controller = new AbortController();
-    abortControllersRef.current['messages'] = controller;
-    const timeoutId = setTimeout(() => controller.abort(), 10000);
-
     try {
+      const controller = new AbortController();
+      abortControllersRef.current['messages'] = controller;
+
       isFetchingMessagesRef.current = true;
       if (!silent) setLoadingMessages(true);
 
@@ -762,12 +762,10 @@ const LiveChatView: React.FC<LiveChatViewProps> = ({ isBlocked = false }) => {
         .select('*')
         .eq('conversation_id', convId)
         .order('timestamp', { ascending: true })
+        // @ts-ignore
         .abortSignal(controller.signal);
 
-      if (error) {
-        if (isAbortError(error)) return;
-        throw error;
-      };
+      if (error) throw error;
 
       const fetchedMessages = data || [];
       setMessages(fetchedMessages);
@@ -783,10 +781,11 @@ const LiveChatView: React.FC<LiveChatViewProps> = ({ isBlocked = false }) => {
         }
       }
     } catch (error: any) {
-      if (isAbortError(error)) return;
+      if (error.name === 'AbortError' || isAbortError(error)) {
+        return;
+      }
       console.error('Messages Error:', error);
     } finally {
-      clearTimeout(timeoutId);
       delete abortControllersRef.current['messages'];
       isFetchingMessagesRef.current = false;
       if (!silent) setLoadingMessages(false);
