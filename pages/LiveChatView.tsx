@@ -194,28 +194,39 @@ const LiveChatView: React.FC<LiveChatViewProps> = ({ isBlocked = false }) => {
     e.preventDefault();
     if (!newMessage.trim() || !selectedChat || !activeInstance) return;
 
+    const tempId = crypto.randomUUID();
+    const messageContent = newMessage.trim();
+
+    // Optimistic Update
+    const optimisticMessage: ChatMessage = {
+      id: tempId,
+      conversation_id: selectedChat.id,
+      text: messageContent,
+      sender: 'me',
+      timestamp: new Date().toISOString(),
+      status: 'pending'
+    };
+
+    setMessages(prev => [...prev, optimisticMessage]);
+    setNewMessage('');
+    setTimeout(scrollToBottom, 100);
+
     try {
       setSending(true);
-
-      // Direct call to Evolution API via wrapper
-      // Note: sendMessage usually doesn't need abort controller unless user cancels
-      // But we should protect it anyway if logical
 
       await evolutionApi.sendTextMessage(
         activeInstance.name,
         selectedChat.remote_jid,
-        newMessage.trim()
+        messageContent
       );
 
-      setNewMessage('');
-      // Optimistic upate or wait for realtime? 
-      // For resilience, let's just refetch messages quietly
-      fetchMessages(selectedChat.id);
-      // In real prod, you'd append to list immediately.
+      // Refresh to confirm status (delay for webhook processing)
+      setTimeout(() => fetchMessages(selectedChat.id), 1500);
 
     } catch (error) {
       console.error('Send Error:', error);
       showToast('Erro ao enviar mensagem', 'error');
+      setMessages(prev => prev.filter(m => m.id !== tempId));
     } finally {
       setSending(false);
     }
@@ -231,18 +242,32 @@ const LiveChatView: React.FC<LiveChatViewProps> = ({ isBlocked = false }) => {
 
     // Cleanup on unmount
     return () => {
-      Object.values(abortControllers.current).forEach(c => c.abort());
+      Object.values(abortControllers.current).forEach((c: any) => c.abort());
     };
   }, []); // Run once
 
-  // 2. Load messages when chat selected
+  // 2. Load messages when chat selected AND Auto-Poll
   useEffect(() => {
+    let pollInterval: NodeJS.Timeout;
+
     if (selectedChat) {
+      // Initial fetch
       fetchMessages(selectedChat.id);
+
+      // FAST Polling (3s) for real-time feel since we lack WebSocket for now
+      pollInterval = setInterval(() => {
+        if (!document.hidden) {
+          fetchMessages(selectedChat.id);
+        }
+      }, 3000);
     } else {
       setMessages([]);
     }
-  }, [selectedChat?.id]); // Only re-run if ID changes
+
+    return () => {
+      if (pollInterval) clearInterval(pollInterval);
+    };
+  }, [selectedChat?.id]); // Re-run if ID changes
 
   // 3. Tab Visibility Handling (CRITICAL)
   useEffect(() => {
@@ -250,7 +275,7 @@ const LiveChatView: React.FC<LiveChatViewProps> = ({ isBlocked = false }) => {
       if (document.hidden) {
         // TAB HIDDEN: Abort EVERYTHING
         console.log('Tab hidden: Aborting all requests');
-        Object.values(abortControllers.current).forEach(c => c.abort());
+        Object.values(abortControllers.current).forEach((c: any) => c.abort());
         abortControllers.current = {}; // Clear refs
       } else {
         // TAB VISIBLE: Restart necessary polling
