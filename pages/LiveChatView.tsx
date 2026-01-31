@@ -247,6 +247,19 @@ const LiveChatView: React.FC<LiveChatViewProps> = ({ isBlocked = false }) => {
     }
   };
 
+  const markAsRead = async (chatId: string) => {
+    try {
+      const { error } = await supabase
+        .from('conversations')
+        .update({ unread_count: 0 })
+        .eq('id', chatId);
+      if (error) throw error;
+      setConversations(prev => prev.map(c => c.id === chatId ? { ...c, unread_count: 0 } : c));
+    } catch (error) {
+      console.error('Error marking as read:', error);
+    }
+  };
+
   const displayMessages = [...messages, ...pendingMessages.filter(p => !messages.some(m => m.id === p.id))].sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
 
   // --- Effects ---
@@ -254,23 +267,62 @@ const LiveChatView: React.FC<LiveChatViewProps> = ({ isBlocked = false }) => {
   useEffect(() => {
     fetchInstances();
     fetchConversations();
-    let t: NodeJS.Timeout;
-    const poll = async () => { if (!document.hidden) await fetchConversations(true); t = setTimeout(poll, 10000); };
-    t = setTimeout(poll, 10000);
-    return () => { clearTimeout(t); Object.values(abortControllers.current).forEach((c: any) => c.abort()); };
+
+    // Realtime for Conversations
+    const convChannel = supabase
+      .channel('conversations_realtime')
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'conversations'
+      }, () => {
+        fetchConversations(true);
+      })
+      .subscribe();
+
+    return () => {
+      convChannel.unsubscribe();
+      Object.values(abortControllers.current).forEach((c: any) => c.abort());
+    };
   }, []);
 
   useEffect(() => {
-    let t: NodeJS.Timeout;
-    const poll = async () => { if (selectedChat && !document.hidden) await fetchMessages(selectedChat.id, true); t = setTimeout(poll, 3000); };
+    let msgChannel: any;
+
     if (selectedChat) {
       setPendingMessages([]);
       fetchMessages(selectedChat.id).then(() => {
         setTimeout(scrollToBottom, 300);
       });
-      t = setTimeout(poll, 3000);
-    } else { setMessages([]); setPendingMessages([]); }
-    return () => clearTimeout(t);
+      markAsRead(selectedChat.id);
+
+      // Realtime for Messages
+      msgChannel = supabase
+        .channel(`messages_${selectedChat.id}`)
+        .on('postgres_changes', {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'messages',
+          filter: `conversation_id=eq.${selectedChat.id}`
+        }, (payload) => {
+          setMessages(prev => {
+            if (prev.some(m => m.id === payload.new.id)) return prev;
+            const newMessages = [...prev, payload.new as ChatMessage];
+            setTimeout(scrollToBottom, 100);
+            return newMessages;
+          });
+          // Also mark as read when new message arrives and chat is open
+          markAsRead(selectedChat.id);
+        })
+        .subscribe();
+    } else {
+      setMessages([]);
+      setPendingMessages([]);
+    }
+
+    return () => {
+      if (msgChannel) msgChannel.unsubscribe();
+    };
   }, [selectedChat?.id]);
 
   useEffect(() => {
@@ -291,10 +343,10 @@ const LiveChatView: React.FC<LiveChatViewProps> = ({ isBlocked = false }) => {
   // --- Render (Refined Dashboard UI) ---
 
   return (
-    <div className="flex h-screen bg-[#F7F8FC] overflow-hidden font-sans text-slate-800">
+    <div className="flex h-full w-full bg-white rounded-[32px] overflow-hidden border border-gray-100 shadow-[0_30px_60px_-15px_rgba(0,0,0,0.1)] transition-all duration-500 font-sans text-slate-800">
 
       {/* 1. Sidebar - Chat List */}
-      <div className="w-[340px] bg-white flex flex-col shrink-0 relative z-10">
+      <div className="w-[340px] bg-white flex flex-col shrink-0 relative z-10 border-r border-gray-50">
         {/* Title */}
         <div className="h-20 px-6 flex items-center justify-between shrink-0">
           <h1 className="text-2xl font-bold tracking-tight text-slate-900">Conversas</h1>
@@ -387,7 +439,7 @@ const LiveChatView: React.FC<LiveChatViewProps> = ({ isBlocked = false }) => {
       </div>
 
       {/* 2. Main Chat Area - Clean & Spacious */}
-      <div className="flex-1 flex flex-col bg-white overflow-hidden relative shadow-md z-0">
+      <div className="flex-1 flex flex-col bg-white overflow-hidden relative z-0">
         {selectedChat ? (
           <>
             {/* Header - Transparent/Minimal */}
