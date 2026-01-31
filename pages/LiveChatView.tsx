@@ -157,6 +157,9 @@ const LiveChatView: React.FC<LiveChatViewProps> = ({ isBlocked = false }) => {
     return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
   }, []);
 
+  const isFetchingDetailsRef = useRef(false);
+  const isFetchingMessagesRef = useRef(false);
+
   // 1. Initial Load & Subscriptions + Polling Fallback
   useEffect(() => {
     fetchInstances();
@@ -194,19 +197,15 @@ const LiveChatView: React.FC<LiveChatViewProps> = ({ isBlocked = false }) => {
   useEffect(() => {
     const handleVisibilityChange = async () => {
       if (document.visibilityState === 'visible') {
-        console.log('DEBUG: Tab active again. Refreshing session and data...');
-        // Force session refresh
-        const { data: { session } } = await supabase.auth.getSession();
-        if (!session) {
-          console.warn('DEBUG: No session found on return.');
-          return;
-        }
-        // Refresh Data
-        fetchInstances();
-        fetchConversations(true);
-        if (selectedChatRef.current) {
-          fetchMessages(selectedChatRef.current.id);
-        }
+        console.log('DEBUG: Tab active again. Parallel refresh...');
+
+        // Use Promise.allSettled to ensure all refreshes fire but don't block each other
+        Promise.allSettled([
+          supabase.auth.refreshSession(),
+          fetchInstances(),
+          fetchConversations(true),
+          selectedChatRef.current ? fetchMessages(selectedChatRef.current.id, true) : Promise.resolve()
+        ]).catch(err => console.warn('Refresh error (non-fatal):', err));
       }
     };
 
@@ -392,13 +391,20 @@ const LiveChatView: React.FC<LiveChatViewProps> = ({ isBlocked = false }) => {
   }, [selectedChat?.id]);
 
   const fetchContactDetails = async (remoteJid: string) => {
-    setLoadingDetails(true);
+    if (isFetchingDetailsRef.current) return;
     try {
+      isFetchingDetailsRef.current = true;
+      setLoadingDetails(true);
       const { data, error } = await supabase
         .from('contacts')
         .select('id, tags, notes')
         .eq('remote_jid', remoteJid)
         .maybeSingle();
+
+      if (error) {
+        if (error.message?.includes('aborted')) return;
+        throw error;
+      }
 
       if (data) {
         setContactDetails({
@@ -410,9 +416,11 @@ const LiveChatView: React.FC<LiveChatViewProps> = ({ isBlocked = false }) => {
         // Fallback for contacts not in DB yet (though webhook usually handles it)
         setContactDetails({ id: '', tags: [], notes: '' });
       }
-    } catch (error) {
+    } catch (error: any) {
+      if (error.message?.includes('aborted')) return;
       console.error('Error fetching contact details:', error);
     } finally {
+      isFetchingDetailsRef.current = false;
       setLoadingDetails(false);
     }
   };
@@ -675,7 +683,9 @@ const LiveChatView: React.FC<LiveChatViewProps> = ({ isBlocked = false }) => {
   }, [messages]);
 
   const fetchMessages = async (convId: string, silent = false) => {
+    if (isFetchingMessagesRef.current) return;
     try {
+      isFetchingMessagesRef.current = true;
       if (!silent) setLoadingMessages(true);
 
       const { data, error } = await supabase
@@ -684,7 +694,10 @@ const LiveChatView: React.FC<LiveChatViewProps> = ({ isBlocked = false }) => {
         .eq('conversation_id', convId)
         .order('timestamp', { ascending: true });
 
-      if (error) throw error;
+      if (error) {
+        if (error.message?.includes('aborted')) return;
+        throw error;
+      };
 
       const fetchedMessages = data || [];
       setMessages(fetchedMessages);
@@ -699,9 +712,11 @@ const LiveChatView: React.FC<LiveChatViewProps> = ({ isBlocked = false }) => {
           }
         }
       }
-    } catch (error) {
+    } catch (error: any) {
+      if (error.message?.includes('aborted')) return;
       console.error('Messages Error:', error);
     } finally {
+      isFetchingMessagesRef.current = false;
       if (!silent) setLoadingMessages(false);
     }
   };
