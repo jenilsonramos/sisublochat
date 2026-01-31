@@ -5,7 +5,7 @@ import { useToast } from '../components/ToastProvider';
 import {
   Loader2, Send, Search, MessageCircle, MoreVertical,
   Paperclip, Mic, CheckCircle2, RefreshCw, Smartphone,
-  ChevronLeft, Image as ImageIcon, Video, FileText
+  ChevronLeft
 } from 'lucide-react';
 
 // --- Types ---
@@ -44,8 +44,10 @@ const LiveChatView: React.FC<LiveChatViewProps> = ({ isBlocked = false }) => {
   // --- State ---
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [selectedChat, setSelectedChat] = useState<Conversation | null>(null);
+  // Store pending messages locally to avoid them vanishing on refresh
+  const [pendingMessages, setPendingMessages] = useState<ChatMessage[]>([]);
 
+  const [selectedChat, setSelectedChat] = useState<Conversation | null>(null);
   const [activeInstance, setActiveInstance] = useState<EvolutionInstance | null>(null);
 
   const [loadingConversations, setLoadingConversations] = useState(false);
@@ -53,7 +55,7 @@ const LiveChatView: React.FC<LiveChatViewProps> = ({ isBlocked = false }) => {
   const [sending, setSending] = useState(false);
   const [newMessage, setNewMessage] = useState('');
 
-  // --- Refs (Strict AbortController Management) ---
+  // --- Refs ---
   const abortControllers = useRef<Record<string, AbortController>>({});
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -93,8 +95,6 @@ const LiveChatView: React.FC<LiveChatViewProps> = ({ isBlocked = false }) => {
 
   const fetchConversations = async (isBackground = false) => {
     const KEY = 'conversations';
-    // Only abort strict "foreground" loads if we want manual overrides.
-    // For general polling, we replace strictly to avoid leaks.
     if (abortControllers.current[KEY]) abortControllers.current[KEY].abort();
 
     const controller = new AbortController();
@@ -143,8 +143,14 @@ const LiveChatView: React.FC<LiveChatViewProps> = ({ isBlocked = false }) => {
 
       if (error) throw error;
 
-      setMessages(data || []);
-      // Scroll on initial load only
+      const fetchedMessages = data || [];
+      setMessages(fetchedMessages);
+
+      // Clean up confirmed pending messages
+      if (fetchedMessages.length > 0) {
+        setPendingMessages(prev => prev.filter(p => !fetchedMessages.some(m => m.text === p.text && Math.abs(new Date(m.timestamp).getTime() - new Date(p.timestamp).getTime()) < 5000)));
+      }
+
       if (!isBackground && messages.length === 0) setTimeout(scrollToBottom, 100);
 
     } catch (error: any) {
@@ -173,7 +179,7 @@ const LiveChatView: React.FC<LiveChatViewProps> = ({ isBlocked = false }) => {
       status: 'pending'
     };
 
-    setMessages(prev => [...prev, optimisticMessage]);
+    setPendingMessages(prev => [...prev, optimisticMessage]);
     setNewMessage('');
     setTimeout(scrollToBottom, 100);
 
@@ -186,17 +192,21 @@ const LiveChatView: React.FC<LiveChatViewProps> = ({ isBlocked = false }) => {
         messageContent
       );
 
-      // Update specifically via background fetch to avoid flicker
+      // Update specifically via background fetch
       setTimeout(() => fetchMessages(selectedChat.id, true), 1500);
 
     } catch (error) {
       console.error('Send Error:', error);
       showToast('Erro ao enviar mensagem', 'error');
-      setMessages(prev => prev.filter(m => m.id !== tempId));
+      setPendingMessages(prev => prev.filter(m => m.id !== tempId));
     } finally {
       setSending(false);
     }
   };
+
+  // --- Combined Messages for Render ---
+  // Merge pending and actual messages, removing duplicates if they appear in both (simple check)
+  const displayMessages = [...messages, ...pendingMessages.filter(p => !messages.some(m => m.id === p.id))].sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
 
   // --- Effects ---
 
@@ -205,15 +215,12 @@ const LiveChatView: React.FC<LiveChatViewProps> = ({ isBlocked = false }) => {
     fetchInstances();
     fetchConversations(); // Initial fetch
 
-    // Recursive Polling for Conversations (every 10s)
     let timeoutId: NodeJS.Timeout;
 
     const pollConversations = async () => {
-      // Only poll if tab is visible to avoid backlog
       if (!document.hidden) {
         await fetchConversations(true); // Background fetch
       }
-      // Schedule next poll ONLY after current one finishes
       timeoutId = setTimeout(pollConversations, 10000);
     };
 
@@ -233,15 +240,16 @@ const LiveChatView: React.FC<LiveChatViewProps> = ({ isBlocked = false }) => {
       if (selectedChat && !document.hidden) {
         await fetchMessages(selectedChat.id, true); // Background fetch
       }
-      // Recursive: Wait for fetch to finish before scheduling next
       timeoutId = setTimeout(pollMessages, 3000);
     };
 
     if (selectedChat) {
+      setPendingMessages([]); // Clear pending on chat switch
       fetchMessages(selectedChat.id); // Initial load
       timeoutId = setTimeout(pollMessages, 3000);
     } else {
       setMessages([]);
+      setPendingMessages([]);
     }
 
     return () => {
@@ -249,16 +257,25 @@ const LiveChatView: React.FC<LiveChatViewProps> = ({ isBlocked = false }) => {
     };
   }, [selectedChat?.id]);
 
-  // 3. Tab Visibility Recovery
+  // 3. Tab Visibility Recovery (Fix Hang)
   useEffect(() => {
     const handleVisibilityChange = () => {
       if (document.hidden) {
         console.log('Tab hidden: Pausing...');
-        // We abort everything to be safe and save resources
+
+        // Abort to save resources
         Object.values(abortControllers.current).forEach((c: any) => c.abort());
         abortControllers.current = {};
+
       } else {
         console.log('Tab visible: Resuming...');
+
+        // FORCE RESET Loading states to prevent hang
+        setLoadingConversations(false);
+        setLoadingMessages(false);
+        setSending(false);
+
+        // Resume poling implies restarting requests immediately
         fetchConversations(true);
         if (selectedChat) fetchMessages(selectedChat.id, true);
       }
@@ -267,7 +284,7 @@ const LiveChatView: React.FC<LiveChatViewProps> = ({ isBlocked = false }) => {
     return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
   }, [selectedChat]);
 
-  // --- Render (Beautiful UI) ---
+  // --- Render ---
 
   return (
     <div className="flex h-screen bg-gray-100 overflow-hidden font-sans">
@@ -406,9 +423,9 @@ const LiveChatView: React.FC<LiveChatViewProps> = ({ isBlocked = false }) => {
                   </div>
                 </div>
               ) : (
-                messages.map((msg, idx) => {
+                displayMessages.map((msg, idx) => {
                   const isMe = msg.sender === 'me';
-                  const isContinuous = idx > 0 && messages[idx - 1].sender === msg.sender;
+                  const isContinuous = idx > 0 && displayMessages[idx - 1].sender === msg.sender;
 
                   return (
                     <div
@@ -448,7 +465,7 @@ const LiveChatView: React.FC<LiveChatViewProps> = ({ isBlocked = false }) => {
                             {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                           </span>
                           {isMe && (
-                            <CheckCircle2 size={12} className={msg.status === 'read' ? 'text-[#53bdeb]' : 'text-gray-400'} />
+                            <CheckCircle2 size={12} className={msg.status === 'pending' ? 'text-gray-400' : 'text-[#53bdeb]'} />
                           )}
                         </div>
                       </div>
