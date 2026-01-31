@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useToast } from '../components/ToastProvider';
 import ConfirmationModal from '../components/ConfirmationModal';
 import { evolutionApi, EvolutionInstance } from '../lib/evolution';
-import { supabase, isAbortError, promiseWithTimeout } from '../lib/supabase';
+import { supabase, isAbortError } from '../lib/supabase';
 import { Loader2, Send, Search, Info, X, Smartphone, MessageCircle, Volume2, VolumeX, Settings, Paperclip, ImageIcon, FileText, Mic, Square, Trash2, ChevronLeft, ChevronRight, Smile, AlertCircle, Reply, Video, Download, UserCog, CheckCircle2, Tag, Plus, StickyNote, Save, Maximize2, Minimize2, RefreshCw } from 'lucide-react';
 import EmojiPicker, { Theme } from 'emoji-picker-react';
 import { formatMessage } from '../lib/chatUtils';
