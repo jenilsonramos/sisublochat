@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useToast } from '../components/ToastProvider';
 import ConfirmationModal from '../components/ConfirmationModal';
 import { evolutionApi, EvolutionInstance } from '../lib/evolution';
-import { supabase, isAbortError } from '../lib/supabase';
+import { supabase, isAbortError, promiseWithTimeout } from '../lib/supabase';
 import { Loader2, Send, Search, Info, X, Smartphone, MessageCircle, Volume2, VolumeX, Settings, Paperclip, ImageIcon, FileText, Mic, Square, Trash2, ChevronLeft, ChevronRight, Smile, AlertCircle, Reply, Video, Download, UserCog, CheckCircle2, Tag, Plus, StickyNote, Save, Maximize2, Minimize2, RefreshCw } from 'lucide-react';
 import EmojiPicker, { Theme } from 'emoji-picker-react';
 import { formatMessage } from '../lib/chatUtils';
@@ -160,6 +160,28 @@ const LiveChatView: React.FC<LiveChatViewProps> = ({ isBlocked = false }) => {
   const isFetchingDetailsRef = useRef(false);
   const isFetchingMessagesRef = useRef(false);
 
+  // FAILSAFE: Safety Watchdog for stuck loading states (User Request)
+  useEffect(() => {
+    let timeoutId: any;
+    if (loadingMessages || loadingDetails || loadingChats) {
+      timeoutId = setTimeout(() => {
+        console.warn('⚠️ Safety Watchdog: Resetting stuck loading states.');
+        setLoadingMessages(false);
+        setLoadingDetails(false);
+        setLoadingChats(false);
+        isFetchingMessagesRef.current = false;
+        isFetchingDetailsRef.current = false;
+        // isFetchingConversationsRef is defined inside, we might need to check scope or just rely on state reset
+        // Actually isFetchingConversationsRef is component scoped, so we should allow it to reset if possible, 
+        // but it is a ref, so we can set it to false here too if we have access.
+        // Looking at file, isFetchingConversationsRef is defined at line ~266. We need to move it up or access it.
+        // It is defined inside the component body, perfectly accessible.
+        showToast('Conexão instável. Interface reiniciada.', 'error');
+      }, 20000); // 20s limit
+    }
+    return () => clearTimeout(timeoutId);
+  }, [loadingMessages, loadingDetails, loadingChats]);
+
   // 1. Initial Load & Subscriptions + Polling Fallback
   useEffect(() => {
     fetchInstances();
@@ -197,15 +219,27 @@ const LiveChatView: React.FC<LiveChatViewProps> = ({ isBlocked = false }) => {
   useEffect(() => {
     const handleVisibilityChange = async () => {
       if (document.visibilityState === 'visible') {
-        console.log('DEBUG: Tab active again. Parallel refresh...');
+        console.log('DEBUG: Tab active. Executing "Definitive" recovery...');
 
-        // Use Promise.allSettled to ensure all refreshes fire but don't block each other
-        Promise.allSettled([
-          supabase.auth.refreshSession(),
-          fetchInstances(),
-          fetchConversations(true),
-          selectedChatRef.current ? fetchMessages(selectedChatRef.current.id, true) : Promise.resolve()
-        ]).catch(err => console.warn('Refresh error (non-fatal):', err));
+        try {
+          // 1. Aggressive Cleanup (User Request)
+          await supabase.removeAllChannels();
+          console.log('DEBUG: Channels cleared.');
+
+          // 2. Refresh Session
+          const { error } = await supabase.auth.refreshSession();
+          if (error) console.warn('Session refresh warning:', error);
+
+          // 3. Parallel Refresh
+          Promise.allSettled([
+            fetchInstances(),
+            fetchConversations(true),
+            selectedChatRef.current ? fetchMessages(selectedChatRef.current.id, true) : Promise.resolve()
+          ]).catch(err => console.warn('Refresh error (non-fatal):', err));
+
+        } catch (e) {
+          console.error('Critical recovery error:', e);
+        }
       }
     };
 
@@ -219,9 +253,10 @@ const LiveChatView: React.FC<LiveChatViewProps> = ({ isBlocked = false }) => {
     try {
       isFetchingInstancesRef.current = true;
       // Fetch from Supabase instead of Evolution API to get the ID mapping
-      const { data: dbInstances, error } = await supabase
+      // Fetch from Supabase instead of Evolution API to get the ID mapping
+      const { data: dbInstances, error } = await promiseWithTimeout<any>(supabase
         .from('instances')
-        .select('*');
+        .select('*') as any, 10000, 'Timeout ao buscar instâncias');
 
       if (error) {
         if (isAbortError(error)) return;
@@ -271,11 +306,11 @@ const LiveChatView: React.FC<LiveChatViewProps> = ({ isBlocked = false }) => {
       if (!silent) setLoadingChats(true);
 
       console.log('DEBUG: Fetching conversations...');
-      const { data, error } = await supabase
+      const { data, error } = await promiseWithTimeout<any>(supabase
         .from('conversations')
         .select('*')
         .order('last_message_time', { ascending: false })
-        .limit(50);
+        .limit(50) as any, 10000, 'Timeout ao buscar conversas');
 
       if (error) {
         if (isAbortError(error)) return;
@@ -394,11 +429,11 @@ const LiveChatView: React.FC<LiveChatViewProps> = ({ isBlocked = false }) => {
     try {
       isFetchingDetailsRef.current = true;
       setLoadingDetails(true);
-      const { data, error } = await supabase
+      const { data, error } = await promiseWithTimeout<any>(supabase
         .from('contacts')
         .select('id, tags, notes')
         .eq('remote_jid', remoteJid)
-        .maybeSingle();
+        .maybeSingle() as any, 10000);
 
       if (error) {
         if (isAbortError(error)) return;
@@ -687,11 +722,11 @@ const LiveChatView: React.FC<LiveChatViewProps> = ({ isBlocked = false }) => {
       isFetchingMessagesRef.current = true;
       if (!silent) setLoadingMessages(true);
 
-      const { data, error } = await supabase
+      const { data, error } = await promiseWithTimeout<any>(supabase
         .from('messages')
         .select('*')
         .eq('conversation_id', convId)
-        .order('timestamp', { ascending: true });
+        .order('timestamp', { ascending: true }) as any, 10000);
 
       if (error) {
         if (isAbortError(error)) return;

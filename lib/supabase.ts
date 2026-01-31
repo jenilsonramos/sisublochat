@@ -26,3 +26,17 @@ export const isAbortError = (err: any) => {
     err.code === 20
   );
 };
+
+export const promiseWithTimeout = <T>(promise: Promise<T>, timeoutMs: number = 15000, failureMessage: string = 'Tempo limite da requisição excedido'): Promise<T> => {
+  let timeoutHandle: any;
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    timeoutHandle = setTimeout(() => reject(new Error(failureMessage)), timeoutMs);
+  });
+
+  return Promise.race([
+    promise,
+    timeoutPromise
+  ]).finally(() => {
+    clearTimeout(timeoutHandle);
+  });
+};
