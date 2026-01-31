@@ -77,6 +77,7 @@ const BroadcastView: React.FC<BroadcastViewProps> = ({ isBlocked }) => {
 
     useEffect(() => {
         fetchData();
+        /*
         const subscription = supabase
             .channel('campaigns_changes')
             .on('postgres_changes', { event: '*', schema: 'public', table: 'campaigns' }, () => {
@@ -87,6 +88,7 @@ const BroadcastView: React.FC<BroadcastViewProps> = ({ isBlocked }) => {
         return () => {
             subscription.unsubscribe();
         };
+        */
     }, []);
 
     const fetchData = async () => {

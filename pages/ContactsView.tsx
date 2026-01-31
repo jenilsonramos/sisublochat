@@ -106,6 +106,7 @@ const ContactsView: React.FC = () => {
     useEffect(() => {
         fetchData();
 
+        /*
         const contactsSub = supabase.channel('contacts')
             .on('postgres_changes', { event: '*', schema: 'public', table: 'contacts' }, () => {
                 fetchContacts();
@@ -121,6 +122,7 @@ const ContactsView: React.FC = () => {
             contactsSub.unsubscribe();
             listsSub.unsubscribe();
         };
+        */
     }, []);
 
     const fetchData = async () => {

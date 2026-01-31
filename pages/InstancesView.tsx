@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { evolutionApi, EvolutionInstance } from '../lib/evolution';
 import { supabase } from '../lib/supabase';
 import { useToast } from '../components/ToastProvider';
@@ -163,8 +163,11 @@ const InstancesView: React.FC<InstancesViewProps> = ({ isBlocked = false }) => {
     setTimeout(() => setCopiedInstanceName(null), 2000);
   };
 
+  const isFetchingRef = useRef(false);
   const fetchInstances = async (showLoading = false) => {
+    if (isFetchingRef.current) return;
     try {
+      isFetchingRef.current = true;
       if (showLoading) setLoading(true);
 
       const { data: dbInstances, error } = await supabase
@@ -200,9 +203,11 @@ const InstancesView: React.FC<InstancesViewProps> = ({ isBlocked = false }) => {
       }
 
     } catch (err: any) {
-      console.error(err);
+      if (err.message?.includes('aborted')) return;
+      console.error('Instances Error:', err);
       showToast(err.message || 'Erro ao carregar instâncias', 'error');
     } finally {
+      isFetchingRef.current = false;
       setLoading(false);
     }
   };

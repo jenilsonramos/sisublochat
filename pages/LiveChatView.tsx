@@ -3,7 +3,7 @@ import { useToast } from '../components/ToastProvider';
 import ConfirmationModal from '../components/ConfirmationModal';
 import { evolutionApi, EvolutionInstance } from '../lib/evolution';
 import { supabase } from '../lib/supabase';
-import { Loader2, Send, Search, Info, X, Smartphone, MessageCircle, Volume2, VolumeX, Settings, Paperclip, ImageIcon, FileText, Mic, Square, Trash2, ChevronLeft, ChevronRight, Smile, AlertCircle, Reply, Video, Download, UserCog, CheckCircle2, Tag, Plus, StickyNote, Save, Maximize2, Minimize2 } from 'lucide-react';
+import { Loader2, Send, Search, Info, X, Smartphone, MessageCircle, Volume2, VolumeX, Settings, Paperclip, ImageIcon, FileText, Mic, Square, Trash2, ChevronLeft, ChevronRight, Smile, AlertCircle, Reply, Video, Download, UserCog, CheckCircle2, Tag, Plus, StickyNote, Save, Maximize2, Minimize2, RefreshCw } from 'lucide-react';
 import EmojiPicker, { Theme } from 'emoji-picker-react';
 import { formatMessage } from '../lib/chatUtils';
 
@@ -204,6 +204,9 @@ const LiveChatView: React.FC<LiveChatViewProps> = ({ isBlocked = false }) => {
         // Refresh Data
         fetchInstances();
         fetchConversations(true);
+        if (selectedChatRef.current) {
+          fetchMessages(selectedChatRef.current.id);
+        }
       }
     };
 
@@ -227,7 +230,12 @@ const LiveChatView: React.FC<LiveChatViewProps> = ({ isBlocked = false }) => {
       };
 
       // Also fetch from Evolution API to get real-time connection status
-      const evoData = await evolutionApi.fetchInstances();
+      let evoData: any = [];
+      try {
+        evoData = await evolutionApi.fetchInstances();
+      } catch (evoError) {
+        console.warn('DEBUG: Evolution API fetch failed (non-fatal), using DB status only.');
+      }
       const validEvoInstances = Array.isArray(evoData) ? evoData : [];
 
       const enrichedInstances = (dbInstances || []).map(dbInst => {
@@ -1394,6 +1402,17 @@ const LiveChatView: React.FC<LiveChatViewProps> = ({ isBlocked = false }) => {
                     </div>
                   </div>
                 )}
+                <button
+                  onClick={() => {
+                    fetchInstances();
+                    fetchConversations(true);
+                    if (selectedChat) fetchMessages(selectedChat.id);
+                  }}
+                  className="p-2 md:p-3 rounded-2xl text-slate-400 hover:text-primary hover:bg-slate-50 dark:hover:bg-slate-700 transition-all"
+                  title="Atualizar"
+                >
+                  <RefreshCw className="w-5 h-5" />
+                </button>
                 <button
                   onClick={toggleFullScreen}
                   className={`p-2 md:p-3 rounded-2xl transition-all ${isFullScreen ? 'bg-primary text-white shadow-lg' : 'text-slate-400 hover:text-primary hover:bg-slate-50 dark:hover:bg-slate-700'}`}
