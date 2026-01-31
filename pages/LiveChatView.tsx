@@ -191,7 +191,7 @@ const LiveChatView: React.FC<LiveChatViewProps> = ({ isBlocked = false }) => {
         const type = file.type.split('/')[0] as any;
         const mediaType = ['image', 'video', 'audio'].includes(type) ? type : 'document';
 
-        await evolutionApi.sendMediaMessage(
+        const response = await evolutionApi.sendMediaMessage(
           activeInstance.name,
           selectedChat.remote_jid,
           base64,
@@ -199,8 +199,24 @@ const LiveChatView: React.FC<LiveChatViewProps> = ({ isBlocked = false }) => {
           '',
           file.name
         );
+
+        // PERSIST MEDIA MESSAGE TO SUPABASE
+        await supabase.from('messages').insert({
+          conversation_id: selectedChat.id,
+          text: file.name,
+          sender: 'me',
+          media_url: response?.data?.url || base64, // Use URL if returned, else base64
+          media_type: mediaType,
+          timestamp: new Date().toISOString()
+        });
+
+        await supabase.from('conversations').update({
+          last_message: `📎 ${file.name}`,
+          last_message_time: new Date().toISOString()
+        }).eq('id', selectedChat.id);
+
         showToast('Arquivo enviado com sucesso', 'success');
-        setTimeout(() => fetchMessages(selectedChat.id, true), 2000);
+        setTimeout(() => fetchMessages(selectedChat.id, true), 1000);
       };
       reader.readAsDataURL(file);
     } catch (error) {
@@ -236,8 +252,22 @@ const LiveChatView: React.FC<LiveChatViewProps> = ({ isBlocked = false }) => {
     try {
       setSending(true);
       await evolutionApi.sendTextMessage(activeInstance.name, selectedChat.remote_jid, messageContent);
-      // Wait a bit more for webhook to process
-      setTimeout(() => fetchMessages(selectedChat.id, true), 2000);
+
+      // PERSIST MESSAGE TO SUPABASE
+      await supabase.from('messages').insert({
+        conversation_id: selectedChat.id,
+        text: messageContent,
+        sender: 'me',
+        timestamp: new Date().toISOString()
+      });
+
+      await supabase.from('conversations').update({
+        last_message: messageContent,
+        last_message_time: new Date().toISOString()
+      }).eq('id', selectedChat.id);
+
+      // Wait a bit more for background sync
+      setTimeout(() => fetchMessages(selectedChat.id, true), 1000);
     } catch (error) {
       console.error(error);
       showToast('Erro ao enviar', 'error');
@@ -356,13 +386,13 @@ const LiveChatView: React.FC<LiveChatViewProps> = ({ isBlocked = false }) => {
   // --- Render (Refined Dashboard UI) ---
 
   return (
-    <div className="flex h-full w-full bg-white rounded-[2.5rem] overflow-hidden border border-gray-100 shadow-[0_30px_60px_-15px_rgba(0,0,0,0.12)] transition-all duration-500 font-sans text-slate-800">
+    <div className="flex h-full w-full bg-white dark:bg-slate-900 rounded-[2.5rem] overflow-hidden border border-gray-100 dark:border-slate-800 shadow-[0_30px_60px_-15px_rgba(0,0,0,0.12)] transition-all duration-500 font-sans text-slate-800 dark:text-slate-200">
 
       {/* 1. Sidebar - Chat List */}
-      <div className="w-[340px] bg-white flex flex-col shrink-0 relative z-10 border-r border-gray-50">
+      <div className="w-[340px] bg-white dark:bg-slate-900 flex flex-col shrink-0 relative z-10 border-r border-gray-50 dark:border-slate-800">
         {/* Title */}
         <div className="h-20 px-6 flex items-center justify-between shrink-0">
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900">Conversas</h1>
+          <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">Conversas</h1>
           <button className="w-10 h-10 rounded-2xl bg-[#4F46E5] text-white flex items-center justify-center shadow-lg shadow-indigo-200 hover:shadow-indigo-300 transition-all hover:scale-105 active:scale-95" title="Nova Conversa">
             <Plus size={20} strokeWidth={2.5} />
           </button>
@@ -370,9 +400,9 @@ const LiveChatView: React.FC<LiveChatViewProps> = ({ isBlocked = false }) => {
 
         {/* Tabs - Pill Style */}
         <div className="px-6 pb-4">
-          <div className="flex bg-gray-50 p-1.5 rounded-3xl border border-gray-100">
-            <button className="flex-1 py-2 text-sm font-semibold text-slate-800 bg-white shadow-sm rounded-2xl transition-all">Abertas</button>
-            <button className="flex-1 py-2 text-sm font-semibold text-slate-400 hover:text-slate-600 transition-all">Arquivadas</button>
+          <div className="flex bg-gray-50 dark:bg-slate-800 p-1.5 rounded-3xl border border-gray-100 dark:border-slate-700">
+            <button className="flex-1 py-2 text-sm font-semibold text-slate-800 dark:text-slate-200 bg-white dark:bg-slate-700 shadow-sm rounded-2xl transition-all">Abertas</button>
+            <button className="flex-1 py-2 text-sm font-semibold text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 transition-all">Arquivadas</button>
           </div>
         </div>
 
@@ -382,7 +412,7 @@ const LiveChatView: React.FC<LiveChatViewProps> = ({ isBlocked = false }) => {
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-[#4F46E5] transition-colors" size={18} />
             <input
               placeholder="Pesquisar contatos..."
-              className="w-full pl-11 pr-4 py-3 bg-gray-50 border-none rounded-3xl text-sm font-medium focus:bg-white focus:ring-2 focus:ring-[#4F46E5]/10 transition-all outline-none placeholder:text-gray-400"
+              className="w-full pl-11 pr-4 py-3 bg-gray-50 dark:bg-slate-800 border-none rounded-3xl text-sm font-medium focus:bg-white dark:focus:bg-slate-700 focus:ring-2 focus:ring-[#4F46E5]/10 dark:text-white transition-all outline-none placeholder:text-gray-400"
             />
           </div>
         </div>
@@ -399,8 +429,8 @@ const LiveChatView: React.FC<LiveChatViewProps> = ({ isBlocked = false }) => {
                 className={`
                   relative p-3.5 rounded-3xl cursor-pointer transition-all duration-200
                   ${selectedChat?.id === chat.id
-                    ? 'bg-white shadow-[0_8px_30px_-5px_rgba(0,0,0,0.08)] z-10 scale-[1.02]'
-                    : 'hover:bg-gray-50 hover:scale-[1.01]'
+                    ? 'bg-white dark:bg-slate-800 shadow-[0_8px_30px_-5px_rgba(0,0,0,0.08)] z-10 scale-[1.02]'
+                    : 'hover:bg-gray-50 dark:hover:bg-slate-800/50 hover:scale-[1.01]'
                   }
                 `}
               >
@@ -437,10 +467,10 @@ const LiveChatView: React.FC<LiveChatViewProps> = ({ isBlocked = false }) => {
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex justify-between items-center mb-0.5">
-                      <h4 className={`font-bold text-[15px] truncate ${selectedChat?.id === chat.id ? 'text-slate-900' : 'text-slate-700'}`}>{chat.contact_name || chat.remote_jid}</h4>
+                      <h4 className={`font-bold text-[15px] truncate ${selectedChat?.id === chat.id ? 'text-slate-900 dark:text-white' : 'text-slate-700 dark:text-slate-300'}`}>{chat.contact_name || chat.remote_jid}</h4>
                       <span className="text-[11px] text-gray-400 font-medium">{new Date(chat.last_message_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                     </div>
-                    <p className={`text-xs truncate leading-relaxed ${chat.unread_count > 0 ? 'text-slate-600 font-semibold' : 'text-gray-400 font-medium'}`}>
+                    <p className={`text-xs truncate leading-relaxed ${chat.unread_count > 0 ? 'text-slate-600 dark:text-slate-300 font-semibold' : 'text-gray-400 font-medium'}`}>
                       {chat.last_message || 'Inicie a conversa...'}
                     </p>
                   </div>
@@ -452,21 +482,21 @@ const LiveChatView: React.FC<LiveChatViewProps> = ({ isBlocked = false }) => {
       </div>
 
       {/* 2. Main Chat Area - Clean & Spacious */}
-      <div className="flex-1 flex flex-col bg-white overflow-hidden relative z-0">
+      <div className="flex-1 flex flex-col bg-white dark:bg-slate-900 overflow-hidden relative z-0">
         {selectedChat ? (
           <>
             {/* Header - Transparent/Minimal */}
-            <header className="h-20 px-8 flex items-center justify-between border-b border-gray-50 bg-white/80 backdrop-blur-sm z-20">
+            <header className="h-20 px-8 flex items-center justify-between border-b border-gray-50 dark:border-slate-800 bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm z-20">
               <div className="flex items-center gap-4">
                 {selectedChat.contact_avatar ? (
                   <img src={selectedChat.contact_avatar} alt="" className="w-10 h-10 rounded-full object-cover shadow-sm" />
                 ) : (
-                  <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-600 font-bold">
+                  <div className="w-10 h-10 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-600 dark:text-slate-400 font-bold">
                     {(selectedChat.contact_name || '?')[0].toUpperCase()}
                   </div>
                 )}
                 <div>
-                  <h3 className="text-lg font-bold text-slate-900 leading-tight">{selectedChat.contact_name || selectedChat.remote_jid}</h3>
+                  <h3 className="text-lg font-bold text-slate-900 dark:text-white leading-tight">{selectedChat.contact_name || selectedChat.remote_jid}</h3>
                   <div className="flex items-center gap-2">
                     <span className="w-2 h-2 rounded-full bg-green-500" />
                     <span className="text-xs text-gray-400 font-medium">Online</span>
@@ -474,10 +504,10 @@ const LiveChatView: React.FC<LiveChatViewProps> = ({ isBlocked = false }) => {
                 </div>
               </div>
               <div className="flex items-center gap-1">
-                <button onClick={() => setShowProfile(!showProfile)} className={`p-2.5 rounded-2xl transition-all ${showProfile ? 'bg-indigo-50 text-[#4F46E5]' : 'text-gray-400 hover:bg-gray-50'}`}>
+                <button onClick={() => setShowProfile(!showProfile)} className={`p-2.5 rounded-2xl transition-all ${showProfile ? 'bg-indigo-50 dark:bg-indigo-900/40 text-[#4F46E5] dark:text-indigo-400' : 'text-gray-400 hover:bg-gray-50 dark:hover:bg-slate-800'}`}>
                   <Info size={20} />
                 </button>
-                <button className="p-2.5 text-gray-400 hover:bg-gray-50 rounded-2xl transition-all">
+                <button className="p-2.5 text-gray-400 hover:bg-gray-50 dark:hover:bg-slate-800 rounded-2xl transition-all">
                   <MoreVertical size={20} />
                 </button>
               </div>
@@ -487,7 +517,7 @@ const LiveChatView: React.FC<LiveChatViewProps> = ({ isBlocked = false }) => {
             <div className="flex-1 overflow-y-auto px-8 py-6 space-y-6 scrollbar-thin scrollbar-thumb-gray-200">
               {/* Date Divider (Mock) */}
               <div className="flex justify-center">
-                <span className="text-[10px] font-bold text-gray-400 bg-gray-50 px-3 py-1 rounded-full uppercase tracking-wider">MENSAGENS RECENTES</span>
+                <span className="text-[10px] font-bold text-gray-400 bg-gray-50 dark:bg-slate-800 px-3 py-1 rounded-full uppercase tracking-wider">MENSAGENS RECENTES</span>
               </div>
 
               {loadingMessages && displayMessages.length === 0 ? (
@@ -498,7 +528,7 @@ const LiveChatView: React.FC<LiveChatViewProps> = ({ isBlocked = false }) => {
                   return (
                     <div key={msg.id} className={`flex ${isMe ? 'flex-row-reverse' : 'flex-row'} items-end gap-3 group`}>
                       {/* Avatar */}
-                      <div className={`w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 mb-1 shadow-sm ${isMe ? 'bg-[#4F46E5] text-white' : 'bg-gray-100 text-gray-500'}`}>
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 mb-1 shadow-sm ${isMe ? 'bg-[#4F46E5] text-white' : 'bg-gray-100 dark:bg-slate-800 text-gray-500 dark:text-gray-400'}`}>
                         {isMe ? 'EU' : (selectedChat.contact_name || '?')[0].toUpperCase()}
                       </div>
 
@@ -507,7 +537,7 @@ const LiveChatView: React.FC<LiveChatViewProps> = ({ isBlocked = false }) => {
                                 max-w-[75%] px-5 py-3 rounded-[24px] text-[15px] leading-relaxed shadow-sm relative transition-all
                                 ${isMe
                           ? 'bg-gradient-to-br from-[#4F46E5] to-[#4338ca] text-white rounded-br-none'
-                          : 'bg-white border border-gray-100 text-slate-700 rounded-bl-none shadow-[0_4px_15px_-3px_rgba(0,0,0,0.04)]'
+                          : 'bg-white dark:bg-slate-800 border border-gray-100 dark:border-slate-700 text-slate-700 dark:text-slate-200 rounded-bl-none shadow-[0_4px_15px_-3px_rgba(0,0,0,0.04)]'
                         }
                             `}>
                         {msg.media_url && (
@@ -536,10 +566,10 @@ const LiveChatView: React.FC<LiveChatViewProps> = ({ isBlocked = false }) => {
             {/* Input - Floating Bar */}
             <div className="p-8 pt-0 z-20 relative">
               {showEmojiPicker && (
-                <div className="absolute bottom-full left-8 mb-4 shadow-2xl rounded-2xl overflow-hidden border border-gray-100 z-50">
+                <div className="absolute bottom-full left-8 mb-4 shadow-2xl rounded-2xl overflow-hidden border border-gray-100 dark:border-slate-800 z-50">
                   <EmojiPicker
                     onEmojiClick={handleEmojiClick}
-                    theme={Theme.LIGHT}
+                    theme={document.documentElement.classList.contains('dark') ? Theme.DARK : Theme.LIGHT}
                     searchPlaceholder="Pesquisar emoji..."
                     width={320}
                     height={400}
@@ -554,7 +584,7 @@ const LiveChatView: React.FC<LiveChatViewProps> = ({ isBlocked = false }) => {
                 className="hidden"
               />
 
-              <form onSubmit={handleSendMessage} className="bg-white border border-gray-100 rounded-full p-2 pl-4 pr-2 flex items-center shadow-[0_8px_40px_-10px_rgba(0,0,0,0.08)] hover:shadow-[0_12px_40px_-10px_rgba(0,0,0,0.12)] transition-shadow">
+              <form onSubmit={handleSendMessage} className="bg-white dark:bg-slate-800 border border-gray-100 dark:border-slate-700 rounded-full p-2 pl-4 pr-2 flex items-center shadow-[0_8px_40px_-10px_rgba(0,0,0,0.08)] hover:shadow-[0_12px_40px_-10px_rgba(0,0,0,0.12)] transition-shadow">
                 <button
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
@@ -573,16 +603,16 @@ const LiveChatView: React.FC<LiveChatViewProps> = ({ isBlocked = false }) => {
                   value={newMessage}
                   onChange={e => setNewMessage(e.target.value)}
                   placeholder="Digite sua mensagem..."
-                  className="flex-1 px-4 bg-transparent border-none outline-none text-slate-700 placeholder:text-gray-400 font-medium"
+                  className="flex-1 px-4 bg-transparent border-none outline-none text-slate-700 dark:text-slate-200 placeholder:text-gray-400 font-medium"
                 />
                 <div className="flex gap-2">
-                  <button type="button" className="p-2.5 text-gray-400 hover:bg-gray-50 rounded-full transition-all">
+                  <button type="button" className="p-2.5 text-gray-400 hover:bg-gray-50 dark:hover:bg-slate-700 rounded-full transition-all">
                     <Mic size={20} />
                   </button>
                   <button
                     type="submit"
                     disabled={sending || (!newMessage.trim() && !sending)}
-                    className={`w-10 h-10 rounded-full flex items-center justify-center transition-all ${sending || !newMessage.trim() ? 'bg-gray-100 text-gray-300' : 'bg-[#4F46E5] text-white shadow-lg shadow-indigo-200 hover:scale-105 active:scale-95'}`}
+                    className={`w-10 h-10 rounded-full flex items-center justify-center transition-all ${sending || !newMessage.trim() ? 'bg-gray-100 dark:bg-slate-700 text-gray-300 dark:text-slate-500' : 'bg-[#4F46E5] text-white shadow-lg shadow-indigo-200 hover:scale-105 active:scale-95'}`}
                   >
                     {sending ? <Loader2 size={18} className="animate-spin" /> : <Send size={18} className="ml-0.5" />}
                   </button>
@@ -591,36 +621,36 @@ const LiveChatView: React.FC<LiveChatViewProps> = ({ isBlocked = false }) => {
             </div>
           </>
         ) : (
-          <div className="flex-1 flex flex-col items-center justify-center text-center p-8 bg-slate-50">
-            <div className="w-32 h-32 bg-white rounded-full flex items-center justify-center mb-6 shadow-[0_10px_40px_-10px_rgba(0,0,0,0.1)]">
+          <div className="flex-1 flex flex-col items-center justify-center text-center p-8 bg-slate-50 dark:bg-slate-900/50">
+            <div className="w-32 h-32 bg-white dark:bg-slate-800 rounded-full flex items-center justify-center mb-6 shadow-[0_10px_40px_-10px_rgba(0,0,0,0.1)]">
               <MessageCircle size={48} className="text-[#4F46E5]" strokeWidth={1.5} />
             </div>
-            <h2 className="text-2xl font-bold text-slate-900 mb-2">Bem-vindo(a)!</h2>
-            <p className="text-gray-500 max-w-sm font-medium">Selecione uma conversa na lista para começar a conversar com seus contatos.</p>
+            <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-2">Bem-vindo(a)!</h2>
+            <p className="text-gray-500 dark:text-gray-400 max-w-sm font-medium">Selecione uma conversa na lista para começar a conversar com seus contatos.</p>
           </div>
         )}
       </div>
 
       {/* 3. Details Panel (Collapsible) */}
       {selectedChat && showProfile && (
-        <div className="w-[300px] bg-white border-l border-gray-50 flex flex-col pt-12 px-6 shrink-0 shadow-[-10px_0_40px_-10px_rgba(0,0,0,0.03)] z-10 animate-in slide-in-from-right duration-300">
+        <div className="w-[300px] bg-white dark:bg-slate-900 border-l border-gray-50 dark:border-slate-800 flex flex-col pt-12 px-6 shrink-0 shadow-[-10px_0_40px_-10px_rgba(0,0,0,0.03)] z-10 animate-in slide-in-from-right duration-300">
 
           <div className="flex flex-col items-center mb-8 text-center">
             <div className="w-24 h-24 rounded-full bg-gradient-to-tr from-indigo-500 to-purple-600 flex items-center justify-center text-3xl font-bold text-white mb-5 shadow-xl shadow-indigo-200">
               {(selectedChat.contact_name || '?')[0].toUpperCase()}
             </div>
-            <h3 className="text-xl font-bold text-slate-900 mb-1">{selectedChat.contact_name}</h3>
+            <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-1">{selectedChat.contact_name}</h3>
             <p className="text-sm font-bold text-[#4F46E5]">Content Manager</p>
           </div>
 
           {/* Metrics */}
           <div className="grid grid-cols-2 gap-3 mb-8">
-            <div className="bg-gray-50 p-3 rounded-2xl text-center">
-              <span className="block text-lg font-bold text-slate-800">142</span>
+            <div className="bg-gray-50 dark:bg-slate-800 p-3 rounded-2xl text-center">
+              <span className="block text-lg font-bold text-slate-800 dark:text-slate-200">142</span>
               <span className="text-[10px] uppercase font-bold text-gray-400">Mensagens</span>
             </div>
-            <div className="bg-gray-50 p-3 rounded-2xl text-center">
-              <span className="block text-lg font-bold text-slate-800">12</span>
+            <div className="bg-gray-50 dark:bg-slate-800 p-3 rounded-2xl text-center">
+              <span className="block text-lg font-bold text-slate-800 dark:text-slate-200">12</span>
               <span className="text-[10px] uppercase font-bold text-gray-400">Arquivos</span>
             </div>
           </div>
@@ -628,23 +658,23 @@ const LiveChatView: React.FC<LiveChatViewProps> = ({ isBlocked = false }) => {
           <div className="space-y-6 flex-1">
             <div>
               <h4 className="text-xs font-bold text-gray-300 uppercase tracking-wider mb-4">Contact Info</h4>
-              <div className="flex items-center gap-4 text-slate-600 mb-4 group cursor-pointer">
-                <div className="w-8 h-8 rounded-full bg-indigo-50 flex items-center justify-center text-[#4F46E5] group-hover:bg-[#4F46E5] group-hover:text-white transition-colors">
+              <div className="flex items-center gap-4 text-slate-600 dark:text-slate-400 mb-4 group cursor-pointer">
+                <div className="w-8 h-8 rounded-full bg-indigo-50 dark:bg-indigo-900/40 flex items-center justify-center text-[#4F46E5] dark:text-indigo-400 group-hover:bg-[#4F46E5] group-hover:text-white transition-colors">
                   <Phone size={14} />
                 </div>
                 <span className="text-sm font-semibold">{selectedChat.remote_jid.split('@')[0]}</span>
               </div>
-              <div className="flex items-center gap-4 text-slate-600 mb-4 group cursor-pointer">
-                <div className="w-8 h-8 rounded-full bg-indigo-50 flex items-center justify-center text-[#4F46E5] group-hover:bg-[#4F46E5] group-hover:text-white transition-colors">
+              <div className="flex items-center gap-4 text-slate-600 dark:text-slate-400 mb-4 group cursor-pointer">
+                <div className="w-8 h-8 rounded-full bg-indigo-50 dark:bg-indigo-900/40 flex items-center justify-center text-[#4F46E5] dark:text-indigo-400 group-hover:bg-[#4F46E5] group-hover:text-white transition-colors">
                   <Bell size={14} />
                 </div>
                 <span className="text-sm font-semibold">Notifications On</span>
               </div>
             </div>
 
-            <div className="border-t border-gray-100 pt-6">
-              <button className="w-full py-4 rounded-2xl border-2 border-red-50 text-red-500 font-bold text-sm hover:bg-red-50 transition-all flex items-center justify-center gap-2">
-                <X size={16} /> Block Contact
+            <div className="border-t border-gray-100 dark:border-slate-800 pt-6">
+              <button className="w-full py-4 rounded-2xl border-2 border-red-50 dark:border-red-900/20 text-red-500 font-bold text-sm hover:bg-red-50 dark:hover:bg-red-900/10 transition-all flex items-center justify-center gap-2">
+                <X size={16} /> Bloquear Contato
               </button>
             </div>
           </div>
