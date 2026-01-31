@@ -5,7 +5,7 @@ import { useToast } from '../components/ToastProvider';
 import {
   Loader2, Send, Search, MessageCircle, MoreVertical,
   Paperclip, Mic, CheckCircle2, RefreshCw, Smartphone,
-  ChevronLeft
+  ChevronLeft, Plus, Star, Phone, Video, Info, X, Bell, User
 } from 'lucide-react';
 
 // --- Types ---
@@ -44,11 +44,11 @@ const LiveChatView: React.FC<LiveChatViewProps> = ({ isBlocked = false }) => {
   // --- State ---
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
-  // Store pending messages locally to avoid them vanishing on refresh
   const [pendingMessages, setPendingMessages] = useState<ChatMessage[]>([]);
 
   const [selectedChat, setSelectedChat] = useState<Conversation | null>(null);
   const [activeInstance, setActiveInstance] = useState<EvolutionInstance | null>(null);
+  const [showProfile, setShowProfile] = useState(true); // Toggle right panel
 
   const [loadingConversations, setLoadingConversations] = useState(false);
   const [loadingMessages, setLoadingMessages] = useState(false);
@@ -65,7 +65,7 @@ const LiveChatView: React.FC<LiveChatViewProps> = ({ isBlocked = false }) => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
-  // --- Fetch Actions ---
+  // --- Fetch Actions (Logic Preserved) ---
 
   const fetchInstances = async () => {
     const KEY = 'instances';
@@ -74,20 +74,12 @@ const LiveChatView: React.FC<LiveChatViewProps> = ({ isBlocked = false }) => {
     abortControllers.current[KEY] = controller;
 
     try {
-      const { data, error } = await supabase
-        .from('instances')
-        .select('*')
-        // @ts-ignore
-        .abortSignal(controller.signal);
-
+      const { data, error } = await supabase.from('instances').select('*').abortSignal(controller.signal);
       if (error) throw error;
-
-      if (data && data.length > 0 && !activeInstance) {
-        setActiveInstance(data[0] as unknown as EvolutionInstance);
-      }
+      if (data && data.length > 0 && !activeInstance) setActiveInstance(data[0] as unknown as EvolutionInstance);
     } catch (error: any) {
       if (error.name === 'AbortError' || isAbortError(error)) return;
-      console.error('Fetch Instances Error:', error);
+      console.error(error);
     } finally {
       if (abortControllers.current[KEY] === controller) delete abortControllers.current[KEY];
     }
@@ -96,27 +88,23 @@ const LiveChatView: React.FC<LiveChatViewProps> = ({ isBlocked = false }) => {
   const fetchConversations = async (isBackground = false) => {
     const KEY = 'conversations';
     if (abortControllers.current[KEY]) abortControllers.current[KEY].abort();
-
     const controller = new AbortController();
     abortControllers.current[KEY] = controller;
 
     try {
       if (!isBackground) setLoadingConversations(true);
-
       const { data, error } = await supabase
         .from('conversations')
         .select('*')
         .order('last_message_time', { ascending: false })
         .limit(50)
-        // @ts-ignore
         .abortSignal(controller.signal);
 
       if (error) throw error;
       setConversations(data || []);
-
     } catch (error: any) {
       if (error.name === 'AbortError' || isAbortError(error)) return;
-      console.error('Fetch Conversations Error:', error);
+      console.error(error);
     } finally {
       if (abortControllers.current[KEY] === controller) delete abortControllers.current[KEY];
       if (!isBackground) setLoadingConversations(false);
@@ -126,36 +114,31 @@ const LiveChatView: React.FC<LiveChatViewProps> = ({ isBlocked = false }) => {
   const fetchMessages = async (chatId: string, isBackground = false) => {
     const KEY = 'messages';
     if (abortControllers.current[KEY]) abortControllers.current[KEY].abort();
-
     const controller = new AbortController();
     abortControllers.current[KEY] = controller;
 
     try {
       if (!isBackground && messages.length === 0) setLoadingMessages(true);
-
       const { data, error } = await supabase
         .from('messages')
         .select('*')
         .eq('conversation_id', chatId)
         .order('timestamp', { ascending: true })
-        // @ts-ignore
         .abortSignal(controller.signal);
 
       if (error) throw error;
 
-      const fetchedMessages = data || [];
-      setMessages(fetchedMessages);
+      const fetched = data || [];
+      setMessages(fetched);
 
-      // Clean up confirmed pending messages
-      if (fetchedMessages.length > 0) {
-        setPendingMessages(prev => prev.filter(p => !fetchedMessages.some(m => m.text === p.text && Math.abs(new Date(m.timestamp).getTime() - new Date(p.timestamp).getTime()) < 5000)));
+      if (fetched.length > 0) {
+        setPendingMessages(prev => prev.filter(p => !fetched.some(m => m.text === p.text && Math.abs(new Date(m.timestamp).getTime() - new Date(p.timestamp).getTime()) < 5000)));
       }
 
       if (!isBackground && messages.length === 0) setTimeout(scrollToBottom, 100);
-
     } catch (error: any) {
       if (error.name === 'AbortError' || isAbortError(error)) return;
-      console.error('Fetch Messages Error:', error);
+      console.error(error);
     } finally {
       if (abortControllers.current[KEY] === controller) delete abortControllers.current[KEY];
       if (!isBackground) setLoadingMessages(false);
@@ -169,8 +152,7 @@ const LiveChatView: React.FC<LiveChatViewProps> = ({ isBlocked = false }) => {
     const tempId = crypto.randomUUID();
     const messageContent = newMessage.trim();
 
-    // Optimistic Update
-    const optimisticMessage: ChatMessage = {
+    const optimistic: ChatMessage = {
       id: tempId,
       conversation_id: selectedChat.id,
       text: messageContent,
@@ -179,367 +161,287 @@ const LiveChatView: React.FC<LiveChatViewProps> = ({ isBlocked = false }) => {
       status: 'pending'
     };
 
-    setPendingMessages(prev => [...prev, optimisticMessage]);
+    setPendingMessages(prev => [...prev, optimistic]);
     setNewMessage('');
     setTimeout(scrollToBottom, 100);
 
     try {
       setSending(true);
-
-      await evolutionApi.sendTextMessage(
-        activeInstance.name,
-        selectedChat.remote_jid,
-        messageContent
-      );
-
-      // Update specifically via background fetch
+      await evolutionApi.sendTextMessage(activeInstance.name, selectedChat.remote_jid, messageContent);
       setTimeout(() => fetchMessages(selectedChat.id, true), 1500);
-
     } catch (error) {
-      console.error('Send Error:', error);
-      showToast('Erro ao enviar mensagem', 'error');
+      console.error(error);
+      showToast('Erro ao enviar', 'error');
       setPendingMessages(prev => prev.filter(m => m.id !== tempId));
     } finally {
       setSending(false);
     }
   };
 
-  // --- Combined Messages for Render ---
-  // Merge pending and actual messages, removing duplicates if they appear in both (simple check)
   const displayMessages = [...messages, ...pendingMessages.filter(p => !messages.some(m => m.id === p.id))].sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
 
   // --- Effects ---
 
-  // 1. Initial Load & Conversation Polling (Recursive)
   useEffect(() => {
     fetchInstances();
-    fetchConversations(); // Initial fetch
-
-    let timeoutId: NodeJS.Timeout;
-
-    const pollConversations = async () => {
-      if (!document.hidden) {
-        await fetchConversations(true); // Background fetch
-      }
-      timeoutId = setTimeout(pollConversations, 10000);
-    };
-
-    timeoutId = setTimeout(pollConversations, 10000);
-
-    return () => {
-      clearTimeout(timeoutId);
-      Object.values(abortControllers.current).forEach((c: any) => c.abort());
-    };
+    fetchConversations();
+    let t: NodeJS.Timeout;
+    const poll = async () => { if (!document.hidden) await fetchConversations(true); t = setTimeout(poll, 10000); };
+    t = setTimeout(poll, 10000);
+    return () => { clearTimeout(t); Object.values(abortControllers.current).forEach((c: any) => c.abort()); };
   }, []);
 
-  // 2. Chat Selection & Message Polling (Recursive)
   useEffect(() => {
-    let timeoutId: NodeJS.Timeout;
-
-    const pollMessages = async () => {
-      if (selectedChat && !document.hidden) {
-        await fetchMessages(selectedChat.id, true); // Background fetch
-      }
-      timeoutId = setTimeout(pollMessages, 3000);
-    };
-
+    let t: NodeJS.Timeout;
+    const poll = async () => { if (selectedChat && !document.hidden) await fetchMessages(selectedChat.id, true); t = setTimeout(poll, 3000); };
     if (selectedChat) {
-      setPendingMessages([]); // Clear pending on chat switch
-      fetchMessages(selectedChat.id); // Initial load
-      timeoutId = setTimeout(pollMessages, 3000);
-    } else {
-      setMessages([]);
-      setPendingMessages([]);
-    }
-
-    return () => {
-      clearTimeout(timeoutId);
-    };
+      setPendingMessages([]); fetchMessages(selectedChat.id); t = setTimeout(poll, 3000);
+    } else { setMessages([]); setPendingMessages([]); }
+    return () => clearTimeout(t);
   }, [selectedChat?.id]);
 
-  // 3. Tab Visibility Recovery (Fix Hang)
   useEffect(() => {
-    const handleVisibilityChange = () => {
+    const handleVis = () => {
       if (document.hidden) {
-        console.log('Tab hidden: Pausing...');
-
-        // Abort to save resources
         Object.values(abortControllers.current).forEach((c: any) => c.abort());
         abortControllers.current = {};
-
       } else {
-        console.log('Tab visible: Resuming...');
-
-        // FORCE RESET Loading states to prevent hang
-        setLoadingConversations(false);
-        setLoadingMessages(false);
-        setSending(false);
-
-        // Resume poling implies restarting requests immediately
+        setLoadingConversations(false); setLoadingMessages(false); setSending(false);
         fetchConversations(true);
         if (selectedChat) fetchMessages(selectedChat.id, true);
       }
     };
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+    document.addEventListener('visibilitychange', handleVis);
+    return () => document.removeEventListener('visibilitychange', handleVis);
   }, [selectedChat]);
 
-  // --- Render ---
+  // --- Render (Modern Dashboard UI) ---
 
   return (
-    <div className="flex h-screen bg-gray-100 overflow-hidden font-sans">
+    <div className="flex h-screen bg-[#F4F5fa] overflow-hidden font-sans text-slate-800">
 
-      {/* Sidebar - Conversations */}
-      <div className="w-[350px] md:w-[400px] border-r border-gray-200 bg-white flex flex-col shadow-sm z-10 transition-all duration-300">
-
-        {/* Sidebar Header */}
-        <div className="h-16 px-4 bg-gray-50 border-b border-gray-200 flex justify-between items-center shrink-0">
-          <div className="flex items-center gap-2">
-            <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-[#00a884] to-emerald-600 flex items-center justify-center text-white font-bold shadow-sm">
-              <MessageCircle size={20} />
-            </div>
-            <h2 className="font-bold text-xl text-gray-800 tracking-tight">Conversas</h2>
-          </div>
-          <button
-            onClick={() => fetchConversations()}
-            className="p-2.5 rounded-full hover:bg-gray-200 text-gray-600 transition-all active:scale-95"
-            title="Atualizar Conversas"
-          >
-            <RefreshCw size={18} className={loadingConversations ? "animate-spin text-[#00a884]" : ""} />
+      {/* 1. Sidebar - Chat List */}
+      <div className="w-[320px] bg-white flex flex-col border-r border-gray-100 shrink-0">
+        {/* Title */}
+        <div className="h-20 px-6 flex items-center justify-between shrink-0">
+          <h1 className="text-2xl font-bold tracking-tight text-slate-800">Chat</h1>
+          <button className="w-10 h-10 rounded-full bg-indigo-600 text-white flex items-center justify-center shadow-lg shadow-indigo-200 hover:shadow-indigo-300 transition-all hover:-translate-y-0.5" title="Nova Conversa">
+            <Plus size={20} />
           </button>
         </div>
 
-        {/* Search Bar */}
-        <div className="p-3 bg-white border-b border-gray-100 box-border">
+        {/* Tabs */}
+        <div className="px-6 pb-2">
+          <div className="flex bg-gray-50 p-1 rounded-xl">
+            <button className="flex-1 py-1.5 text-sm font-medium text-slate-700 bg-white shadow-sm rounded-lg transition-all">Open</button>
+            <button className="flex-1 py-1.5 text-sm font-medium text-slate-400 hover:text-slate-600 transition-all">Archived</button>
+          </div>
+        </div>
+
+        {/* Search */}
+        <div className="px-6 py-4">
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
             <input
-              type="text"
-              placeholder="Pesquisar conversa..."
-              className="w-full pl-10 pr-4 py-2 bg-gray-100 border-none rounded-lg text-sm focus:ring-2 focus:ring-[#00a884]/20 focus:bg-white transition-all outline-none"
+              placeholder="Search..."
+              className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border-none rounded-xl text-sm focus:bg-white focus:ring-2 focus:ring-indigo-100 transition-all outline-none"
             />
           </div>
         </div>
 
-        {/* Conversation List */}
-        <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-200 hover:scrollbar-thumb-gray-300">
+        {/* List */}
+        <div className="flex-1 overflow-y-auto px-4 pb-4 space-y-1 scrollbar-thin scrollbar-thumb-gray-100">
           {loadingConversations && conversations.length === 0 ? (
-            <div className="flex flex-col justify-center items-center h-40 gap-3 text-gray-400">
-              <Loader2 className="animate-spin text-[#00a884]" size={32} />
-              <span className="text-sm font-medium">Carregando conversas...</span>
-            </div>
+            <div className="flex justify-center py-10"><Loader2 className="animate-spin text-indigo-500" /></div>
           ) : (
-            <div className="divide-y divide-gray-50">
-              {conversations.map(chat => (
-                <div
-                  key={chat.id}
-                  onClick={() => setSelectedChat(chat)}
-                  className={`group relative p-3 cursor-pointer transition-all duration-200 hover:bg-gray-50 ${selectedChat?.id === chat.id ? 'bg-[#f0f2f5] border-l-4 border-l-[#00a884]' : 'border-l-4 border-l-transparent'
-                    }`}
-                >
-                  <div className="flex items-start gap-3">
-                    {/* Avatar */}
-                    <div className="relative shrink-0">
-                      <div className="w-12 h-12 rounded-full bg-gray-200 flex items-center justify-center text-lg font-semibold text-gray-500 border border-gray-100 overflow-hidden select-none">
-                        {chat.contact_name ? chat.contact_name[0].toUpperCase() : <Smartphone size={20} />}
-                      </div>
-                    </div>
+            conversations.map(chat => (
+              <div
+                key={chat.id}
+                onClick={() => setSelectedChat(chat)}
+                className={`
+                  relative p-4 rounded-2xl cursor-pointer transition-all duration-200 group
+                  ${selectedChat?.id === chat.id ? 'bg-white shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)]' : 'hover:bg-gray-50'}
+                `}
+              >
+                {/* Left Active Indicator */}
+                {selectedChat?.id === chat.id && (
+                  <div className="absolute left-0 top-1/2 -translate-y-1/2 h-8 w-1 bg-indigo-600 rounded-r-full" />
+                )}
 
-                    {/* Content */}
-                    <div className="flex-1 min-w-0 pt-1">
-                      <div className="flex justify-between items-baseline mb-1">
-                        <span className={`truncate font-medium text-base ${selectedChat?.id === chat.id ? 'text-gray-900' : 'text-gray-800'}`}>
-                          {chat.contact_name || chat.remote_jid}
-                        </span>
-                        <span className={`text-[11px] shrink-0 font-medium ${chat.unread_count > 0 ? 'text-[#00a884]' : 'text-gray-400'}`}>
-                          {new Date(chat.last_message_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                        </span>
-                      </div>
-
-                      <div className="flex justify-between items-center gap-2">
-                        <p className={`truncate text-sm ${chat.unread_count > 0 ? 'font-semibold text-gray-800' : 'text-gray-500'}`}>
-                          {chat.last_message || "Nova conversa"}
-                        </p>
-                        {chat.unread_count > 0 && (
-                          <span className="bg-[#25D366] text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[20px] text-center shadow-sm h-5 flex items-center justify-center">
-                            {chat.unread_count}
-                          </span>
-                        )}
-                      </div>
+                <div className="flex items-start gap-4">
+                  <div className="relative shrink-0">
+                    <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-lg font-bold border-2 ${selectedChat?.id === chat.id ? 'bg-indigo-50 border-indigo-100 text-indigo-600' : 'bg-gray-100 border-transparent text-gray-500'}`}>
+                      {chat.contact_name ? chat.contact_name[0].toUpperCase() : 'U'}
                     </div>
+                    {chat.unread_count > 0 && <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 border-2 border-white rounded-full" />}
+                  </div>
+                  <div className="flex-1 min-w-0 pt-0.5">
+                    <div className="flex justify-between items-center mb-1">
+                      <h4 className={`font-semibold text-sm truncate ${selectedChat?.id === chat.id ? 'text-indigo-900' : 'text-slate-700'}`}>{chat.contact_name || chat.remote_jid}</h4>
+                      <span className="text-[11px] text-gray-400 font-medium">{new Date(chat.last_message_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                    </div>
+                    <p className={`text-xs truncate leading-relaxed ${chat.unread_count > 0 ? 'text-slate-600 font-medium' : 'text-gray-400'}`}>
+                      {chat.last_message || 'Nova conversa iniciada'}
+                    </p>
                   </div>
                 </div>
-              ))}
-            </div>
+              </div>
+            ))
           )}
         </div>
       </div>
 
-      {/* Main Chat Area */}
-      <div className="flex-1 flex flex-col relative bg-[#EFE7DD]">
-        {/* Background Pattern */}
-        <div className="absolute inset-0 opacity-[0.3] pointer-events-none" style={{
-          backgroundImage: "url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png')",
-          backgroundRepeat: 'repeat'
-        }}></div>
-
+      {/* 2. Main Chat Area */}
+      <div className="flex-1 flex flex-col bg-white overflow-hidden relative shadow-[0_0_40px_-5px_rgba(0,0,0,0.03)] z-0 rounded-l-[30px] my-4 mr-4 ml-0">
         {selectedChat ? (
           <>
             {/* Header */}
-            <header className="h-16 px-4 bg-[#f0f2f5] border-b border-gray-200 flex items-center justify-between shrink-0 shadow-sm z-20 sticky top-0">
-              <div className="flex items-center gap-3">
-                <button onClick={() => setSelectedChat(null)} className="md:hidden text-gray-500">
-                  <ChevronLeft size={24} />
-                </button>
-                <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center text-gray-600 font-bold border border-gray-300 select-none">
+            <header className="h-20 px-8 flex items-center justify-between border-b border-gray-50 shrink-0">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-indigo-50 to-white flex items-center justify-center text-indigo-700 font-bold border border-indigo-50 shadow-sm">
                   {(selectedChat.contact_name || '?')[0].toUpperCase()}
                 </div>
-                <div className="flex flex-col">
-                  <h3 className="font-bold text-gray-800 leading-tight">{selectedChat.contact_name || selectedChat.remote_jid}</h3>
-                  <span className="text-xs text-[#00a884] flex items-center gap-1 font-medium">
-                    <span className="w-2 h-2 rounded-full bg-[#00a884] animate-pulse" />
-                    {activeInstance?.name || 'Online'}
+                <div>
+                  <h3 className="text-lg font-bold text-slate-800">{selectedChat.contact_name || selectedChat.remote_jid}</h3>
+                  <span className="text-xs text-green-500 font-medium flex items-center gap-1.5">
+                    <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse" />
+                    Online
                   </span>
                 </div>
               </div>
-
-              <div className="flex items-center gap-1">
-                <button className="p-2.5 text-gray-500 hover:bg-gray-200 rounded-full transition-colors">
-                  <Search size={20} />
+              <div className="flex items-center gap-2">
+                <button onClick={() => setShowProfile(!showProfile)} className="p-3 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all">
+                  <Info size={22} />
                 </button>
-                <button className="p-2.5 text-gray-500 hover:bg-gray-200 rounded-full transition-colors">
-                  <MoreVertical size={20} />
+                <div className="h-6 w-px bg-gray-100 mx-1" />
+                <button className="p-3 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all">
+                  <MoreVertical size={22} />
                 </button>
               </div>
             </header>
 
-            {/* Messages List */}
-            <div className="flex-1 overflow-y-auto px-4 py-4 space-y-2 z-10 scrollbar-thin scrollbar-thumb-gray-300/50 hover:scrollbar-thumb-gray-400/50">
-              {loadingMessages && messages.length === 0 ? (
-                <div className="flex justify-center mt-10">
-                  <div className="bg-white/90 backdrop-blur px-4 py-2 rounded-full shadow-sm flex items-center gap-2 text-gray-500 text-sm border border-gray-100">
-                    <Loader2 className="animate-spin text-[#00a884]" size={16} />
-                    Carregando mensagens...
-                  </div>
-                </div>
+            {/* Messages */}
+            <div className="flex-1 overflow-y-auto px-8 py-6 space-y-6 scrollbar-thin scrollbar-thumb-gray-100">
+              {loadingMessages && displayMessages.length === 0 ? (
+                <div className="flex justify-center"><Loader2 className="animate-spin text-indigo-300" /></div>
               ) : (
                 displayMessages.map((msg, idx) => {
                   const isMe = msg.sender === 'me';
-                  const isContinuous = idx > 0 && displayMessages[idx - 1].sender === msg.sender;
-
                   return (
-                    <div
-                      key={msg.id}
-                      className={`flex ${isMe ? 'justify-end' : 'justify-start'} ${isContinuous ? 'mt-0.5' : 'mt-2'}`}
-                    >
-                      <div className={`
-                        relative max-w-[85%] md:max-w-[65%] px-3 py-1.5 rounded-lg text-[15px] leading-relaxed shadow-[0_1px_0.5px_rgba(0,0,0,0.13)]
-                        ${isMe
-                          ? 'bg-[#d9fdd3] text-gray-900 rounded-tr-none'
-                          : 'bg-white text-gray-900 rounded-tl-none'
-                        }
-                      `}>
-                        {/* Media */}
-                        {msg.media_url && (
-                          <div className="mb-2 -mx-1 -mt-1">
-                            {msg.media_type === 'image' && (
-                              <div className="relative rounded overflow-hidden bg-black/5">
-                                <img src={msg.media_url} alt="Media" className="max-w-full max-h-[300px] object-contain" />
-                              </div>
-                            )}
-                            {msg.media_type === 'audio' && (
-                              <audio src={msg.media_url} controls className="w-64 max-w-full" />
-                            )}
-                          </div>
-                        )}
-
-                        {/* Text */}
-                        <p className="whitespace-pre-wrap break-words">{msg.text}</p>
-
-                        {/* Status/Time */}
-                        <div className={`
-                           flex items-center justify-end gap-1 mt-0.5 select-none
-                           ${isMe ? 'text-green-900/40' : 'text-gray-400'}
-                        `}>
-                          <span className="text-[10px] font-medium leading-none">
-                            {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                          </span>
-                          {isMe && (
-                            <CheckCircle2 size={12} className={msg.status === 'pending' ? 'text-gray-400' : 'text-[#53bdeb]'} />
-                          )}
+                    <div key={msg.id} className={`flex ${isMe ? 'items-end justify-end' : 'items-start'} gap-3 group`}>
+                      {/* Avatar for contact */}
+                      {!isMe && (
+                        <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-[10px] font-bold text-gray-500 shrink-0 mt-2">
+                          {(selectedChat.contact_name || '?')[0]}
                         </div>
+                      )}
+
+                      <div className={`
+                               max-w-[70%] px-5 py-3.5 rounded-[20px] text-[15px] leading-relaxed shadow-sm relative
+                               ${isMe
+                          ? 'bg-[#6366f1] text-white rounded-br-sm'
+                          : 'bg-white border border-gray-100 text-slate-600 rounded-bl-sm shadow-[0_2px_20px_-5px_rgba(0,0,0,0.05)]'
+                        }
+                            `}>
+                        {msg.media_url && <div className="mb-2 text-xs opacity-80">📎 Media Anexada</div>}
+                        <p>{msg.text}</p>
                       </div>
+
+                      {/* Timestamp (Outside) */}
+                      <span className="text-[10px] text-gray-300 font-medium self-center opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
+                        {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      </span>
                     </div>
                   );
                 })
               )}
-              <div ref={messagesEndRef} className="h-2" />
+              <div ref={messagesEndRef} />
             </div>
 
-            {/* Input Area */}
-            <footer className="bg-[#f0f2f5] px-4 py-2 border-t border-gray-200 z-20">
-              <form onSubmit={handleSendMessage} className="flex items-end gap-3 max-w-5xl mx-auto w-full">
-                <button type="button" className="p-2 text-gray-500 hover:bg-gray-200 rounded-full transition-colors shrink-0 mb-1">
-                  <Paperclip size={24} />
+            {/* Input */}
+            <div className="p-6 pt-2">
+              <form onSubmit={handleSendMessage} className="bg-white border border-gray-100 rounded-[20px] p-2 pr-3 flex items-center shadow-[0_5px_30px_-5px_rgba(0,0,0,0.05)] relative z-10">
+                <button type="button" className="p-3 text-gray-400 hover:text-indigo-500 hover:bg-gray-50 rounded-xl transition-all">
+                  <Paperclip size={20} />
                 </button>
-
-                <div className="flex-1 bg-white rounded-lg px-4 py-2 border border-white focus-within:border-white shadow-sm flex items-center min-h-[42px]">
-                  <input
-                    type="text"
-                    value={newMessage}
-                    onChange={e => setNewMessage(e.target.value)}
-                    className="flex-1 bg-transparent border-none outline-none text-gray-800 placeholder:text-gray-500 text-[15px] max-h-32"
-                    placeholder="Mensagem"
-                  />
-                  <button type="button" className="text-gray-400 hover:text-gray-600 ml-2">
+                <input
+                  value={newMessage}
+                  onChange={e => setNewMessage(e.target.value)}
+                  placeholder="Type your message..."
+                  className="flex-1 px-3 bg-transparent border-none outline-none text-slate-700 placeholder:text-gray-300"
+                />
+                <div className="flex gap-1">
+                  <button type="button" className="p-3 text-gray-400 hover:text-indigo-500 hover:bg-gray-50 rounded-xl transition-all">
                     <Mic size={20} />
                   </button>
+                  <button
+                    type="submit"
+                    disabled={sending || !newMessage}
+                    className={`p-3 rounded-xl transition-all shadow-md ${sending || !newMessage ? 'bg-gray-100 text-gray-300' : 'bg-indigo-600 text-white shadow-indigo-200 hover:shadow-indigo-300 hover:-translate-y-0.5'}`}
+                  >
+                    {sending ? <Loader2 size={20} className="animate-spin" /> : <Send size={20} />}
+                  </button>
                 </div>
-
-                <button
-                  type="submit"
-                  disabled={sending || !newMessage.trim()}
-                  className={`
-                      p-2.5 rounded-full transition-all active:scale-95 shrink-0 flex items-center justify-center mb-1
-                      ${sending || !newMessage.trim()
-                      ? 'text-gray-400'
-                      : 'text-[#00a884]'
-                    }
-                   `}
-                >
-                  {sending ? <Loader2 size={24} className="animate-spin" /> : <Send size={24} />}
-                </button>
               </form>
-            </footer>
+            </div>
           </>
         ) : (
-          <div className="flex-1 flex flex-col items-center justify-center bg-[#f0f2f5] border-b-[6px] border-[#25D366] z-10 p-8 text-center relative select-none">
-            {/* Empty State / Welcome Screen */}
-            <div className="max-w-[560px] flex flex-col items-center">
-              <div className="mb-10 opacity-80">
-                <div className="relative">
-                  <div className="absolute inset-0 bg-[#00a884] rounded-full blur-[60px] opacity-20" />
-                  <Smartphone size={100} className="text-gray-300 relative z-10" strokeWidth={1} />
-                </div>
-              </div>
-              <h3 className="text-[32px] font-light text-gray-700 mb-5 tracking-tight">
-                WhatsApp Web
-              </h3>
-              <p className="text-sm text-gray-500 leading-6 max-w-md">
-                Envie e receba mensagens sem precisar manter seu celular conectado. <br />
-                Use o WhatsApp em até 4 aparelhos conectados e 1 celular ao mesmo tempo.
-              </p>
-
-              <div className="mt-12 flex items-center gap-2 text-[13px] text-gray-400 font-medium">
-                <div className="flex items-center gap-1">
-                  <span className="text-[10px]">🔒</span>
-                  Protegido com criptografia de ponta a ponta
-                </div>
-              </div>
+          <div className="flex-1 flex flex-col items-center justify-center text-center p-8">
+            <div className="w-24 h-24 bg-indigo-50 rounded-full flex items-center justify-center mb-6 animate-pulse">
+              <MessageCircle size={40} className="text-indigo-400" />
             </div>
+            <h2 className="text-2xl font-bold text-slate-800 mb-2">Bem-vindo ao Chat</h2>
+            <p className="text-gray-400 max-w-sm">Selecione uma conversa ao lado para começar o atendimento.</p>
           </div>
         )}
       </div>
+
+      {/* 3. Right Profile Panel (Collapsible) */}
+      {selectedChat && showProfile && (
+        <div className="w-[280px] bg-white border-l border-gray-50 flex flex-col py-8 px-6 shrink-0 transition-all">
+          <div className="flex items-center justify-end mb-8">
+            <button onClick={() => setShowProfile(false)} className="text-gray-300 hover:text-gray-500"><X size={20} /></button>
+          </div>
+
+          <div className="flex flex-col items-center mb-8 text-center">
+            <div className="w-24 h-24 rounded-[30px] bg-indigo-100 flex items-center justify-center text-3xl font-bold text-indigo-600 mb-4 shadow-inner">
+              {(selectedChat.contact_name || '?')[0].toUpperCase()}
+            </div>
+            <h3 className="text-xl font-bold text-slate-800">{selectedChat.contact_name}</h3>
+            <p className="text-sm text-gray-400 mt-1">Lead / Cliente</p>
+          </div>
+
+          <div className="space-y-6">
+            <div>
+              <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">Detalhes</h4>
+              <div className="flex items-center gap-3 text-slate-600 mb-2">
+                <Phone size={16} className="text-indigo-400" />
+                <span className="text-sm">{selectedChat.remote_jid.split('@')[0]}</span>
+              </div>
+              <div className="flex items-center gap-3 text-slate-600 mb-2">
+                <Bell size={16} className="text-indigo-400" />
+                <span className="text-sm">Notificações Ativas</span>
+              </div>
+            </div>
+
+            <div>
+              <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">Mídia</h4>
+              <div className="grid grid-cols-3 gap-2">
+                {[1, 2, 3].map(i => (
+                  <div key={i} className="aspect-square bg-gray-50 rounded-lg border border-gray-100 flex items-center justify-center text-gray-300">
+                    <User size={16} />
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <button className="w-full py-3 bg-red-50 text-red-500 rounded-xl text-sm font-semibold hover:bg-red-100 transition-colors mt-4">
+              Bloquear Contato
+            </button>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 };
