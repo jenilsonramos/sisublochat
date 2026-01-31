@@ -1,12 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { supabase, isAbortError } from '../lib/supabase';
 import { evolutionApi, EvolutionInstance } from '../lib/evolution';
-import { formatMessage } from '../lib/chatUtils';
 import { useToast } from '../components/ToastProvider';
 import {
   Loader2, Send, Search, MessageCircle, MoreVertical,
-  Paperclip, Mic, Image, Video, FileText, Check, CheckCircle2,
-  RefreshCw, Smartphone
+  Paperclip, Mic, CheckCircle2, RefreshCw, Smartphone,
+  ChevronLeft, Image as ImageIcon, Video, FileText
 } from 'lucide-react';
 
 // --- Types ---
@@ -21,7 +20,6 @@ interface Conversation {
   unread_count: number;
   status: 'pending' | 'resolved' | 'analyzing';
   instance_id: string;
-  connectionStatus?: string; // Enriched
 }
 
 interface ChatMessage {
@@ -65,27 +63,15 @@ const LiveChatView: React.FC<LiveChatViewProps> = ({ isBlocked = false }) => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
-  // --- strictFetch Pattern ---
-  // HOF to enforce standard fetch behavior? 
-  // User asked for "Simple code", so explicit function calls might be better than complex wrappers.
-
   // --- Fetch Actions ---
 
   const fetchInstances = async () => {
-    // Unique key for this request type
     const KEY = 'instances';
-
-    // 1. Abort previous if exists (cleanup should have handled it, but safe guard)
-    if (abortControllers.current[KEY]) {
-      abortControllers.current[KEY].abort();
-    }
-
-    // 2. Create New Controller
+    if (abortControllers.current[KEY]) abortControllers.current[KEY].abort();
     const controller = new AbortController();
     abortControllers.current[KEY] = controller;
 
     try {
-      // 3. Perform Request
       const { data, error } = await supabase
         .from('instances')
         .select('*')
@@ -94,32 +80,20 @@ const LiveChatView: React.FC<LiveChatViewProps> = ({ isBlocked = false }) => {
 
       if (error) throw error;
 
-      // Select active instance if not set
       if (data && data.length > 0 && !activeInstance) {
         setActiveInstance(data[0] as unknown as EvolutionInstance);
       }
-
     } catch (error: any) {
-      // 4. Strict Abort Handling
-      if (error.name === 'AbortError' || isAbortError(error)) {
-        return; // Silent return
-      }
+      if (error.name === 'AbortError' || isAbortError(error)) return;
       console.error('Fetch Instances Error:', error);
     } finally {
-      // 5. Cleanup
-      if (abortControllers.current[KEY] === controller) {
-        delete abortControllers.current[KEY];
-      }
+      if (abortControllers.current[KEY] === controller) delete abortControllers.current[KEY];
     }
   };
 
   const fetchConversations = async (silent = false) => {
     const KEY = 'conversations';
-
-    if (abortControllers.current[KEY]) {
-      abortControllers.current[KEY].abort();
-    }
-
+    if (abortControllers.current[KEY]) abortControllers.current[KEY].abort();
     const controller = new AbortController();
     abortControllers.current[KEY] = controller;
 
@@ -135,34 +109,27 @@ const LiveChatView: React.FC<LiveChatViewProps> = ({ isBlocked = false }) => {
         .abortSignal(controller.signal);
 
       if (error) throw error;
-
       setConversations(data || []);
 
     } catch (error: any) {
-      if (error.name === 'AbortError' || isAbortError(error)) {
-        return;
-      }
+      if (error.name === 'AbortError' || isAbortError(error)) return;
       console.error('Fetch Conversations Error:', error);
     } finally {
-      if (abortControllers.current[KEY] === controller) {
-        delete abortControllers.current[KEY];
-      }
+      if (abortControllers.current[KEY] === controller) delete abortControllers.current[KEY];
       if (!silent) setLoadingConversations(false);
     }
   };
 
   const fetchMessages = async (chatId: string) => {
     const KEY = 'messages';
-
-    if (abortControllers.current[KEY]) {
-      abortControllers.current[KEY].abort();
-    }
-
+    if (abortControllers.current[KEY]) abortControllers.current[KEY].abort();
     const controller = new AbortController();
     abortControllers.current[KEY] = controller;
 
     try {
-      setLoadingMessages(true);
+      // Only set loading if we don't have messages or it's a fresh load
+      // to avoid flickering on polls
+      if (messages.length === 0) setLoadingMessages(true);
 
       const { data, error } = await supabase
         .from('messages')
@@ -175,17 +142,15 @@ const LiveChatView: React.FC<LiveChatViewProps> = ({ isBlocked = false }) => {
       if (error) throw error;
 
       setMessages(data || []);
-      setTimeout(scrollToBottom, 100);
+      // Scroll to bottom only if it's a fresh load or we are near bottom
+      // For now simple scroll on first load
+      if (messages.length === 0) setTimeout(scrollToBottom, 100);
 
     } catch (error: any) {
-      if (error.name === 'AbortError' || isAbortError(error)) {
-        return;
-      }
+      if (error.name === 'AbortError' || isAbortError(error)) return;
       console.error('Fetch Messages Error:', error);
     } finally {
-      if (abortControllers.current[KEY] === controller) {
-        delete abortControllers.current[KEY];
-      }
+      if (abortControllers.current[KEY] === controller) delete abortControllers.current[KEY];
       setLoadingMessages(false);
     }
   };
@@ -232,29 +197,23 @@ const LiveChatView: React.FC<LiveChatViewProps> = ({ isBlocked = false }) => {
     }
   };
 
-
   // --- Effects ---
 
-  // 1. Initial Load
   useEffect(() => {
     fetchInstances();
     fetchConversations();
-
-    // Cleanup on unmount
     return () => {
       Object.values(abortControllers.current).forEach((c: any) => c.abort());
     };
-  }, []); // Run once
+  }, []);
 
-  // 2. Load messages when chat selected AND Auto-Poll
   useEffect(() => {
     let pollInterval: NodeJS.Timeout;
 
     if (selectedChat) {
-      // Initial fetch
       fetchMessages(selectedChat.id);
 
-      // FAST Polling (3s) for real-time feel since we lack WebSocket for now
+      // Fast Polling (3s)
       pollInterval = setInterval(() => {
         if (!document.hidden) {
           fetchMessages(selectedChat.id);
@@ -267,164 +226,277 @@ const LiveChatView: React.FC<LiveChatViewProps> = ({ isBlocked = false }) => {
     return () => {
       if (pollInterval) clearInterval(pollInterval);
     };
-  }, [selectedChat?.id]); // Re-run if ID changes
+  }, [selectedChat?.id]);
 
-  // 3. Tab Visibility Handling (CRITICAL)
   useEffect(() => {
     const handleVisibilityChange = () => {
       if (document.hidden) {
-        // TAB HIDDEN: Abort EVERYTHING
         console.log('Tab hidden: Aborting all requests');
         Object.values(abortControllers.current).forEach((c: any) => c.abort());
-        abortControllers.current = {}; // Clear refs
+        abortControllers.current = {};
       } else {
-        // TAB VISIBLE: Restart necessary polling
         console.log('Tab visible: Restarting requests');
-        fetchConversations(true); // Silent refresh
-        if (selectedChat) {
-          fetchMessages(selectedChat.id);
-        }
+        fetchConversations(true);
+        if (selectedChat) fetchMessages(selectedChat.id);
       }
     };
-
     document.addEventListener('visibilitychange', handleVisibilityChange);
     return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
-  }, [selectedChat]); // Depend on selectedChat to refetch it on show
-
+  }, [selectedChat]);
 
   // --- Render ---
 
   return (
-    <div className="flex h-screen bg-gray-50 overflow-hidden">
+    <div className="flex h-screen bg-gray-100 overflow-hidden font-sans">
 
       {/* Sidebar - Conversations */}
-      <div className="w-1/3 border-r bg-white flex flex-col">
-        {/* Header */}
-        <div className="p-4 border-b flex justify-between items-center bg-gray-100">
-          <h2 className="font-bold text-lg text-gray-700">Conversas</h2>
+      <div className="w-[350px] md:w-[400px] border-r border-gray-200 bg-white flex flex-col shadow-sm z-10 transition-all duration-300">
+
+        {/* Sidebar Header */}
+        <div className="h-16 px-4 bg-gray-50 border-b border-gray-200 flex justify-between items-center shrink-0">
+          <div className="flex items-center gap-2">
+            <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-[#00a884] to-emerald-600 flex items-center justify-center text-white font-bold shadow-sm">
+              <MessageCircle size={20} />
+            </div>
+            <h2 className="font-bold text-xl text-gray-800 tracking-tight">Conversas</h2>
+          </div>
           <button
             onClick={() => fetchConversations()}
-            className="p-2 rounded-full hover:bg-gray-200"
-            title="Recarregar"
+            className="p-2.5 rounded-full hover:bg-gray-200 text-gray-600 transition-all active:scale-95"
+            title="Atualizar Conversas"
           >
-            <RefreshCw size={20} className={loadingConversations ? "animate-spin" : ""} />
+            <RefreshCw size={18} className={loadingConversations ? "animate-spin text-[#00a884]" : ""} />
           </button>
         </div>
 
-        {/* List */}
-        <div className="flex-1 overflow-y-auto">
+        {/* Search Bar */}
+        <div className="p-3 bg-white border-b border-gray-100 box-border">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
+            <input
+              type="text"
+              placeholder="Pesquisar conversa..."
+              className="w-full pl-10 pr-4 py-2 bg-gray-100 border-none rounded-lg text-sm focus:ring-2 focus:ring-[#00a884]/20 focus:bg-white transition-all outline-none"
+            />
+          </div>
+        </div>
+
+        {/* Conversation List */}
+        <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-200 hover:scrollbar-thumb-gray-300">
           {loadingConversations && conversations.length === 0 ? (
-            <div className="flex justify-center items-center h-40">
-              <Loader2 className="animate-spin text-blue-500" size={30} />
+            <div className="flex flex-col justify-center items-center h-40 gap-3 text-gray-400">
+              <Loader2 className="animate-spin text-[#00a884]" size={32} />
+              <span className="text-sm font-medium">Carregando conversas...</span>
             </div>
           ) : (
-            conversations.map(chat => (
-              <div
-                key={chat.id}
-                onClick={() => setSelectedChat(chat)}
-                className={`p-4 border-b cursor-pointer hover:bg-gray-50 transition-colors ${selectedChat?.id === chat.id ? 'bg-blue-50 border-l-4 border-l-blue-500' : ''
-                  }`}
-              >
-                <div className="flex justify-between mb-1">
-                  <span className="font-semibold text-gray-800">{chat.contact_name || chat.remote_jid}</span>
-                  <span className="text-xs text-gray-500">
-                    {new Date(chat.last_message_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                  </span>
+            <div className="divide-y divide-gray-50">
+              {conversations.map(chat => (
+                <div
+                  key={chat.id}
+                  onClick={() => setSelectedChat(chat)}
+                  className={`group relative p-3 cursor-pointer transition-all duration-200 hover:bg-gray-50 ${selectedChat?.id === chat.id ? 'bg-[#f0f2f5] border-l-4 border-l-[#00a884]' : 'border-l-4 border-l-transparent'
+                    }`}
+                >
+                  <div className="flex items-start gap-3">
+                    {/* Avatar */}
+                    <div className="relative shrink-0">
+                      <div className="w-12 h-12 rounded-full bg-gray-200 flex items-center justify-center text-lg font-semibold text-gray-500 border border-gray-100 overflow-hidden select-none">
+                        {chat.contact_name ? chat.contact_name[0].toUpperCase() : <Smartphone size={20} />}
+                      </div>
+                    </div>
+
+                    {/* Content */}
+                    <div className="flex-1 min-w-0 pt-1">
+                      <div className="flex justify-between items-baseline mb-1">
+                        <span className={`truncate font-medium text-base ${selectedChat?.id === chat.id ? 'text-gray-900' : 'text-gray-800'}`}>
+                          {chat.contact_name || chat.remote_jid}
+                        </span>
+                        <span className={`text-[11px] shrink-0 font-medium ${chat.unread_count > 0 ? 'text-[#00a884]' : 'text-gray-400'}`}>
+                          {new Date(chat.last_message_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                      </div>
+
+                      <div className="flex justify-between items-center gap-2">
+                        <p className={`truncate text-sm ${chat.unread_count > 0 ? 'font-semibold text-gray-800' : 'text-gray-500'}`}>
+                          {chat.last_message || "Nova conversa"}
+                        </p>
+                        {chat.unread_count > 0 && (
+                          <span className="bg-[#25D366] text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[20px] text-center shadow-sm h-5 flex items-center justify-center">
+                            {chat.unread_count}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
                 </div>
-                <div className="flex justify-between">
-                  <p className="text-sm text-gray-600 truncate w-3/4">{chat.last_message}</p>
-                  {chat.unread_count > 0 && (
-                    <span className="bg-green-500 text-white text-xs px-2 py-1 rounded-full">{chat.unread_count}</span>
-                  )}
-                </div>
-              </div>
-            ))
+              ))}
+            </div>
           )}
         </div>
       </div>
 
-      {/* Main Area - Chat */}
-      <div className="flex-1 flex flex-col bg-[#e5ded8]">
+      {/* Main Chat Area */}
+      <div className="flex-1 flex flex-col relative bg-[#EFE7DD]">
+        {/* Background Pattern */}
+        <div className="absolute inset-0 opacity-[0.3] pointer-events-none" style={{
+          backgroundImage: "url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png')",
+          backgroundRepeat: 'repeat'
+        }}></div>
+
         {selectedChat ? (
           <>
-            {/* Chat Header */}
-            <div className="p-4 bg-gray-100 border-b flex items-center justify-between">
+            {/* Header */}
+            <header className="h-16 px-4 bg-[#f0f2f5] border-b border-gray-200 flex items-center justify-between shrink-0 shadow-sm z-20 sticky top-0">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-gray-300 rounded-full flex items-center justify-center">
-                  <span className="text-lg font-bold text-white">
-                    {(selectedChat.contact_name || '?')[0].toUpperCase()}
-                  </span>
+                <button onClick={() => setSelectedChat(null)} className="md:hidden text-gray-500">
+                  <ChevronLeft size={24} />
+                </button>
+                <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center text-gray-600 font-bold border border-gray-300 select-none">
+                  {(selectedChat.contact_name || '?')[0].toUpperCase()}
                 </div>
-                <div>
-                  <h3 className="font-bold text-gray-800">{selectedChat.contact_name}</h3>
-                  <span className="text-xs text-green-600 flex items-center gap-1">
-                    <Smartphone size={12} /> {activeInstance?.name || 'Online'}
+                <div className="flex flex-col">
+                  <h3 className="font-bold text-gray-800 leading-tight">{selectedChat.contact_name || selectedChat.remote_jid}</h3>
+                  <span className="text-xs text-[#00a884] flex items-center gap-1 font-medium">
+                    <span className="w-2 h-2 rounded-full bg-[#00a884] animate-pulse" />
+                    {activeInstance?.name || 'Online'}
                   </span>
                 </div>
               </div>
-              <div className="flex gap-2">
-                {/* Actions like search, info could go here */}
-                <MoreVertical className="text-gray-500 cursor-pointer" />
-              </div>
-            </div>
 
-            {/* Messages */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-4">
+              <div className="flex items-center gap-1">
+                <button className="p-2.5 text-gray-500 hover:bg-gray-200 rounded-full transition-colors">
+                  <Search size={20} />
+                </button>
+                <button className="p-2.5 text-gray-500 hover:bg-gray-200 rounded-full transition-colors">
+                  <MoreVertical size={20} />
+                </button>
+              </div>
+            </header>
+
+            {/* Messages List */}
+            <div className="flex-1 overflow-y-auto px-4 py-4 space-y-2 z-10 scrollbar-thin scrollbar-thumb-gray-300/50 hover:scrollbar-thumb-gray-400/50">
               {loadingMessages && messages.length === 0 ? (
                 <div className="flex justify-center mt-10">
-                  <Loader2 className="animate-spin text-gray-500" />
+                  <div className="bg-white/90 backdrop-blur px-4 py-2 rounded-full shadow-sm flex items-center gap-2 text-gray-500 text-sm border border-gray-100">
+                    <Loader2 className="animate-spin text-[#00a884]" size={16} />
+                    Carregando mensagens...
+                  </div>
                 </div>
               ) : (
-                messages.map(msg => (
-                  <div
-                    key={msg.id}
-                    className={`flex ${msg.sender === 'me' ? 'justify-end' : 'justify-start'}`}
-                  >
-                    <div className={`max-w-[70%] p-3 rounded-lg shadow-sm ${msg.sender === 'me' ? 'bg-[#d9fdd3]' : 'bg-white'
-                      }`}>
-                      {msg.media_url && (
-                        <div className="mb-2">
-                          {msg.media_type === 'image' && <img src={msg.media_url} alt="Media" className="rounded max-h-60" />}
-                          {msg.media_type === 'audio' && <audio src={msg.media_url} controls className="w-60" />}
+                messages.map((msg, idx) => {
+                  const isMe = msg.sender === 'me';
+                  const isContinuous = idx > 0 && messages[idx - 1].sender === msg.sender;
+
+                  return (
+                    <div
+                      key={msg.id}
+                      className={`flex ${isMe ? 'justify-end' : 'justify-start'} ${isContinuous ? 'mt-0.5' : 'mt-2'}`}
+                    >
+                      <div className={`
+                        relative max-w-[85%] md:max-w-[65%] px-3 py-1.5 rounded-lg text-[15px] leading-relaxed shadow-[0_1px_0.5px_rgba(0,0,0,0.13)]
+                        ${isMe
+                          ? 'bg-[#d9fdd3] text-gray-900 rounded-tr-none'
+                          : 'bg-white text-gray-900 rounded-tl-none'
+                        }
+                      `}>
+                        {/* Media */}
+                        {msg.media_url && (
+                          <div className="mb-2 -mx-1 -mt-1">
+                            {msg.media_type === 'image' && (
+                              <div className="relative rounded overflow-hidden bg-black/5">
+                                <img src={msg.media_url} alt="Media" className="max-w-full max-h-[300px] object-contain" />
+                              </div>
+                            )}
+                            {msg.media_type === 'audio' && (
+                              <audio src={msg.media_url} controls className="w-64 max-w-full" />
+                            )}
+                          </div>
+                        )}
+
+                        {/* Text */}
+                        <p className="whitespace-pre-wrap break-words">{msg.text}</p>
+
+                        {/* Status/Time */}
+                        <div className={`
+                           flex items-center justify-end gap-1 mt-0.5 select-none
+                           ${isMe ? 'text-green-900/40' : 'text-gray-400'}
+                        `}>
+                          <span className="text-[10px] font-medium leading-none">
+                            {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          </span>
+                          {isMe && (
+                            <CheckCircle2 size={12} className={msg.status === 'read' ? 'text-[#53bdeb]' : 'text-gray-400'} />
+                          )}
                         </div>
-                      )}
-                      <p className="text-gray-800 whitespace-pre-wrap">{msg.text}</p>
-                      <div className="text-[10px] text-gray-500 text-right mt-1 flex justify-end gap-1 items-center">
-                        {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                        {msg.sender === 'me' && <CheckCircle2 size={12} className={msg.status === 'read' ? 'text-blue-500' : 'text-gray-400'} />}
                       </div>
                     </div>
-                  </div>
-                ))
+                  );
+                })
               )}
-              <div ref={messagesEndRef} />
+              <div ref={messagesEndRef} className="h-2" />
             </div>
 
-            {/* Input */}
-            <form onSubmit={handleSendMessage} className="p-3 bg-gray-100 flex items-center gap-2">
-              <button type="button" className="p-2 text-gray-500 hover:bg-gray-200 rounded-full">
-                <Paperclip size={20} />
-              </button>
-              <input
-                type="text"
-                value={newMessage}
-                onChange={e => setNewMessage(e.target.value)}
-                className="flex-1 p-3 rounded-lg border-none focus:ring-1 focus:ring-green-500 outline-none"
-                placeholder="Digite uma mensagem..."
-              />
-              <button
-                type="submit"
-                disabled={sending || !newMessage.trim()}
-                className={`p-3 rounded-full ${sending ? 'bg-gray-400' : 'bg-green-500 text-white hover:bg-green-600'}`}
-              >
-                {sending ? <Loader2 size={20} className="animate-spin" /> : <Send size={20} />}
-              </button>
-            </form>
+            {/* Input Area */}
+            <footer className="bg-[#f0f2f5] px-4 py-2 border-t border-gray-200 z-20">
+              <form onSubmit={handleSendMessage} className="flex items-end gap-3 max-w-5xl mx-auto w-full">
+                <button type="button" className="p-2 text-gray-500 hover:bg-gray-200 rounded-full transition-colors shrink-0 mb-1">
+                  <Paperclip size={24} />
+                </button>
+
+                <div className="flex-1 bg-white rounded-lg px-4 py-2 border border-white focus-within:border-white shadow-sm flex items-center min-h-[42px]">
+                  <input
+                    type="text"
+                    value={newMessage}
+                    onChange={e => setNewMessage(e.target.value)}
+                    className="flex-1 bg-transparent border-none outline-none text-gray-800 placeholder:text-gray-500 text-[15px] max-h-32"
+                    placeholder="Mensagem"
+                  />
+                  <button type="button" className="text-gray-400 hover:text-gray-600 ml-2">
+                    <Mic size={20} />
+                  </button>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={sending || !newMessage.trim()}
+                  className={`
+                      p-2.5 rounded-full transition-all active:scale-95 shrink-0 flex items-center justify-center mb-1
+                      ${sending || !newMessage.trim()
+                      ? 'text-gray-400'
+                      : 'text-[#00a884]'
+                    }
+                   `}
+                >
+                  {sending ? <Loader2 size={24} className="animate-spin" /> : <Send size={24} />}
+                </button>
+              </form>
+            </footer>
           </>
         ) : (
-          <div className="flex-1 flex flex-col items-center justify-center text-gray-500">
-            <MessageCircle size={64} className="mb-4 text-gray-300" />
-            <p className="text-lg">Selecione uma conversa para começar</p>
+          <div className="flex-1 flex flex-col items-center justify-center bg-[#f0f2f5] border-b-[6px] border-[#25D366] z-10 p-8 text-center relative select-none">
+            {/* Empty State / Welcome Screen */}
+            <div className="max-w-[560px] flex flex-col items-center">
+              <div className="mb-10 opacity-80">
+                <div className="relative">
+                  <div className="absolute inset-0 bg-[#00a884] rounded-full blur-[60px] opacity-20" />
+                  <Smartphone size={100} className="text-gray-300 relative z-10" strokeWidth={1} />
+                </div>
+              </div>
+              <h3 className="text-[32px] font-light text-gray-700 mb-5 tracking-tight">
+                WhatsApp Web
+              </h3>
+              <p className="text-sm text-gray-500 leading-6 max-w-md">
+                Envie e receba mensagens sem precisar manter seu celular conectado. <br />
+                Use o WhatsApp em até 4 aparelhos conectados e 1 celular ao mesmo tempo.
+              </p>
+
+              <div className="mt-12 flex items-center gap-2 text-[13px] text-gray-400 font-medium">
+                <div className="flex items-center gap-1">
+                  <span className="text-[10px]">🔒</span>
+                  Protegido com criptografia de ponta a ponta
+                </div>
+              </div>
+            </div>
           </div>
         )}
       </div>
