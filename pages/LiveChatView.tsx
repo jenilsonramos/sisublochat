@@ -91,14 +91,17 @@ const LiveChatView: React.FC<LiveChatViewProps> = ({ isBlocked = false }) => {
     }
   };
 
-  const fetchConversations = async (silent = false) => {
+  const fetchConversations = async (isBackground = false) => {
     const KEY = 'conversations';
+    // Only abort strict "foreground" loads if we want manual overrides.
+    // For general polling, we replace strictly to avoid leaks.
     if (abortControllers.current[KEY]) abortControllers.current[KEY].abort();
+
     const controller = new AbortController();
     abortControllers.current[KEY] = controller;
 
     try {
-      if (!silent) setLoadingConversations(true);
+      if (!isBackground) setLoadingConversations(true);
 
       const { data, error } = await supabase
         .from('conversations')
@@ -116,20 +119,19 @@ const LiveChatView: React.FC<LiveChatViewProps> = ({ isBlocked = false }) => {
       console.error('Fetch Conversations Error:', error);
     } finally {
       if (abortControllers.current[KEY] === controller) delete abortControllers.current[KEY];
-      if (!silent) setLoadingConversations(false);
+      if (!isBackground) setLoadingConversations(false);
     }
   };
 
-  const fetchMessages = async (chatId: string) => {
+  const fetchMessages = async (chatId: string, isBackground = false) => {
     const KEY = 'messages';
     if (abortControllers.current[KEY]) abortControllers.current[KEY].abort();
+
     const controller = new AbortController();
     abortControllers.current[KEY] = controller;
 
     try {
-      // Only set loading if we don't have messages or it's a fresh load
-      // to avoid flickering on polls
-      if (messages.length === 0) setLoadingMessages(true);
+      if (!isBackground && messages.length === 0) setLoadingMessages(true);
 
       const { data, error } = await supabase
         .from('messages')
@@ -142,16 +144,15 @@ const LiveChatView: React.FC<LiveChatViewProps> = ({ isBlocked = false }) => {
       if (error) throw error;
 
       setMessages(data || []);
-      // Scroll to bottom only if it's a fresh load or we are near bottom
-      // For now simple scroll on first load
-      if (messages.length === 0) setTimeout(scrollToBottom, 100);
+      // Scroll on initial load only
+      if (!isBackground && messages.length === 0) setTimeout(scrollToBottom, 100);
 
     } catch (error: any) {
       if (error.name === 'AbortError' || isAbortError(error)) return;
       console.error('Fetch Messages Error:', error);
     } finally {
       if (abortControllers.current[KEY] === controller) delete abortControllers.current[KEY];
-      setLoadingMessages(false);
+      if (!isBackground) setLoadingMessages(false);
     }
   };
 
@@ -185,8 +186,8 @@ const LiveChatView: React.FC<LiveChatViewProps> = ({ isBlocked = false }) => {
         messageContent
       );
 
-      // Refresh to confirm status (delay for webhook processing)
-      setTimeout(() => fetchMessages(selectedChat.id), 1500);
+      // Update specifically via background fetch to avoid flicker
+      setTimeout(() => fetchMessages(selectedChat.id, true), 1500);
 
     } catch (error) {
       console.error('Send Error:', error);
@@ -199,52 +200,74 @@ const LiveChatView: React.FC<LiveChatViewProps> = ({ isBlocked = false }) => {
 
   // --- Effects ---
 
+  // 1. Initial Load & Conversation Polling (Recursive)
   useEffect(() => {
     fetchInstances();
-    fetchConversations();
+    fetchConversations(); // Initial fetch
+
+    // Recursive Polling for Conversations (every 10s)
+    let timeoutId: NodeJS.Timeout;
+
+    const pollConversations = async () => {
+      // Only poll if tab is visible to avoid backlog
+      if (!document.hidden) {
+        await fetchConversations(true); // Background fetch
+      }
+      // Schedule next poll ONLY after current one finishes
+      timeoutId = setTimeout(pollConversations, 10000);
+    };
+
+    timeoutId = setTimeout(pollConversations, 10000);
+
     return () => {
+      clearTimeout(timeoutId);
       Object.values(abortControllers.current).forEach((c: any) => c.abort());
     };
   }, []);
 
+  // 2. Chat Selection & Message Polling (Recursive)
   useEffect(() => {
-    let pollInterval: NodeJS.Timeout;
+    let timeoutId: NodeJS.Timeout;
+
+    const pollMessages = async () => {
+      if (selectedChat && !document.hidden) {
+        await fetchMessages(selectedChat.id, true); // Background fetch
+      }
+      // Recursive: Wait for fetch to finish before scheduling next
+      timeoutId = setTimeout(pollMessages, 3000);
+    };
 
     if (selectedChat) {
-      fetchMessages(selectedChat.id);
-
-      // Fast Polling (3s)
-      pollInterval = setInterval(() => {
-        if (!document.hidden) {
-          fetchMessages(selectedChat.id);
-        }
-      }, 3000);
+      fetchMessages(selectedChat.id); // Initial load
+      timeoutId = setTimeout(pollMessages, 3000);
     } else {
       setMessages([]);
     }
 
     return () => {
-      if (pollInterval) clearInterval(pollInterval);
+      clearTimeout(timeoutId);
     };
   }, [selectedChat?.id]);
 
+  // 3. Tab Visibility Recovery
   useEffect(() => {
     const handleVisibilityChange = () => {
       if (document.hidden) {
-        console.log('Tab hidden: Aborting all requests');
+        console.log('Tab hidden: Pausing...');
+        // We abort everything to be safe and save resources
         Object.values(abortControllers.current).forEach((c: any) => c.abort());
         abortControllers.current = {};
       } else {
-        console.log('Tab visible: Restarting requests');
+        console.log('Tab visible: Resuming...');
         fetchConversations(true);
-        if (selectedChat) fetchMessages(selectedChat.id);
+        if (selectedChat) fetchMessages(selectedChat.id, true);
       }
     };
     document.addEventListener('visibilitychange', handleVisibilityChange);
     return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
   }, [selectedChat]);
 
-  // --- Render ---
+  // --- Render (Beautiful UI) ---
 
   return (
     <div className="flex h-screen bg-gray-100 overflow-hidden font-sans">
