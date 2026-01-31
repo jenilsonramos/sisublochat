@@ -467,8 +467,8 @@ const AppContent: React.FC = () => {
         </div>
 
         {/* Main Viewport */}
-        <main className={`flex-1 min-h-0 w-full max-w-[1600px] mx-auto px-4 md:px-6 lg:px-8 overflow-hidden`}>
-          <div className={`h-full w-full ${isFullView ? 'flex flex-col' : 'overflow-y-auto custom-scrollbar pb-10'}`}>
+        <main className={`flex-1 min-h-0 w-full max-w-[1600px] mx-auto px-4 md:px-6 lg:px-8 ${isFullView ? 'pb-8' : ''}`}>
+          <div className={`h-full w-full ${isFullView ? 'flex flex-col' : 'overflow-y-auto custom-scrollbar pb-10 overflow-hidden'}`}>
             {renderContent()}
           </div>
         </main>

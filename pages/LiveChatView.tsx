@@ -268,6 +268,11 @@ const LiveChatView: React.FC<LiveChatViewProps> = ({ isBlocked = false }) => {
     fetchInstances();
     fetchConversations();
 
+    // Polling as a fallback for Conversations
+    const t = setInterval(() => {
+      if (!document.hidden) fetchConversations(true);
+    }, 10000);
+
     // Realtime for Conversations
     const convChannel = supabase
       .channel('conversations_realtime')
@@ -281,6 +286,7 @@ const LiveChatView: React.FC<LiveChatViewProps> = ({ isBlocked = false }) => {
       .subscribe();
 
     return () => {
+      clearInterval(t);
       convChannel.unsubscribe();
       Object.values(abortControllers.current).forEach((c: any) => c.abort());
     };
@@ -288,6 +294,7 @@ const LiveChatView: React.FC<LiveChatViewProps> = ({ isBlocked = false }) => {
 
   useEffect(() => {
     let msgChannel: any;
+    let pollInterval: NodeJS.Timeout;
 
     if (selectedChat) {
       setPendingMessages([]);
@@ -295,6 +302,11 @@ const LiveChatView: React.FC<LiveChatViewProps> = ({ isBlocked = false }) => {
         setTimeout(scrollToBottom, 300);
       });
       markAsRead(selectedChat.id);
+
+      // Polling as a fallback for Messages
+      pollInterval = setInterval(() => {
+        if (!document.hidden) fetchMessages(selectedChat.id, true);
+      }, 5000);
 
       // Realtime for Messages
       msgChannel = supabase
@@ -322,6 +334,7 @@ const LiveChatView: React.FC<LiveChatViewProps> = ({ isBlocked = false }) => {
 
     return () => {
       if (msgChannel) msgChannel.unsubscribe();
+      if (pollInterval) clearInterval(pollInterval);
     };
   }, [selectedChat?.id]);
 
@@ -343,7 +356,7 @@ const LiveChatView: React.FC<LiveChatViewProps> = ({ isBlocked = false }) => {
   // --- Render (Refined Dashboard UI) ---
 
   return (
-    <div className="flex h-full w-full bg-white rounded-[32px] overflow-hidden border border-gray-100 shadow-[0_30px_60px_-15px_rgba(0,0,0,0.1)] transition-all duration-500 font-sans text-slate-800">
+    <div className="flex h-full w-full bg-white rounded-[2.5rem] overflow-hidden border border-gray-100 shadow-[0_30px_60px_-15px_rgba(0,0,0,0.12)] transition-all duration-500 font-sans text-slate-800">
 
       {/* 1. Sidebar - Chat List */}
       <div className="w-[340px] bg-white flex flex-col shrink-0 relative z-10 border-r border-gray-50">
