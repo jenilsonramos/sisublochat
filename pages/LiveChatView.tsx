@@ -159,6 +159,7 @@ const LiveChatView: React.FC<LiveChatViewProps> = ({ isBlocked = false }) => {
 
   const isFetchingDetailsRef = useRef(false);
   const isFetchingMessagesRef = useRef(false);
+  const abortControllersRef = useRef<{ [key: string]: AbortController }>({});
 
   // FAILSAFE: Safety Watchdog for stuck loading states (User Request)
   useEffect(() => {
@@ -218,6 +219,12 @@ const LiveChatView: React.FC<LiveChatViewProps> = ({ isBlocked = false }) => {
   // 2. Recovery on Visibility Change (Tab Switch / Hibernation)
   useEffect(() => {
     const handleVisibilityChange = async () => {
+      if (document.visibilityState === 'hidden') {
+        console.log('DEBUG: Tab hidden. Aborting active requests...');
+        Object.values(abortControllersRef.current).forEach((c: any) => c.abort());
+        abortControllersRef.current = {};
+      }
+
       if (document.visibilityState === 'visible') {
         console.log('DEBUG: Tab active. Executing "Definitive" recovery...');
 
@@ -250,13 +257,18 @@ const LiveChatView: React.FC<LiveChatViewProps> = ({ isBlocked = false }) => {
   const isFetchingInstancesRef = useRef(false);
   const fetchInstances = async () => {
     if (isFetchingInstancesRef.current) return;
+
+    const controller = new AbortController();
+    abortControllersRef.current['instances'] = controller;
+    const timeoutId = setTimeout(() => controller.abort(), 10000);
+
     try {
       isFetchingInstancesRef.current = true;
-      // Fetch from Supabase instead of Evolution API to get the ID mapping
-      // Fetch from Supabase instead of Evolution API to get the ID mapping
-      const { data: dbInstances, error } = await promiseWithTimeout<any>(supabase
+
+      const { data: dbInstances, error } = await supabase
         .from('instances')
-        .select('*') as any, 10000, 'Timeout ao buscar instâncias');
+        .select('*')
+        .abortSignal(controller.signal);
 
       if (error) {
         if (isAbortError(error)) return;
@@ -289,6 +301,8 @@ const LiveChatView: React.FC<LiveChatViewProps> = ({ isBlocked = false }) => {
       if (isAbortError(error)) return;
       console.error('Instances Error:', error);
     } finally {
+      clearTimeout(timeoutId);
+      delete abortControllersRef.current['instances'];
       isFetchingInstancesRef.current = false;
     }
   };
@@ -301,16 +315,22 @@ const LiveChatView: React.FC<LiveChatViewProps> = ({ isBlocked = false }) => {
   const isFetchingConversationsRef = useRef(false);
   const fetchConversations = async (silent = false) => {
     if (isFetchingConversationsRef.current) return;
+
+    const controller = new AbortController();
+    abortControllersRef.current['conversations'] = controller;
+    const timeoutId = setTimeout(() => controller.abort(), 10000);
+
     try {
       isFetchingConversationsRef.current = true;
       if (!silent) setLoadingChats(true);
 
       console.log('DEBUG: Fetching conversations...');
-      const { data, error } = await promiseWithTimeout<any>(supabase
+      const { data, error } = await supabase
         .from('conversations')
         .select('*')
         .order('last_message_time', { ascending: false })
-        .limit(50) as any, 10000, 'Timeout ao buscar conversas');
+        .limit(50)
+        .abortSignal(controller.signal);
 
       if (error) {
         if (isAbortError(error)) return;
@@ -332,6 +352,8 @@ const LiveChatView: React.FC<LiveChatViewProps> = ({ isBlocked = false }) => {
       if (isAbortError(error)) return;
       console.error('Chats Error:', error);
     } finally {
+      clearTimeout(timeoutId);
+      delete abortControllersRef.current['conversations'];
       if (!silent) setLoadingChats(false);
       isFetchingConversationsRef.current = false;
     }
@@ -426,14 +448,20 @@ const LiveChatView: React.FC<LiveChatViewProps> = ({ isBlocked = false }) => {
 
   const fetchContactDetails = async (remoteJid: string) => {
     if (isFetchingDetailsRef.current) return;
+
+    const controller = new AbortController();
+    abortControllersRef.current['details'] = controller;
+    const timeoutId = setTimeout(() => controller.abort(), 10000);
+
     try {
       isFetchingDetailsRef.current = true;
       setLoadingDetails(true);
-      const { data, error } = await promiseWithTimeout<any>(supabase
+      const { data, error } = await supabase
         .from('contacts')
         .select('id, tags, notes')
         .eq('remote_jid', remoteJid)
-        .maybeSingle() as any, 10000);
+        .maybeSingle()
+        .abortSignal(controller.signal);
 
       if (error) {
         if (isAbortError(error)) return;
@@ -454,6 +482,8 @@ const LiveChatView: React.FC<LiveChatViewProps> = ({ isBlocked = false }) => {
       if (isAbortError(error)) return;
       console.error('Error fetching contact details:', error);
     } finally {
+      clearTimeout(timeoutId);
+      delete abortControllersRef.current['details'];
       isFetchingDetailsRef.current = false;
       setLoadingDetails(false);
     }
@@ -718,15 +748,21 @@ const LiveChatView: React.FC<LiveChatViewProps> = ({ isBlocked = false }) => {
 
   const fetchMessages = async (convId: string, silent = false) => {
     if (isFetchingMessagesRef.current) return;
+
+    const controller = new AbortController();
+    abortControllersRef.current['messages'] = controller;
+    const timeoutId = setTimeout(() => controller.abort(), 10000);
+
     try {
       isFetchingMessagesRef.current = true;
       if (!silent) setLoadingMessages(true);
 
-      const { data, error } = await promiseWithTimeout<any>(supabase
+      const { data, error } = await supabase
         .from('messages')
         .select('*')
         .eq('conversation_id', convId)
-        .order('timestamp', { ascending: true }) as any, 10000);
+        .order('timestamp', { ascending: true })
+        .abortSignal(controller.signal);
 
       if (error) {
         if (isAbortError(error)) return;
@@ -750,6 +786,8 @@ const LiveChatView: React.FC<LiveChatViewProps> = ({ isBlocked = false }) => {
       if (isAbortError(error)) return;
       console.error('Messages Error:', error);
     } finally {
+      clearTimeout(timeoutId);
+      delete abortControllersRef.current['messages'];
       isFetchingMessagesRef.current = false;
       if (!silent) setLoadingMessages(false);
     }
