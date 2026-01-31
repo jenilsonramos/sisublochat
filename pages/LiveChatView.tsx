@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useToast } from '../components/ToastProvider';
 import ConfirmationModal from '../components/ConfirmationModal';
 import { evolutionApi, EvolutionInstance } from '../lib/evolution';
-import { supabase } from '../lib/supabase';
+import { supabase, isAbortError } from '../lib/supabase';
 import { Loader2, Send, Search, Info, X, Smartphone, MessageCircle, Volume2, VolumeX, Settings, Paperclip, ImageIcon, FileText, Mic, Square, Trash2, ChevronLeft, ChevronRight, Smile, AlertCircle, Reply, Video, Download, UserCog, CheckCircle2, Tag, Plus, StickyNote, Save, Maximize2, Minimize2, RefreshCw } from 'lucide-react';
 import EmojiPicker, { Theme } from 'emoji-picker-react';
 import { formatMessage } from '../lib/chatUtils';
@@ -224,7 +224,7 @@ const LiveChatView: React.FC<LiveChatViewProps> = ({ isBlocked = false }) => {
         .select('*');
 
       if (error) {
-        if (error.message?.includes('aborted')) return;
+        if (isAbortError(error)) return;
         throw error;
       };
 
@@ -251,7 +251,7 @@ const LiveChatView: React.FC<LiveChatViewProps> = ({ isBlocked = false }) => {
       const firstConnected = enrichedInstances.find(i => i.connectionStatus === 'open' || i.status === 'open');
       if (firstConnected) setActiveInstance(firstConnected);
     } catch (error: any) {
-      if (error.message?.includes('aborted')) return;
+      if (isAbortError(error)) return;
       console.error('Instances Error:', error);
     } finally {
       isFetchingInstancesRef.current = false;
@@ -278,8 +278,7 @@ const LiveChatView: React.FC<LiveChatViewProps> = ({ isBlocked = false }) => {
         .limit(50);
 
       if (error) {
-        // Suppress AbortError logs as they are usually intentional/system-level
-        if (error.message?.includes('aborted')) return;
+        if (isAbortError(error)) return;
         throw error;
       }
 
@@ -295,7 +294,7 @@ const LiveChatView: React.FC<LiveChatViewProps> = ({ isBlocked = false }) => {
 
       setConversations(data || []);
     } catch (error: any) {
-      if (error.message?.includes('aborted')) return;
+      if (isAbortError(error)) return;
       console.error('Chats Error:', error);
     } finally {
       if (!silent) setLoadingChats(false);
@@ -402,7 +401,7 @@ const LiveChatView: React.FC<LiveChatViewProps> = ({ isBlocked = false }) => {
         .maybeSingle();
 
       if (error) {
-        if (error.message?.includes('aborted')) return;
+        if (isAbortError(error)) return;
         throw error;
       }
 
@@ -417,7 +416,7 @@ const LiveChatView: React.FC<LiveChatViewProps> = ({ isBlocked = false }) => {
         setContactDetails({ id: '', tags: [], notes: '' });
       }
     } catch (error: any) {
-      if (error.message?.includes('aborted')) return;
+      if (isAbortError(error)) return;
       console.error('Error fetching contact details:', error);
     } finally {
       isFetchingDetailsRef.current = false;
@@ -695,7 +694,7 @@ const LiveChatView: React.FC<LiveChatViewProps> = ({ isBlocked = false }) => {
         .order('timestamp', { ascending: true });
 
       if (error) {
-        if (error.message?.includes('aborted')) return;
+        if (isAbortError(error)) return;
         throw error;
       };
 
@@ -713,7 +712,7 @@ const LiveChatView: React.FC<LiveChatViewProps> = ({ isBlocked = false }) => {
         }
       }
     } catch (error: any) {
-      if (error.message?.includes('aborted')) return;
+      if (isAbortError(error)) return;
       console.error('Messages Error:', error);
     } finally {
       isFetchingMessagesRef.current = false;

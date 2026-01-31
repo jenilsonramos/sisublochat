@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { supabase } from '../lib/supabase';
+import { supabase, isAbortError } from '../lib/supabase';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, Cell } from 'recharts';
 import { Loader2, MessageSquare, Send, Timer, LayoutDashboard, MoreHorizontal, ChevronDown, Users, Bot } from 'lucide-react';
 
@@ -67,6 +67,7 @@ const DashboardView: React.FC = () => {
       const { data, error } = await supabase.rpc('get_dashboard_stats');
 
       if (error) {
+        if (isAbortError(error)) return;
         console.error('RPC Error:', error);
         throw error;
       };
@@ -87,6 +88,7 @@ const DashboardView: React.FC = () => {
       }
 
     } catch (error) {
+      if (isAbortError(error)) return;
       console.error('Error fetching dashboard data:', error);
     } finally {
       setLoading(false);

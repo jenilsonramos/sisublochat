@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { evolutionApi, EvolutionInstance } from '../lib/evolution';
-import { supabase } from '../lib/supabase';
+import { supabase, isAbortError } from '../lib/supabase';
 import { useToast } from '../components/ToastProvider';
 import { Loader2, Plus, Smartphone, WifiOff, Battery, Trash2, QrCode, RefreshCw, Key, Copy, Check, Eye, EyeOff, AlertCircle, Webhook, Pencil } from 'lucide-react';
 import { usePlanLimits } from '../hooks/usePlanLimits';
@@ -203,7 +203,7 @@ const InstancesView: React.FC<InstancesViewProps> = ({ isBlocked = false }) => {
       }
 
     } catch (err: any) {
-      if (err.message?.includes('aborted')) return;
+      if (isAbortError(err)) return;
       console.error('Instances Error:', err);
       showToast(err.message || 'Erro ao carregar instâncias', 'error');
     } finally {
